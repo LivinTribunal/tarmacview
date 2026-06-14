@@ -7,12 +7,33 @@ AIRCRAFT_SN = "1ZNBJ7R0010078"
 
 STATUS_TOPIC = f"sys/product/{GATEWAY_SN}/status"
 REQUESTS_TOPIC = f"thing/product/{GATEWAY_SN}/requests"
+EVENTS_TOPIC = f"thing/product/{AIRCRAFT_SN}/events"
 
 
 def make_envelope(method: str, data: dict, tid: str = "tid-1", bid: str = "bid-1") -> bytes:
     """request envelope bytes as a device publishes them."""
     return json.dumps(
         {"tid": tid, "bid": bid, "timestamp": 1733700000000, "method": method, "data": data}
+    ).encode()
+
+
+def make_event(
+    method: str,
+    data: dict | None = None,
+    need_reply: int = 1,
+    tid: str = "tid-1",
+    bid: str = "bid-1",
+) -> bytes:
+    """events envelope bytes; need_reply gates whether the device expects an ack."""
+    return json.dumps(
+        {
+            "tid": tid,
+            "bid": bid,
+            "timestamp": 1733700000000,
+            "method": method,
+            "need_reply": need_reply,
+            "data": data or {},
+        }
     ).encode()
 
 

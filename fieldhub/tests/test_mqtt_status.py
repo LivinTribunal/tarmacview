@@ -2,13 +2,15 @@
 
 from app.models.device import OnlineTracker
 from app.services import device_registry
-from app.services.mqtt_listener import handle_message
+from app.services.mqtt_listener import MqttListener, handle_message
 from tests.data.mqtt_messages import (
     AIRCRAFT_SN,
+    EVENTS_TOPIC,
     GATEWAY_SN,
     REQUESTS_TOPIC,
     STATUS_TOPIC,
     make_envelope,
+    make_event,
     make_topo,
 )
 
@@ -168,3 +170,74 @@ def test_organization_bind_binds_devices(db_session):
     _, payload = replies[0]
     assert payload["data"]["output"]["err_infos"] == [{"sn": GATEWAY_SN, "err_code": 0}]
     assert device_registry.get_device(db_session, GATEWAY_SN).is_bound
+
+
+def test_event_requiring_reply_is_acked(db_session):
+    """an event with need_reply=1 gets an ack-only reply on events_reply."""
+    replies = handle_message(db_session, EVENTS_TOPIC, make_event("hms", {"list": []}))
+
+    assert len(replies) == 1
+    topic, payload = replies[0]
+    assert topic == f"thing/product/{AIRCRAFT_SN}/events_reply"
+    assert payload["tid"] == "tid-1"
+    assert payload["bid"] == "bid-1"
+    assert payload["method"] == "hms"
+    assert payload["data"] == {"result": 0}
+
+
+def test_event_without_need_reply_is_ignored(db_session):
+    """events that don't request an ack produce no reply - need_reply 0 or absent."""
+    assert handle_message(db_session, EVENTS_TOPIC, make_event("hms", need_reply=0)) == []
+    # an envelope with no need_reply field at all is fire-and-forget too
+    assert handle_message(db_session, EVENTS_TOPIC, make_envelope("hms", {})) == []
+
+
+# fake aiomqtt client - records subscribes/publishes, replays a fixed message set
+class _FakeMessage:
+    """stand-in for an aiomqtt message carrying a topic and raw payload."""
+
+    def __init__(self, topic: str, payload: bytes):
+        """hold the topic and payload the consumer reads."""
+        self.topic = topic
+        self.payload = payload
+
+
+class _FakeClient:
+    """records subscribe/publish calls and replays a fixed inbound message set."""
+
+    def __init__(self, messages: list[_FakeMessage]):
+        """seed the inbound queue and start with empty call logs."""
+        self._messages = messages
+        self.subscriptions: list[str] = []
+        self.published: list[tuple[str, str, int]] = []
+
+    async def subscribe(self, topic: str) -> None:
+        """record a subscription."""
+        self.subscriptions.append(topic)
+
+    async def publish(self, topic: str, payload: str, qos: int = 0) -> None:
+        """record a publish with the qos it was sent at."""
+        self.published.append((topic, payload, qos))
+
+    @property
+    def messages(self):
+        """async iterator yielding the seeded inbound messages once."""
+        return self._iter()
+
+    async def _iter(self):
+        """drain the seeded messages, then stop so _consume returns."""
+        for message in self._messages:
+            yield message
+
+
+async def test_consume_publishes_acks_at_qos_1():
+    """the consume loop subscribes to events and publishes replies at qos 1."""
+    client = _FakeClient([_FakeMessage(STATUS_TOPIC, make_envelope("update_topo", make_topo()))])
+    await MqttListener()._consume(client)
+
+    assert "thing/product/+/events" in client.subscriptions
+
+    assert len(client.published) == 1
+    topic, _, qos = client.published[0]
+    assert topic == f"sys/product/{GATEWAY_SN}/status_reply"
+    assert qos == 1

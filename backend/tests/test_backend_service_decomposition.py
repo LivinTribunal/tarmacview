@@ -182,6 +182,7 @@ def test_missions_router_surface_and_order_preserved():
         ("GET", "/api/v1/missions", "list_missions"),
         ("POST", "/api/v1/missions", "create_mission"),
         ("GET", "/api/v1/missions/{mission_id}", "get_mission"),
+        ("GET", "/api/v1/missions/{mission_id}/drone-media", "list_mission_drone_media"),
         ("PUT", "/api/v1/missions/{mission_id}", "update_mission"),
         ("DELETE", "/api/v1/missions/{mission_id}", "delete_mission"),
         ("POST", "/api/v1/missions/{mission_id}/duplicate", "duplicate_mission"),

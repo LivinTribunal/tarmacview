@@ -148,3 +148,56 @@ def test_confirm_lights_starts_processing(
     assert r.status_code == 200, r.text
     assert r.json()["status"] == MeasurementStatus.PROCESSING.value
     assert len(_stub_enqueue["processing"]) == 1
+
+
+def test_to_response_maps_full_aggregate():
+    """service to_response renders every field of a populated aggregate (layering-move guard)."""
+    from datetime import datetime, timezone
+
+    from app.domain.measurement.entities import LightBox, LightSummary, Measurement, ReferencePoint
+
+    insp_id, lha_id = uuid4(), uuid4()
+    m = Measurement(
+        inspection_id=insp_id,
+        status=MeasurementStatus.DONE,
+        runway_heading=187.0,
+        reference_points=[
+            ReferencePoint(
+                light_name="PAPI_A",
+                latitude=48.1,
+                longitude=17.2,
+                elevation=133.0,
+                lha_id=lha_id,
+                unit_designator="A",
+                setting_angle=3.0,
+                tolerance=0.17,
+            )
+        ],
+        light_boxes=[LightBox(light_name="PAPI_A", x=10.0, y=50.0, size=8.0)],
+        summaries=[
+            LightSummary(
+                light_name="PAPI_A",
+                setting_angle=3.0,
+                tolerance=0.17,
+                measured_transition_angle=3.05,
+                passed=True,
+            )
+        ],
+        object_key="measurements/x/results.json.gz",
+        first_frame_object_key="measurements/x/first_frame.jpg",
+        created_at=datetime(2026, 6, 14, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 6, 14, tzinfo=timezone.utc),
+    )
+
+    resp = measurement_service.to_response(m)
+    assert resp.id == m.id
+    assert resp.inspection_id == insp_id
+    assert resp.status == "DONE"
+    assert resp.runway_heading == 187.0
+    assert resp.reference_points[0].lha_id == lha_id
+    assert resp.reference_points[0].setting_angle == 3.0
+    assert resp.light_boxes[0].light_name == "PAPI_A"
+    assert resp.summaries[0].passed is True
+    assert resp.summaries[0].measured_transition_angle == 3.05
+    assert resp.object_key.endswith("results.json.gz")
+    assert resp.first_frame_object_key.endswith("first_frame.jpg")

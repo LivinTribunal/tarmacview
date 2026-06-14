@@ -30,6 +30,14 @@ from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRep
 from app.models.agl import LHA
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
+from app.schemas.measurement import (
+    LightBox as LightBoxSchema,
+)
+from app.schemas.measurement import (
+    LightSummaryResponse,
+    MeasurementResponse,
+    ReferencePointResponse,
+)
 from app.services import object_storage
 
 logger = logging.getLogger(__name__)
@@ -107,6 +115,58 @@ def _inspection_media_keys(db: Session, inspection_id: UUID) -> list[str]:
     return [row.object_key for row in rows]
 
 
+# domain <-> wire mapping (keeps the route purely HTTP - no app.domain import)
+
+
+def light_boxes_to_schema(boxes: list[LightBox]) -> list[LightBoxSchema]:
+    """map domain light boxes to their wire form (response + preview share this)."""
+    return [LightBoxSchema(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in boxes]
+
+
+def to_response(m: Measurement) -> MeasurementResponse:
+    """map the domain aggregate to the wire response."""
+    return MeasurementResponse(
+        id=m.id,
+        inspection_id=m.inspection_id,
+        status=m.status.value,
+        runway_heading=m.runway_heading,
+        reference_points=[
+            ReferencePointResponse(
+                light_name=rp.light_name,
+                latitude=rp.latitude,
+                longitude=rp.longitude,
+                elevation=rp.elevation,
+                lha_id=rp.lha_id,
+                unit_designator=rp.unit_designator,
+                setting_angle=rp.setting_angle,
+                tolerance=rp.tolerance,
+            )
+            for rp in m.reference_points
+        ],
+        light_boxes=light_boxes_to_schema(m.light_boxes),
+        summaries=[
+            LightSummaryResponse(
+                light_name=s.light_name,
+                setting_angle=s.setting_angle,
+                tolerance=s.tolerance,
+                measured_transition_angle=s.measured_transition_angle,
+                passed=s.passed,
+            )
+            for s in m.summaries
+        ],
+        object_key=m.object_key,
+        first_frame_object_key=m.first_frame_object_key,
+        error_message=m.error_message,
+        created_at=m.created_at,
+        updated_at=m.updated_at,
+    )
+
+
+def _boxes_from_request(boxes: list[LightBoxSchema]) -> list[LightBox]:
+    """build domain light boxes from the operator's confirm-lights request."""
+    return [LightBox(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in boxes]
+
+
 # route-facing entrypoints (flush only; the route commits)
 
 
@@ -161,11 +221,12 @@ def get_preview(db: Session, measurement_id: UUID) -> tuple[Measurement, str | N
     return measurement, url
 
 
-def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBox]) -> Measurement:
+def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBoxSchema]) -> Measurement:
     """persist confirmed boxes and move to PROCESSING ahead of the full engine run.
 
-    409 unless the run is AWAITING_CONFIRM. the route enqueues the processing task
-    and commits.
+    takes the wire boxes off the request and builds the domain boxes here so the route
+    never touches app.domain. 409 unless the run is AWAITING_CONFIRM. the route enqueues
+    the processing task and commits.
     """
     measurement = get_measurement(db, measurement_id)
     if measurement.status != MeasurementStatus.AWAITING_CONFIRM:
@@ -173,7 +234,7 @@ def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBox]) -> 
             f"measurement is not awaiting confirmation (status {measurement.status.value})",
             status_code=409,
         )
-    measurement.confirm_boxes(boxes)
+    measurement.confirm_boxes(_boxes_from_request(boxes))
     measurement.transition_to(MeasurementStatus.PROCESSING)
     return _repo(db).save(measurement)
 
@@ -309,15 +370,32 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
         return _mark_failed(db, measurement_id, f"first-frame extraction failed: {exc}")
 
 
+def _json_default(obj):
+    """json encoder hook: coerce the engine's numpy scalars/arrays to native types.
+
+    duck-typed on ``.tolist()`` so the service stays numpy-import-free; a numpy scalar
+    in measurements_data would otherwise crash json.dumps and route the run to ERROR.
+    anything without a numpy-style coercion re-raises so a real serialization bug surfaces.
+    """
+    to_list = getattr(obj, "tolist", None)
+    if callable(to_list):
+        return to_list()
+    raise TypeError(f"object of type {type(obj).__name__} is not json serializable")
+
+
 def _measured_transition_angles(measurements_data: list[dict]) -> dict[str, float | None]:
-    """pull the last non-null per-light transition middle angle out of pass-1 data."""
+    """pull the last non-null per-light transition middle angle out of pass-1 data.
+
+    coerces to plain float at this boundary: the engine may emit numpy scalars, which
+    psycopg can't write to the summaries jsonb column.
+    """
     measured: dict[str, float | None] = {}
     for name in PAPI_LIGHT_NAMES:
         key = f"{name.lower()}_transition_angle_middle"
         value: float | None = None
         for frame in measurements_data:
             if frame.get(key) is not None:
-                value = frame[key]
+                value = float(frame[key])
         measured[name] = value
     return measured
 
@@ -374,7 +452,7 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
             object_key = f"{_MEASUREMENT_PREFIX}/{measurement.id}/results.json.gz"
             object_storage.put_object(
                 object_key,
-                gzip.compress(json.dumps(measurements_data).encode("utf-8")),
+                gzip.compress(json.dumps(measurements_data, default=_json_default).encode("utf-8")),
                 content_type="application/gzip",
             )
 

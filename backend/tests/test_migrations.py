@@ -20,6 +20,11 @@ EXPECTED_COLUMNS = {
     "capture_position",
     "device_sn",
     "mission_id",
+    "inspection_id",
+    "order_index",
+    "origin",
+    "filename",
+    "size_bytes",
     "status",
     "raw_callback",
     "received_at",
@@ -73,8 +78,14 @@ def test_upgrade_head_creates_drone_media_file(alembic_env):
     engine = create_engine(url)
     try:
         inspector = inspect(engine)
-        uniques = inspector.get_unique_constraints("drone_media_file")
-        assert any(c["column_names"] == ["fingerprint"] for c in uniques)
+        index_list = inspector.get_indexes("drone_media_file")
+        # fingerprint uniqueness is a partial unique index, not a table
+        # constraint, so manual null-fingerprint rows can coexist
+        fingerprint_uq = next(
+            i for i in index_list if i["name"] == "uq_drone_media_file_fingerprint"
+        )
+        assert fingerprint_uq["unique"] is True
+        assert fingerprint_uq["column_names"] == ["fingerprint"]
 
         checks = inspector.get_check_constraints("drone_media_file")
         assert any(c["name"] == "ck_drone_media_file_status" for c in checks)
@@ -83,7 +94,7 @@ def test_upgrade_head_creates_drone_media_file(alembic_env):
         mission_fk = next(fk for fk in fks if fk["referred_table"] == "mission")
         assert mission_fk["options"].get("ondelete") == "SET NULL"
 
-        indexes = {i["name"] for i in inspector.get_indexes("drone_media_file")}
+        indexes = {i["name"] for i in index_list}
         assert {"ix_drone_media_file_mission_id", "ix_drone_media_file_device_sn"} <= indexes
     finally:
         engine.dispose()

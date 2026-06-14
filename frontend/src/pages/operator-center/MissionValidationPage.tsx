@@ -147,7 +147,7 @@ export default function MissionValidationPage() {
       <UploadDroneMediaDialog
         isOpen={isMediaDialogOpen}
         onClose={() => setIsMediaDialogOpen(false)}
-        airportId={mission.airport_id}
+        missionId={mission.id}
       />
 
       {leftPanelEl &&

@@ -10,6 +10,7 @@ from app.utils.geo import bearing_between, linestring_length, point_at_distance
 from ..config_resolver import _resolve_measurement_speed
 from ..helpers import get_surface_centerline_points
 from ..types import (
+    DEFAULT_SURFACE_SCAN_FRONTLAP_PERCENT,
     DEFAULT_SURFACE_SCAN_GIMBAL,
     DEFAULT_SURFACE_SCAN_HEIGHT,
     DEFAULT_SURFACE_SCAN_SIDELAP_PERCENT,
@@ -40,6 +41,7 @@ class ScanPlan:
     run_length: Meters
     n_runs: int
     footprint: Meters | None
+    along_spacing: Meters | None
     optimal_runs: int | None
     scan_height: Meters
     gimbal: Degrees
@@ -157,6 +159,11 @@ def plan_surface_scan(surface, config: ResolvedConfig, sensor_fov: Degrees | Non
         if config.scan_sidelap_percent is not None
         else DEFAULT_SURFACE_SCAN_SIDELAP_PERCENT
     )
+    frontlap = (
+        config.scan_frontlap_percent
+        if config.scan_frontlap_percent is not None
+        else DEFAULT_SURFACE_SCAN_FRONTLAP_PERCENT
+    )
 
     points, axis = _resolve_axis(surface)
     origin = points[0]
@@ -178,11 +185,19 @@ def plan_surface_scan(surface, config: ResolvedConfig, sensor_fov: Degrees | Non
 
     footprint = compute_scan_footprint(scan_height, gimbal, sensor_fov)
     optimal = None
+    # along-track sample spacing: frontlap shrinks the footprint forward step
+    # (0% reproduces the original footprint-spacing tiling). guard the
+    # divide-down at high frontlap, mirroring the sidelap effective-step clamp.
+    along_spacing = None
     if footprint and footprint > 0:
         effective = footprint * (1.0 - sidelap / 100.0)
         if effective <= 0:
             effective = footprint
         optimal = max(1, math.ceil(step_span / effective)) if step_span > 0 else 1
+
+        along_spacing = footprint * (1.0 - frontlap / 100.0)
+        if along_spacing <= 0:
+            along_spacing = footprint
 
     override = config.scan_run_count
     if override is not None and override >= 1:
@@ -209,6 +224,7 @@ def plan_surface_scan(surface, config: ResolvedConfig, sensor_fov: Degrees | Non
         run_length=run_length,
         n_runs=n_runs,
         footprint=footprint,
+        along_spacing=along_spacing,
         optimal_runs=optimal,
         scan_height=scan_height,
         gimbal=gimbal,
@@ -221,16 +237,17 @@ def scan_path_distance(plan: ScanPlan) -> Meters:
     return plan.n_runs * plan.run_length + max(0, plan.n_runs - 1) * spacing
 
 
-def _samples_along(a: Meters, b: Meters, footprint: Meters | None, is_video: bool) -> list[Meters]:
+def _samples_along(a: Meters, b: Meters, spacing: Meters | None, is_video: bool) -> list[Meters]:
     """ordered sample distances along a run, a -> b.
 
-    video keeps just the run endpoints; photo tiles capture points by footprint
-    forward spacing (falling back to endpoints when the footprint is unknown).
+    video keeps just the run endpoints; photo tiles capture points by the
+    along-track spacing (footprint reduced by frontlap; falling back to
+    endpoints when the spacing is unknown).
     """
-    if is_video or not footprint or footprint <= 0:
+    if is_video or not spacing or spacing <= 0:
         return [a, b]
     span = abs(b - a)
-    steps = max(1, math.ceil(span / footprint))
+    steps = max(1, math.ceil(span / spacing))
     sign = 1.0 if b >= a else -1.0
     step = span / steps
     return [a + sign * step * k for k in range(steps + 1)]
@@ -279,7 +296,7 @@ def calculate_surface_scan_path(
                 (plan.near_edge, plan.far_edge) if forward else (plan.far_edge, plan.near_edge)
             )
             run_heading = perp_right if w_to >= w_from else (perp_right + 180.0) % 360.0
-            samples = _samples_along(w_from, w_to, plan.footprint, is_video)
+            samples = _samples_along(w_from, w_to, plan.along_spacing, is_video)
             run_points = [at(along, s) for s in samples]
         else:
             spacing = plan.step_span / plan.n_runs if plan.n_runs else 0.0
@@ -291,7 +308,7 @@ def calculate_surface_scan_path(
                 else (plan.length_to, plan.length_from)
             )
             run_heading = plan.axis if l_to >= l_from else (plan.axis + 180.0) % 360.0
-            samples = _samples_along(l_from, l_to, plan.footprint, is_video)
+            samples = _samples_along(l_from, l_to, plan.along_spacing, is_video)
             run_points = [at(s, perp) for s in samples]
 
         reverse_heading = (run_heading + 180.0) % 360.0

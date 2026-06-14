@@ -62,23 +62,23 @@ beforeEach(() => {
 });
 
 describe("useTemplateAutosave hydration", () => {
-  it("hydrates a 45-key null config when default_config is absent", async () => {
+  it("hydrates a 46-key null config when default_config is absent", async () => {
     getInspectionTemplate.mockResolvedValue(tpl({ default_config: null }));
     const { view } = setup();
     await waitFor(() => expect(view.result.current.loading).toBe(false));
     const cfg = view.result.current.editConfig!;
-    expect(Object.keys(cfg)).toHaveLength(45);
+    expect(Object.keys(cfg)).toHaveLength(46);
     expect(Object.values(cfg).every((v) => v === null)).toBe(true);
   });
 
-  it("copies the 45 config keys when default_config is present", async () => {
+  it("copies the 46 config keys when default_config is present", async () => {
     getInspectionTemplate.mockResolvedValue(
       tpl({ default_config: { id: "c", altitude_offset: 5, iso: 100 } as never }),
     );
     const { view } = setup();
     await waitFor(() => expect(view.result.current.loading).toBe(false));
     const cfg = view.result.current.editConfig!;
-    expect(Object.keys(cfg)).toHaveLength(45);
+    expect(Object.keys(cfg)).toHaveLength(46);
     expect(cfg.altitude_offset).toBe(5);
     expect(cfg.iso).toBe(100);
     expect("id" in cfg).toBe(false);

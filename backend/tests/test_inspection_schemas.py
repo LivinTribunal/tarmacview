@@ -77,6 +77,15 @@ def test_scan_sidelap_range(schema_cls):
 
 
 @pytest.mark.parametrize("schema_cls", [InspectionConfigOverride, InspectionConfigCreate])
+def test_scan_frontlap_range(schema_cls):
+    """scan_frontlap_percent is bounded to [0, 80] (mirrors sidelap)."""
+    schema_cls(scan_frontlap_percent=0)
+    schema_cls(scan_frontlap_percent=80)
+    with pytest.raises(ValidationError):
+        schema_cls(scan_frontlap_percent=81)
+
+
+@pytest.mark.parametrize("schema_cls", [InspectionConfigOverride, InspectionConfigCreate])
 def test_scan_run_count_floor(schema_cls):
     """scan_run_count must be >= 1."""
     schema_cls(scan_run_count=1)

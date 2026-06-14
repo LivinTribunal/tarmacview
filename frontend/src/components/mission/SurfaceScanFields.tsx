@@ -23,6 +23,7 @@ interface SurfaceScanFieldsProps {
 const DEFAULT_SCAN_HEIGHT = 10;
 const DEFAULT_SCAN_GIMBAL = -70;
 const DEFAULT_SCAN_SIDELAP = 20;
+const DEFAULT_SCAN_FRONTLAP = 0;
 
 const inputClass =
   "w-full px-3 py-2 rounded-full text-sm border border-tv-border bg-tv-bg text-tv-text-primary placeholder:text-tv-text-muted focus:outline-none focus:border-tv-accent transition-colors disabled:opacity-50";
@@ -62,6 +63,7 @@ export default function SurfaceScanFields({
   const heightId = useId();
   const runCountId = useId();
   const sidelapId = useId();
+  const frontlapId = useId();
   const gimbalId = useId();
   const widthId = useId();
 
@@ -98,6 +100,7 @@ export default function SurfaceScanFields({
   const orientation =
     resolveString<ScanRunOrientation>("scan_run_orientation") ?? "LENGTH_WISE";
   const sidelap = resolveNumber("scan_sidelap_percent");
+  const frontlap = resolveNumber("scan_frontlap_percent");
   const gimbal = resolveNumber("camera_gimbal_angle");
 
   const selectedSurface = surfaces.find((s) => s.id === scanSurfaceId) ?? null;
@@ -337,38 +340,40 @@ export default function SurfaceScanFields({
         </div>
       </div>
 
-      {/* run count + sidelap */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label htmlFor={runCountId} className={labelClass}>
-            <span>{t("mission.config.scanRunCount")}</span>
-            <InfoHint
-              text={t("mission.config.scanRunCountHelp")}
-              label={t("mission.config.scanRunCount")}
-              testId="hint-scan-run-count"
-            />
-          </label>
-          <input
-            id={runCountId}
-            type="number"
-            step="1"
-            min="1"
-            value={runCount}
-            onChange={(e) => onNumberChange("scan_run_count", e.target.value)}
-            placeholder={
-              optimalRuns != null
-                ? t("mission.config.scanRunCountAuto", { count: optimalRuns })
-                : t("mission.config.scanRunCountHint")
-            }
-            className={inputClass}
-            data-testid="scan-run-count"
+      {/* run count */}
+      <div>
+        <label htmlFor={runCountId} className={labelClass}>
+          <span>{t("mission.config.scanRunCount")}</span>
+          <InfoHint
+            text={t("mission.config.scanRunCountHelp")}
+            label={t("mission.config.scanRunCount")}
+            testId="hint-scan-run-count"
           />
-          {optimalRuns != null && (
-            <p className="text-[11px] text-tv-text-muted mt-1" data-testid="scan-run-count-hint">
-              {t("mission.config.scanRunCountAuto", { count: optimalRuns })}
-            </p>
-          )}
-        </div>
+        </label>
+        <input
+          id={runCountId}
+          type="number"
+          step="1"
+          min="1"
+          value={runCount}
+          onChange={(e) => onNumberChange("scan_run_count", e.target.value)}
+          placeholder={
+            optimalRuns != null
+              ? t("mission.config.scanRunCountAuto", { count: optimalRuns })
+              : t("mission.config.scanRunCountHint")
+          }
+          className={inputClass}
+          data-testid="scan-run-count"
+        />
+        {optimalRuns != null && (
+          <p className="text-[11px] text-tv-text-muted mt-1" data-testid="scan-run-count-hint">
+            {t("mission.config.scanRunCountAuto", { count: optimalRuns })}
+          </p>
+        )}
+      </div>
+
+      {/* sidelap + frontlap */}
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <label htmlFor={sidelapId} className={labelClass}>
             <span>{t("mission.config.scanSidelap")}</span>
@@ -389,6 +394,28 @@ export default function SurfaceScanFields({
             placeholder={String(DEFAULT_SCAN_SIDELAP)}
             className={inputClass}
             data-testid="scan-sidelap"
+          />
+        </div>
+        <div>
+          <label htmlFor={frontlapId} className={labelClass}>
+            <span>{t("mission.config.scanFrontlap")}</span>
+            <InfoHint
+              text={t("mission.config.scanFrontlapHelp")}
+              label={t("mission.config.scanFrontlap")}
+              testId="hint-scan-frontlap"
+            />
+          </label>
+          <input
+            id={frontlapId}
+            type="number"
+            step="1"
+            min="0"
+            max="80"
+            value={frontlap}
+            onChange={(e) => onNumberChange("scan_frontlap_percent", e.target.value)}
+            placeholder={String(DEFAULT_SCAN_FRONTLAP)}
+            className={inputClass}
+            data-testid="scan-frontlap"
           />
         </div>
       </div>

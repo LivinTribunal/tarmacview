@@ -19,7 +19,7 @@ from app.services.trajectory.types import (
     Point3D,
     ResolvedConfig,
 )
-from app.utils.geo import point_at_distance
+from app.utils.geo import distance_between, point_at_distance
 from tests.method_dispatch import dispatch_trajectory
 
 
@@ -343,6 +343,108 @@ class TestCaptureModes:
         )
         assert wps[0].camera_action == CameraAction.RECORDING_START
         assert wps[-1].camera_action == CameraAction.RECORDING_STOP
+
+
+class TestFrontlap:
+    """along-track forward-overlap knob (scan_frontlap_percent)."""
+
+    def test_default_frontlap_spacing_is_footprint(self):
+        """frontlap defaults to 0, so along-track spacing equals the footprint."""
+        plan = plan_surface_scan(FakeSurface(), _cfg(), sensor_fov=80.0)
+        assert plan.along_spacing == pytest.approx(plan.footprint)
+
+    def test_frontlap_zero_matches_footprint_spacing(self):
+        """an explicit 0% frontlap reproduces the default footprint-spaced tiling."""
+        surface = FakeSurface(length=1000.0)
+        default_wps = calculate_surface_scan_path(
+            surface, _cfg(capture_mode="PHOTO_CAPTURE"), None, 3.0, sensor_fov=80.0
+        )
+        zero_wps = calculate_surface_scan_path(
+            surface,
+            _cfg(capture_mode="PHOTO_CAPTURE", scan_frontlap_percent=0),
+            None,
+            3.0,
+            sensor_fov=80.0,
+        )
+        assert len(zero_wps) == len(default_wps)
+
+    def test_frontlap_increases_along_track_density(self):
+        """75% frontlap quarters the spacing, so a run packs ~4x the photo samples."""
+        surface = FakeSurface(length=1000.0)
+        low = calculate_surface_scan_path(
+            surface,
+            _cfg(capture_mode="PHOTO_CAPTURE", scan_run_count=1, scan_frontlap_percent=0),
+            None,
+            3.0,
+            sensor_fov=80.0,
+        )
+        high = calculate_surface_scan_path(
+            surface,
+            _cfg(capture_mode="PHOTO_CAPTURE", scan_run_count=1, scan_frontlap_percent=75),
+            None,
+            3.0,
+            sensor_fov=80.0,
+        )
+        assert len(high) > 3 * len(low)
+
+    def test_sample_spacing_equals_footprint_times_frontlap(self):
+        """consecutive photo samples sit ~footprint*(1-frontlap/100) apart."""
+        surface = FakeSurface(length=1000.0)
+        plan = plan_surface_scan(
+            surface, _cfg(scan_run_count=1, scan_frontlap_percent=60), sensor_fov=80.0
+        )
+        assert plan.along_spacing == pytest.approx(plan.footprint * 0.4)
+        wps = calculate_surface_scan_path(
+            surface,
+            _cfg(capture_mode="PHOTO_CAPTURE", scan_run_count=1, scan_frontlap_percent=60),
+            None,
+            3.0,
+            sensor_fov=80.0,
+        )
+        a, b = wps[0].camera_target, wps[1].camera_target
+        dist = distance_between(a.lon, a.lat, b.lon, b.lat)
+        assert dist == pytest.approx(plan.along_spacing, rel=0.05)
+
+    def test_high_frontlap_bounded_no_overflow(self):
+        """80% frontlap stays finite: spacing > 0 and a bounded sample count."""
+        surface = FakeSurface(length=1000.0)
+        plan = plan_surface_scan(
+            surface, _cfg(scan_run_count=1, scan_frontlap_percent=80), sensor_fov=80.0
+        )
+        assert plan.along_spacing is not None and plan.along_spacing > 0
+        wps = calculate_surface_scan_path(
+            surface,
+            _cfg(capture_mode="PHOTO_CAPTURE", scan_run_count=1, scan_frontlap_percent=80),
+            None,
+            3.0,
+            sensor_fov=80.0,
+        )
+        assert 0 < len(wps) < 2000
+
+    def test_video_ignores_frontlap(self):
+        """video keeps two waypoints per run regardless of frontlap."""
+        surface = FakeSurface()
+        plan = plan_surface_scan(
+            surface,
+            _cfg(capture_mode="VIDEO_CAPTURE", scan_frontlap_percent=75),
+            sensor_fov=80.0,
+        )
+        wps = calculate_surface_scan_path(
+            surface,
+            _cfg(capture_mode="VIDEO_CAPTURE", scan_frontlap_percent=75),
+            None,
+            3.0,
+            sensor_fov=80.0,
+        )
+        assert len(wps) == plan.n_runs * 2
+
+    def test_frontlap_does_not_change_run_count(self):
+        """frontlap is along-track only - the run count (sidelap axis) is invariant."""
+        surface = FakeSurface(width=45.0)
+        base = plan_surface_scan(surface, _cfg(scan_frontlap_percent=0), sensor_fov=80.0)
+        high = plan_surface_scan(surface, _cfg(scan_frontlap_percent=80), sensor_fov=80.0)
+        assert high.n_runs == base.n_runs
+        assert high.optimal_runs == base.optimal_runs
 
 
 class TestTerrainFollowing:

@@ -815,6 +815,8 @@
       "scanRunCountAuto": "Odporúčané: {{count}}",
       "scanSidelap": "Bočné prekrytie (%)",
       "scanSidelapHelp": "Prekrytie medzi susednými preletmi ako percento záberu snímky. Vyššie prekrytie znamená viac preletov a úplnejšie pokrytie. Predvolené: 20 %.",
+      "scanFrontlap": "Pozdĺžne prekrytie (%)",
+      "scanFrontlapHelp": "Pozdĺžne prekrytie medzi po sebe idúcimi snímkami v rámci preletu ako percento záberu snímky. Vyššie prekrytie znamená viac snímacích bodov pozdĺž trasy. Predvolené: 0 %.",
       "targetLha": "Cieľová LHA",
       "targetLhaHelp": "Konkrétna LHA, pred ktorou sa dron vznáša pri Vznášaní nad bodom. Vyberte jednotku, ktorú chcete fotografovať; smerník a vzdialenosť sa merajú od tohto bodu.",
       "targetLhaSelect": "Vyberte LHA...",

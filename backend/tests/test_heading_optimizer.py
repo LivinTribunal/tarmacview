@@ -108,6 +108,7 @@ class _FakeConfig:
     scan_run_count: int | None = None
     scan_run_orientation: str | None = None
     scan_sidelap_percent: float | None = None
+    scan_frontlap_percent: float | None = None
     white_balance: str | None = None
     iso: int | None = None
     shutter_speed: str | None = None

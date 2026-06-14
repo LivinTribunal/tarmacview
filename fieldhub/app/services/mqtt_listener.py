@@ -19,6 +19,7 @@ STATUS_TOPIC_PREFIX = "sys/product/"
 STATUS_TOPIC_SUFFIX = "/status"
 THING_TOPIC_PREFIX = "thing/product/"
 REQUESTS_TOPIC_SUFFIX = "/requests"
+EVENTS_TOPIC_SUFFIX = "/events"
 
 # telemetry topics refresh the online ttl - pilot sends update_topo only on
 # connect/topology change, so a quiet-but-connected device stays online
@@ -103,6 +104,18 @@ def _handle_requests(db: Session, sn: str, message: dict) -> list[Reply]:
     return [(f"{THING_TOPIC_PREFIX}{sn}{REQUESTS_TOPIC_SUFFIX}_reply", reply)]
 
 
+def _handle_events(sn: str, message: dict) -> list[Reply]:
+    """events topic: ack-only reply for events that demand one, ignore the rest."""
+
+    # device-initiated notifications (hms, file-upload progress); the envelope's
+    # need_reply flag says whether the device blocks waiting for the ack. no
+    # payload interpretation or db write here - stay stateless and low-risk
+    if message.get("need_reply") != 1:
+        return []
+    reply = _reply_envelope(message, message.get("method"), {"result": RESULT_OK})
+    return [(f"{THING_TOPIC_PREFIX}{sn}{EVENTS_TOPIC_SUFFIX}_reply", reply)]
+
+
 def handle_message(db: Session, topic: str, payload: bytes) -> list[Reply]:
     """route one inbound mqtt message, returning the replies to publish."""
 
@@ -128,6 +141,9 @@ def handle_message(db: Session, topic: str, payload: bytes) -> list[Reply]:
     if topic.startswith(THING_TOPIC_PREFIX) and topic.endswith(REQUESTS_TOPIC_SUFFIX):
         sn = _topic_sn(topic, THING_TOPIC_PREFIX, REQUESTS_TOPIC_SUFFIX)
         return _handle_requests(db, sn, message)
+    if topic.startswith(THING_TOPIC_PREFIX) and topic.endswith(EVENTS_TOPIC_SUFFIX):
+        sn = _topic_sn(topic, THING_TOPIC_PREFIX, EVENTS_TOPIC_SUFFIX)
+        return _handle_events(sn, message)
 
     logger.debug("ignoring topic %s", topic)
     return []
@@ -150,6 +166,7 @@ class MqttListener:
         """subscribe the bootstrap set and dispatch messages until disconnect."""
         await client.subscribe(f"{STATUS_TOPIC_PREFIX}+{STATUS_TOPIC_SUFFIX}")
         await client.subscribe(f"{THING_TOPIC_PREFIX}+{REQUESTS_TOPIC_SUFFIX}")
+        await client.subscribe(f"{THING_TOPIC_PREFIX}+{EVENTS_TOPIC_SUFFIX}")
         for suffix in TELEMETRY_TOPIC_SUFFIXES:
             await client.subscribe(f"{THING_TOPIC_PREFIX}+{suffix}")
         async for message in client.messages:
@@ -163,8 +180,10 @@ class MqttListener:
                 continue
             finally:
                 db.close()
+            # qos 1 - dji blocks on reliable ack delivery to clear the device's
+            # pending-connection indicator; a dropped qos-0 ack can leave it stuck
             for topic, payload in replies:
-                await client.publish(topic, json.dumps(payload))
+                await client.publish(topic, json.dumps(payload), qos=1)
 
     async def run(self) -> None:
         """connect-and-consume loop with reconnect backoff."""

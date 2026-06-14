@@ -293,7 +293,7 @@ def create_elevation_provider(airport, *, allow_api: bool = False, db=None) -> E
     """
     terrain_source = getattr(airport, "terrain_source", None) or "FLAT"
 
-    if terrain_source in ("DEM", "DEM_UPLOAD", "DEM_API"):
+    if terrain_source in ("DEM", "DEM_UPLOAD", "DEM_API", "DEM_SRTM"):
         dem_path = getattr(airport, "dem_file_path", None)
         if dem_path:
             try:
@@ -321,7 +321,11 @@ def resolve_elevation_with_source(
 
     elevation = provider.get_elevation(lat, lon)
     if isinstance(provider, DEMElevationProvider):
-        source = terrain_source if terrain_source in ("DEM_UPLOAD", "DEM_API") else "DEM_UPLOAD"
+        source = (
+            terrain_source
+            if terrain_source in ("DEM_UPLOAD", "DEM_API", "DEM_SRTM")
+            else "DEM_UPLOAD"
+        )
     else:
         source = "FLAT"
     return elevation, source

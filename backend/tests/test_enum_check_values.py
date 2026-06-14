@@ -11,7 +11,7 @@ from app.core.enums import (
 
 def test_renders_quoted_comma_joined_values_in_order():
     """each member value is single-quoted and comma-space joined in order."""
-    assert enum_check_values(TerrainSource) == "'FLAT', 'DEM_UPLOAD', 'DEM_API'"
+    assert enum_check_values(TerrainSource) == "'FLAT', 'DEM_UPLOAD', 'DEM_API', 'DEM_SRTM'"
 
 
 def test_matches_media_file_status_constraint_body():

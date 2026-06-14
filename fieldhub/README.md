@@ -68,8 +68,9 @@ serves MQTTS — DJI Pilot 2 requires both):
 #    static LAN IP on the travel router so RCs can verify the certs)
 scripts/field-hub/gen-certs.sh 192.168.8.100
 
-# 2. start the full stack incl. the field services
-docker compose --profile field up -d --build
+# 2. start the full bundle incl. the field services, wiring backend -> hub
+FIELDHUB_URL=https://fieldhub:8443 FIELDHUB_CA=/certs/fieldhub/ca.crt \
+  docker compose --profile field up -d --build
 
 # 3. check the hub (CA-signed cert, so verify against the local CA)
 curl --cacert certs/ca/ca.crt https://localhost:8443/healthz

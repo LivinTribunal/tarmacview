@@ -153,9 +153,9 @@ Notes:
 The `backend` service runs under **both** the default and the `field` profile
 (it has no `profiles:` key), so the hub settings cannot be hard-set on it in
 `docker-compose.yml` — that would leak into plain `docker compose up` and break
-the no-hub default. Instead a profile-scoped override file,
-`docker-compose.field.yml`, adds the backend→hub link only when the field stack
-comes up:
+the no-hub default. Instead the field launcher exports the two hub vars **only
+for the field compose invocation**, so they reach the backend without ever being
+persisted to `.env.docker`:
 
 - `FIELDHUB_URL=https://fieldhub:8443` — the compose-internal hub service address.
 - `FIELDHUB_CA=/certs/fieldhub/ca.crt` — the local CA, already mounted at
@@ -164,18 +164,22 @@ comes up:
   read `${FIELDHUB_SHARED_SECRET:-}` from `.env.docker`, so one generated secret
   authenticates the `X-Hub-Secret` calls on both ends.
 
-The override is **not** named `docker-compose.override.yml` (that auto-loads on
-every command, which would re-break the no-hub default). It must be passed
-explicitly alongside the base file:
+Everything comes up from the single base compose file under one profile flag —
+no override file, no two-file `-f` invocation:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.field.yml --profile field up
+./start-field.sh                       # fills .env.docker, mints certs, brings the bundle up
+# manual equivalent:
+FIELDHUB_URL=https://fieldhub:8443 FIELDHUB_CA=/certs/fieldhub/ca.crt \
+  docker compose --profile field up -d --build
 ```
 
-The field launcher (#873) carries these flags so field day stays one command.
-Plain `docker compose up` never loads the override, so `FIELDHUB_URL`/`_CA` stay
-empty and `field_link_service.get_field_link_status` short-circuits to the
-offline response with no network call — `GET /api/v1/field-link/status` reports
+The `field` profile stays mandatory because `fieldhub` and `emqx` need the TLS
+certs from `scripts/field-hub/gen-certs.sh` and would crash-loop without them, so
+a plain `docker compose up` can't start them anyway. With the profile off, the
+backend's `FIELDHUB_URL`/`_CA` stay empty and
+`field_link_service.get_field_link_status` short-circuits to the offline
+response with no network call — `GET /api/v1/field-link/status` reports
 `hub_online: false`.
 
 ## 4. Flows

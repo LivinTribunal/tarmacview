@@ -81,9 +81,9 @@ REM base secret the backend hard-requires, plus the hub shared secret
 call :ensure_secret JWT_SECRET
 call :ensure_secret FIELDHUB_SHARED_SECRET
 
-REM backend -> fieldhub proxy is auto-wired by docker-compose.field.yml (loaded
-REM in the compose command below), so FIELDHUB_URL/FIELDHUB_CA stay out of
-REM .env.docker - that keeps a plain "docker compose up" hub-free.
+REM backend -> fieldhub proxy is wired by setting FIELDHUB_URL/FIELDHUB_CA only
+REM for the compose invocation below - they are never written to .env.docker, so
+REM a plain "docker compose up" leaves them empty and stays hub-free.
 
 REM device-facing addresses Pilot 2 connects to - derived from the LAN IP.
 REM an explicit IP arg updates them; a bare re-run keeps the stored values.
@@ -127,7 +127,11 @@ if errorlevel 1 (
 echo.
 
 echo Building and starting the field stack (5-10 min on first run)...
-docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.field.yml --profile field up -d --build
+REM FIELDHUB_URL/FIELDHUB_CA are scoped to this process by setlocal, so they
+REM wire the backend->hub link without landing in .env.docker.
+set "FIELDHUB_URL=https://fieldhub:8443"
+set "FIELDHUB_CA=/certs/fieldhub/ca.crt"
+docker compose --env-file .env.docker --profile field up -d --build
 if errorlevel 1 (
     echo.
     echo [ERROR] Something went wrong starting the containers.

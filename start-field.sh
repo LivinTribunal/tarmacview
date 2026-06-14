@@ -167,9 +167,9 @@ if [ -z "$(env_get FIELDHUB_SHARED_SECRET)" ]; then
     env_set_force FIELDHUB_SHARED_SECRET "$(gen_secret)"
 fi
 
-# backend -> fieldhub proxy is auto-wired by docker-compose.field.yml (loaded
-# in the compose command below), so FIELDHUB_URL/FIELDHUB_CA stay out of
-# .env.docker - that keeps a plain `docker compose up` hub-free.
+# backend -> fieldhub proxy is wired by exporting FIELDHUB_URL/FIELDHUB_CA only
+# for the compose invocation below - they are never written to .env.docker, so a
+# plain `docker compose up` leaves them empty and stays hub-free.
 
 # device-facing addresses Pilot 2 connects to - derived from the LAN IP.
 # an explicit IP arg updates them; a bare re-run keeps the stored values.
@@ -205,7 +205,8 @@ fi
 echo
 
 echo "Building and starting the field stack (5-10 min on first run)..."
-docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.field.yml --profile field up -d --build
+FIELDHUB_URL="https://fieldhub:8443" FIELDHUB_CA="/certs/fieldhub/ca.crt" \
+    docker compose --env-file "$ENV_FILE" --profile field up -d --build
 echo
 
 echo "============================================================"

@@ -178,8 +178,10 @@ def _prepare_surface_scan(ctx: MethodContext) -> MethodPrep:
 
     path_dist = scan_path_distance(plan)
     density = ctx.config.measurement_density
-    if plan.footprint and plan.footprint > 0:
-        density = max(2, math.ceil(path_dist / plan.footprint) + 1)
+    # along_spacing folds in frontlap, so the speed/frame-rate check sees the
+    # actual photo density (equals footprint spacing when frontlap is 0).
+    if plan.along_spacing and plan.along_spacing > 0:
+        density = max(2, math.ceil(path_dist / plan.along_spacing) + 1)
 
     # flag an override that is not the FOV-optimal value via the suggestion channel.
     suggestion = None

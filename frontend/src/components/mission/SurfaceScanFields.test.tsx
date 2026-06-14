@@ -103,12 +103,14 @@ describe("SurfaceScanFields", () => {
     expect(screen.getByTestId("scan-orientation-width_wise")).toBeInTheDocument();
   });
 
-  it("emits numeric changes for height, sidelap and run count", () => {
+  it("emits numeric changes for height, sidelap, frontlap and run count", () => {
     const { onNumberChange } = renderFields();
     fireEvent.change(screen.getByTestId("scan-height"), { target: { value: "12" } });
     expect(onNumberChange).toHaveBeenCalledWith("scan_height", "12");
     fireEvent.change(screen.getByTestId("scan-sidelap"), { target: { value: "30" } });
     expect(onNumberChange).toHaveBeenCalledWith("scan_sidelap_percent", "30");
+    fireEvent.change(screen.getByTestId("scan-frontlap"), { target: { value: "75" } });
+    expect(onNumberChange).toHaveBeenCalledWith("scan_frontlap_percent", "75");
     fireEvent.change(screen.getByTestId("scan-run-count"), { target: { value: "5" } });
     expect(onNumberChange).toHaveBeenCalledWith("scan_run_count", "5");
   });

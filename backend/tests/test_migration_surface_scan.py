@@ -23,7 +23,11 @@ SCAN_COLUMNS = {
     "scan_run_count",
     "scan_run_orientation",
     "scan_sidelap_percent",
+    "scan_frontlap_percent",
 }
+
+# the 0016 column - rides on the scan-config table but lands a migration later.
+FRONTLAP_COLUMN = "scan_frontlap_percent"
 
 
 @pytest.fixture(scope="module")
@@ -99,3 +103,19 @@ def test_downgrade_drops_scan_columns_and_upgrade_restores(alembic_env):
 
     command.upgrade(cfg, "head")
     assert SCAN_COLUMNS <= _columns(url, "inspection_configuration")
+
+
+def test_frontlap_migration_isolates_to_its_own_column(alembic_env):
+    """downgrade to 0015 drops only scan_frontlap_percent; the other scan columns survive."""
+    cfg, url = alembic_env
+    command.upgrade(cfg, "head")
+    assert FRONTLAP_COLUMN in _columns(url, "inspection_configuration")
+
+    command.downgrade(cfg, "0015_surface_scan_config")
+    cols_after = _columns(url, "inspection_configuration")
+    assert FRONTLAP_COLUMN not in cols_after
+    # the 0015 columns are untouched by the 0016 downgrade
+    assert (SCAN_COLUMNS - {FRONTLAP_COLUMN}) <= cols_after
+
+    command.upgrade(cfg, "head")
+    assert FRONTLAP_COLUMN in _columns(url, "inspection_configuration")

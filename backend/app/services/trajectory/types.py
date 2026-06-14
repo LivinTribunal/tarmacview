@@ -66,6 +66,8 @@ DEFAULT_HOVER_DURATION: Seconds = 10.0
 DEFAULT_SURFACE_SCAN_HEIGHT: Meters = 10.0
 DEFAULT_SURFACE_SCAN_GIMBAL: Degrees = -70.0
 DEFAULT_SURFACE_SCAN_SIDELAP_PERCENT: float = 20.0
+# 0 = no along-track overlap, reproducing the original footprint-spacing tiling.
+DEFAULT_SURFACE_SCAN_FRONTLAP_PERCENT: float = 0.0
 DEFAULT_SURFACE_SCAN_SPEED: MetersPerSecond = 3.0
 
 # meht-check defaults (ICAO Doc 9157 P4 s8.3.43)
@@ -222,6 +224,7 @@ class ResolvedConfig:
     scan_run_count: int | None = None
     scan_run_orientation: str | None = None
     scan_sidelap_percent: float | None = None
+    scan_frontlap_percent: float | None = None
 
 
 @dataclass

@@ -87,6 +87,7 @@ CONFIG_FIELDS: tuple[str, ...] = (
     "scan_run_count",
     "scan_run_orientation",
     "scan_sidelap_percent",
+    "scan_frontlap_percent",
 )
 
 
@@ -167,6 +168,8 @@ class InspectionConfiguration(Base):
     scan_run_count = Column(Integer, nullable=True)
     scan_run_orientation = Column(String(20), nullable=True)
     scan_sidelap_percent = Column(Float, nullable=True)
+    # along-track overlap between consecutive photo capture points (percent).
+    scan_frontlap_percent = Column(Float, nullable=True)
     # NULL = inherit from mission. NATURAL or REVERSED pin the direction.
     direction = Column(String(10), nullable=True)
     # written by the trajectory compile pre-pass. display only - never accepted on inbound writes.

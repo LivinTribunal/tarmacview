@@ -242,7 +242,7 @@ The Docker stack reads `.env.docker` at the repo root for variable substitution 
 
 `JWT_SECRET` is the only variable without a usable default — `docker compose up` errors if it is unset.
 
-The `FIELDHUB_*` / `MINIO_*` keys matter only when the optional `field` compose profile is active (`docker compose -f docker-compose.yml -f docker-compose.field.yml --profile field up` — the local DJI Cloud API stack for wireless mission dispatch and media return). The `-f docker-compose.field.yml` override auto-wires the backend→hub link (`FIELDHUB_URL` / `FIELDHUB_CA`); plain `docker compose up` never loads it, so the default stack stays no-hub. For field day, the `start-field.sh` / `start-field.bat` launchers do this for you — filling these from the laptop's LAN IP and bringing the stack up in one command. See `fieldhub/README.md` for the run sequence including TLS cert generation, and `docs/specs/FIELD-HUB.md` for the architecture.
+The `FIELDHUB_*` / `MINIO_*` keys matter only when the optional `field` compose profile is active (`docker compose --profile field up` — the local DJI Cloud API stack for wireless mission dispatch and media return). The `start-field.sh` / `start-field.bat` launchers export the backend→hub link (`FIELDHUB_URL` / `FIELDHUB_CA`) only for that one compose invocation, never persisting them; plain `docker compose up` leaves them empty, so the default stack stays no-hub. For field day, the launchers do everything in one command — filling these from the laptop's LAN IP and bringing the stack up. See `fieldhub/README.md` for the run sequence including TLS cert generation, and `docs/specs/FIELD-HUB.md` for the architecture.
 
 ### Common Docker commands
 

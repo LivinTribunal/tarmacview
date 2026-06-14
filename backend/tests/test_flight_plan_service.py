@@ -1,5 +1,6 @@
 """tests for build_enriched_response global altitude filtering."""
 
+import itertools
 from uuid import uuid4
 
 import pytest
@@ -17,16 +18,36 @@ AIRPORT_ELEVATION = 133.0
 INSPECTION_AGL = 30.0
 
 
+# build_enriched_response commits a lazy agl backfill, so airports created here
+# survive the per-test rollback and pile up in the session-scoped container. a
+# monotonic counter guarantees no clash across the run - the old uuid4().hex[:4]
+# only spanned 65536 codes and collided in CI (see CB30). base36 keeps it inside
+# String(4); the always-present digit prefix keeps it clear of the fixed
+# pure-alpha codes other test files commit (LKPR, ORPN, ZZZZ, ...).
+_icao_counter = itertools.count()
+_BASE36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def _next_icao() -> str:
+    """return a process-unique 4-char icao that fits the column + unique key."""
+    n = next(_icao_counter)
+    suffix = ""
+    for _ in range(3):
+        n, r = divmod(n, 36)
+        suffix = _BASE36[r] + suffix
+    return "0" + suffix
+
+
 def _make_airport(db_session, icao: str | None = None) -> Airport:
     """create a persisted airport with elevation 133 m.
 
-    icao defaults to a 4-char prefix derived from a fresh UUID so tests can run
+    icao defaults to a process-unique code from _next_icao so tests can run
     after the lazy-backfill commit in build_enriched_response without colliding
     on the airport_icao_code_key unique constraint across tests in the same
     pytest session.
     """
     if icao is None:
-        icao = uuid4().hex[:4].upper()
+        icao = _next_icao()
     airport = Airport(
         id=uuid4(),
         icao_code=icao,

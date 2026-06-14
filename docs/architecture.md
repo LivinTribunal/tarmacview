@@ -28,7 +28,7 @@ Key tooling: Vite dev server proxies `/api` requests to `http://localhost:8000`,
 
 ### Backend (`backend/`)
 
-FastAPI REST API structured into four layers under `app/`:
+FastAPI REST API structured into layers under `app/`:
 
 ```
 backend/app/
@@ -37,8 +37,14 @@ backend/app/
 ├── models/                # SQLAlchemy ORM models (geometry as WKT strings)
 ├── schemas/               # Pydantic v2 request/response DTOs
 ├── services/              # Business logic (trajectory, safety, export)
+│   └── video_processing/  # vendored OpenCV PAPI light-detection engine
+├── domain/                # persistence-agnostic aggregates + repository ports (measurement)
+├── infra/                 # port adapters — where ORM meets domain (measurement sqlalchemy repo)
+├── workers/               # Celery app + video-processing tasks (off-request)
 └── core/                  # Config, database session, auth, dependencies
 ```
+
+The `domain/` + `infra/` split is a ports-and-adapters seam introduced for the measurement bounded context: the domain aggregate has no ORM/DB/engine imports, persistence sits behind a `MeasurementRepository` port, and `infra/` holds the SQLAlchemy adapter (swapping the DB backing is one new adapter class, no domain change).
 
 Entry points:
 - **Local dev**: `uvicorn app.main:app --reload` (port 8000)
@@ -111,11 +117,14 @@ graph TD
 |---|---|---|
 | `api/routes/` | HTTP handlers, request validation, auth | schemas, services |
 | `schemas/` | Pydantic DTOs (request/response contracts) | — (pure data) |
-| `services/` | Business logic, trajectory computation | models |
+| `services/` | Business logic, trajectory computation | models, domain, infra |
 | `models/` | SQLAlchemy ORM, WKT geometry in `String` columns | — (database mapping) |
+| `domain/` | Persistence-agnostic aggregates + repository ports (measurement) | — (pure python) |
+| `infra/` | Port adapters — ORM ↔ domain (measurement sqlalchemy repo) | models, domain |
+| `workers/` | Celery app + video-processing tasks (off-request) | services |
 | `core/` | Cross-cutting: config, database session, auth | — (infrastructure) |
 
-Dependency rule: **routes → services → models**. Schemas are shared across routes and services but never import from either.
+Dependency rule: **routes → services → models**. Schemas are shared across routes and services but never import from either. The measurement context adds a ports-and-adapters lane: `services` depends on a `domain` repository port, `infra` supplies the SQLAlchemy adapter, and the Celery `workers` drive the service runners off-request.
 
 ### Frontend Organization
 

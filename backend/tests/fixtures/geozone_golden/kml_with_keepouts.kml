@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Flight Plan - Test Mission</name>
+    <Folder>
+      <name>Waypoints</name>
+    </Folder>
+    <Folder>
+      <name>Keep-out zones</name>
+      <description>Advisory only - not enforced by DJI Pilot 2. Configure server-side geofencing (FlySafe / FlightHub 2 Custom Flight Area) for enforcement.</description>
+      <Placemark>
+        <name>Safety Zone - Restricted A</name>
+        <description>Advisory only - not enforced by DJI Pilot 2. Configure server-side geofencing (FlySafe / FlightHub 2 Custom Flight Area) for enforcement.</description>
+        <Polygon>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>18.10,49.69 18.11,49.69 18.11,49.70 18.10,49.70 18.10,49.69</coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>
+      <Placemark>
+        <name>Obstacle - Tower</name>
+        <description>Advisory only - not enforced by DJI Pilot 2. Configure server-side geofencing (FlySafe / FlightHub 2 Custom Flight Area) for enforcement.</description>
+        <Polygon>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>18.115,49.692 18.116,49.692 18.116,49.693 18.115,49.693 18.115,49.692</coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>

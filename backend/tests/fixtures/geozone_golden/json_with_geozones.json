@@ -1,0 +1,48 @@
+{
+  "mission_name": "Test Mission",
+  "geozones": {
+    "safety_zones": [
+      {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "name": "Restricted A",
+        "type": "RESTRICTED",
+        "altitude_floor": 0.0,
+        "altitude_ceiling": 500.0,
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [18.10, 49.69, 100.0],
+              [18.11, 49.69, 100.0],
+              [18.11, 49.70, 100.0],
+              [18.10, 49.70, 100.0],
+              [18.10, 49.69, 100.0]
+            ]
+          ]
+        }
+      }
+    ],
+    "obstacles": [
+      {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "name": "Tower",
+        "type": "BUILDING",
+        "height": 25.0,
+        "buffer_distance": 10.0,
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [18.115, 49.692, 100.0],
+              [18.116, 49.692, 100.0],
+              [18.116, 49.693, 100.0],
+              [18.115, 49.693, 100.0],
+              [18.115, 49.692, 100.0]
+            ]
+          ]
+        }
+      }
+    ],
+    "runway_buffers": []
+  }
+}

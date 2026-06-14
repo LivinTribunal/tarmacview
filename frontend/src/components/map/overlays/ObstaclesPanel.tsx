@@ -1,0 +1,114 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronDown } from "lucide-react";
+import { OBSTACLE_COLORS, ObstacleTypeIcon } from "@/components/map/obstacleIcons";
+import { formatNumber } from "@/utils/format";
+import type { ObstacleResponse } from "@/types/airport";
+import type { MapFeature, MapLayerConfig } from "@/types/map";
+
+interface ObstaclesPanelProps {
+  obstacles: ObstacleResponse[];
+  layerConfig: MapLayerConfig;
+  // single-click: select the obstacle, no map recenter
+  onSelect: (feature: MapFeature) => void;
+  // double-click: select AND recenter the map on the obstacle
+  onLocate?: (feature: MapFeature) => void;
+}
+
+export default function ObstaclesPanel({
+  obstacles,
+  layerConfig,
+  onSelect,
+  onLocate,
+}: ObstaclesPanelProps) {
+  /** collapsible list of airport obstacles. */
+  const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const count = obstacles.length;
+  const grayed = !layerConfig.obstacles;
+
+  function handleSelect(obstacle: ObstacleResponse) {
+    /** single-click: select obstacle without moving the camera. */
+    if (grayed) return;
+    onSelect({ type: "obstacle", data: obstacle });
+  }
+
+  function handleLocate(obstacle: ObstacleResponse) {
+    /** double-click: select obstacle and recenter the map on it. */
+    if (grayed) return;
+    onLocate?.({ type: "obstacle", data: obstacle });
+  }
+
+  return (
+    <div
+      className="rounded-2xl border border-tv-border bg-tv-bg"
+      data-testid="obstacles-panel"
+    >
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center justify-between px-3 py-2"
+      >
+        <span className="rounded-full px-3 py-1 bg-tv-surface border border-tv-border text-xs font-semibold text-tv-text-primary">
+          {t("airport.obstacles")}
+        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="flex items-center justify-center min-w-[1.25rem] h-5 rounded-full px-1.5 text-[10px] font-semibold bg-tv-accent text-tv-accent-text"
+          >
+            {count}
+          </span>
+          <ChevronDown className={`h-3.5 w-3.5 text-tv-text-muted transition-transform duration-200 ${collapsed ? "" : "rotate-180"}`} />
+        </div>
+      </button>
+
+      {!collapsed && (
+        <div className="border-t border-tv-border max-h-60 overflow-y-auto">
+          {count === 0 ? (
+            <p className="px-3 py-3 text-sm italic text-tv-text-muted text-center">
+              {t("airport.noObstacles")}
+            </p>
+          ) : (
+            obstacles.map((obstacle, idx) => (
+              <button
+                type="button"
+                key={obstacle.id}
+                onClick={() => handleSelect(obstacle)}
+                onDoubleClick={() => handleLocate(obstacle)}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors ${
+                  grayed
+                    ? "opacity-50 pointer-events-none"
+                    : "hover:bg-tv-surface-hover cursor-pointer"
+                } ${idx < count - 1 ? "border-b border-tv-border" : ""}`}
+                data-testid={`obstacle-item-${obstacle.id}`}
+              >
+                <ObstacleTypeIcon type={obstacle.type} />
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-tv-text-primary truncate">
+                      {obstacle.name}
+                    </span>
+                    <span
+                      className="rounded-full px-1.5 py-0.5 text-[10px] font-medium border"
+                      style={{
+                        borderColor: OBSTACLE_COLORS[obstacle.type] ?? "#6b6b6b",
+                        color: OBSTACLE_COLORS[obstacle.type] ?? "#6b6b6b",
+                      }}
+                    >
+                      {t(`coordinator.detail.obstacleTypes.${obstacle.type.toLowerCase()}`)}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-tv-text-secondary mt-0.5">
+                    {t("dashboard.poiHeight")}: {formatNumber(obstacle.height, 2)}m
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

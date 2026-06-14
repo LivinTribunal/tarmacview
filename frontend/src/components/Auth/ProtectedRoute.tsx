@@ -1,0 +1,40 @@
+import { Navigate, Outlet } from "react-router";
+import { useAuth } from "@/contexts/AuthContext";
+import type { UserRole } from "@/types/enums";
+
+// higher number = more privileges - keep in sync with backend UserRole enum
+const ROLE_LEVEL: Record<string, number> = {
+  OPERATOR: 1,
+  COORDINATOR: 2,
+  SUPER_ADMIN: 3,
+};
+
+interface ProtectedRouteProps {
+  requiredRole?: UserRole;
+}
+
+/** route guard: gates an outlet on authentication and a minimum role level. */
+export default function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (
+    requiredRole &&
+    (ROLE_LEVEL[user?.role ?? ""] ?? 0) < ROLE_LEVEL[requiredRole]
+  ) {
+    const defaultRoute =
+      (ROLE_LEVEL[user?.role ?? ""] ?? 0) >= ROLE_LEVEL.COORDINATOR
+        ? "/coordinator-center/airports"
+        : "/operator-center/dashboard";
+    return <Navigate to={defaultRoute} replace />;
+  }
+
+  return <Outlet />;
+}

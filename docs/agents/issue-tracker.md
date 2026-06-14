@@ -1,0 +1,26 @@
+# Issue tracker: GitHub
+
+Issues and PRDs for this repo live as GitHub issues at `LivinTribunal/drone-mission-planning-module`. Use the `gh` CLI for all operations. The repo is inferred from `git remote -v` automatically.
+
+## Conventions
+
+- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
+- **Read an issue**: `gh issue view <number> --comments`
+- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
+- **Comment on an issue**: `gh issue comment <number> --body "..."`
+- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
+- **Close**: `gh issue close <number> --comment "..."`
+
+## When a skill says "publish to the issue tracker"
+
+Create a GitHub issue with `gh issue create`.
+
+## When a skill says "fetch the relevant ticket"
+
+Run `gh issue view <number> --comments`.
+
+## Repo-specific notes
+
+- This repo runs an automated agent pipeline (CodeFactory + harnext). Several labels are reserved for automation triggers — `agent:plan`, `agent:implement`, `agent:needs-judgment`, `harnext:*`, `triage:*`. **Do not apply these from skills** unless you intend to invoke the corresponding workflow. In particular, never add `agent:plan` when creating an issue (per project preference).
+- Branch naming for any PR a skill produces: `feat/<short-description>` (see `CLAUDE.md` § Branching Strategy). One issue per branch.
+- Commit messages start with a verb, lowercase, no conventional-commit prefixes; PR titles may use conventional prefixes.

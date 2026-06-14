@@ -1,0 +1,313 @@
+"""shared trajectory types: unit aliases, tuning constants, and the pipeline dataclasses."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+from uuid import UUID
+
+from app.core.constants import DEFAULT_BUFFER_DISTANCE_M, MIN_TRANSIT_ALTITUDE_AGL_M
+from app.core.enums import CameraAction, SafetyZoneType, WaypointType
+from app.models.airport import AirfieldSurface, Airport, Obstacle, SafetyZone
+from app.models.flight_plan import ConstraintRule
+from app.models.mission import DroneProfile, Mission
+from app.utils.local_projection import (  # noqa: F401
+    LocalBoundary,
+    LocalGeometries,
+    LocalObstacle,
+    LocalSurface,
+    LocalZone,
+)
+
+if TYPE_CHECKING:
+    from app.models.inspection import Inspection, InspectionTemplate
+    from app.services.elevation_provider import ElevationProvider
+
+# type aliases for domain-specific floats
+Degrees = float
+MetersPerSecond = float
+Meters = float
+Seconds = float
+
+# trajectory defaults
+MIN_ARC_RADIUS: Meters = 350.0
+DEFAULT_SWEEP_ANGLE: Degrees = 15.0  # degrees each side of centerline (ZEPHYR manual)
+DEFAULT_HORIZONTAL_DISTANCE: Meters = 400.0
+# legacy CUSTOM-mode fallbacks when angle_start / angle_end are not set.
+DEFAULT_VERTICAL_PROFILE_START: Degrees = 1.9
+DEFAULT_VERTICAL_PROFILE_END: Degrees = 6.5
+DEFAULT_RESERVE_MARGIN = 0.15
+HOVER_ANGLE_TOLERANCE: Degrees = 0.05  # 3 arc minutes per ZEPHYR spec
+DEFAULT_SPEED: MetersPerSecond = 5.0
+DEFAULT_ANGLE_OFFSET: Degrees = 0.5
+DEFAULT_HEADING: Degrees = 0.0
+
+# approach-descent defaults (ZEPHYR procedure e)
+DEFAULT_DESCENT_START_DISTANCE: Meters = 1000.0
+
+# fly-over defaults
+DEFAULT_FLY_OVER_HEIGHT: Meters = 15.0
+DEFAULT_FLY_OVER_SPEED: MetersPerSecond = 5.0
+DEFAULT_FLY_OVER_GIMBAL: Degrees = -70.0
+
+# parallel-side-sweep defaults
+DEFAULT_PARALLEL_OFFSET: Meters = 30.0
+DEFAULT_PARALLEL_HEIGHT: Meters = 10.0
+DEFAULT_PARALLEL_SPEED: MetersPerSecond = 3.0
+
+# hover-point-lock defaults (ZEPHYR manual fallback)
+DEFAULT_HOVER_DISTANCE_PAPI: Meters = 50.0
+DEFAULT_HOVER_DISTANCE_RUNWAY: Meters = 10.0
+DEFAULT_HOVER_HEIGHT: Meters = 5.0
+DEFAULT_HOVER_DURATION: Seconds = 10.0
+
+# surface-scan defaults
+DEFAULT_SURFACE_SCAN_HEIGHT: Meters = 10.0
+DEFAULT_SURFACE_SCAN_GIMBAL: Degrees = -70.0
+DEFAULT_SURFACE_SCAN_SIDELAP_PERCENT: float = 20.0
+DEFAULT_SURFACE_SCAN_SPEED: MetersPerSecond = 3.0
+
+# meht-check defaults (ICAO Doc 9157 P4 s8.3.43)
+DEFAULT_MEHT_HOVER_DURATION: Seconds = 10.0
+
+# speed/sensor checks
+SPEED_FRAMERATE_MARGIN = 0.8
+MIN_LHA_FOR_FOV_CHECK = 2
+
+# obstacle rerouting
+DEFAULT_OBSTACLE_RADIUS: Meters = 15.0
+REROUTE_SEARCH_RADIUS_MULTIPLIER = 3.0
+MAX_REROUTE_DEVIATION = 0.15
+MAX_TURN_ANGLE: Degrees = 60.0
+
+# minimum speed floor for duration calculation - prevents division by zero
+MIN_SPEED_FLOOR: MetersPerSecond = 0.1
+assert MIN_SPEED_FLOOR > 0, "MIN_SPEED_FLOOR must be positive to prevent division by zero"
+
+# acceleration/deceleration for realistic duration estimation
+DEFAULT_ACCELERATION: float = 2.0  # m/s^2 - typical multirotor horizontal accel
+DEFAULT_DECELERATION: float = 2.0  # m/s^2 - typical multirotor horizontal decel
+TAKEOFF_DURATION: Seconds = 15.0  # lift off + climb to transit altitude
+LANDING_DURATION: Seconds = 15.0  # descend + touchdown
+GIMBAL_SETTLE_TIME: Seconds = 2.0  # gimbal repositioning between segments
+
+# surface edge node spacing for visibility graph
+SURFACE_NODE_SPACING: Meters = 200.0
+
+# grid fill for hybrid visibility graph
+GRID_NODE_SPACING: Meters = 50.0
+GRID_EDGE_RADIUS: Meters = 100.0
+
+# radius must cover diagonal neighbors to keep grid 8-connected
+if GRID_EDGE_RADIUS < GRID_NODE_SPACING * math.sqrt(2):
+    raise ValueError(
+        f"GRID_EDGE_RADIUS ({GRID_EDGE_RADIUS}) must be >= "
+        f"GRID_NODE_SPACING * sqrt(2) ({GRID_NODE_SPACING * math.sqrt(2):.1f})"
+    )
+
+# runway crossing penalty for transit A*
+# penalty per meter of crossing - makes A* prefer a short go-around but
+# falls back to a perpendicular crossing when the only go-around is a long
+# walk around the runway perimeter.
+# perpendicular crossing through buffered region (~75 m incl. vertex_buffer
+# on each side) costs ~75*15 = 1125 m equivalent, so detours under ~1 km
+# beat crossing; longer perimeter walks lose to it.
+# parallel crossing (~3700 m for LKPR) costs 3700*15 = 55500 m -
+# still effectively forbidden.
+RUNWAY_CROSSING_PENALTY_PER_METER = 15.0
+
+# airport boundary egress penalty for transit A*
+# matched to RUNWAY_CROSSING_PENALTY_PER_METER so keep-inside is roughly co-equal
+# to runway-crossing avoidance: short detours under ~1 km beat egress, longer
+# perimeter walks lose. tunable separately if traces show the wrong trade-off.
+BOUNDARY_EGRESS_PENALTY_PER_METER = 15.0
+
+# vertical profile descent detection - ~11m at equator
+VERTICAL_POSITION_TOLERANCE_DEG: Degrees = 0.0001
+
+# terrain following
+# alias kept for trajectory consumers; canonical value lives in app.core.constants.
+MINIMUM_ALTITUDE_THRESHOLD: Meters = MIN_TRANSIT_ALTITUDE_AGL_M
+TRANSIT_AGL: Meters = 30.0
+
+# safety validation
+DEFAULT_RUNWAY_BUFFER: Meters = 100.0
+HARD_ZONE_TYPES = (SafetyZoneType.PROHIBITED, SafetyZoneType.TEMPORARY_NO_FLY)
+
+
+@dataclass
+class Point3D:
+    """3D geographic point (lon, lat, alt in meters MSL)."""
+
+    lon: float
+    lat: float
+    alt: Meters  # meters above mean sea level
+
+    def to_tuple(self) -> tuple[float, float, float]:
+        """convert to (lon, lat, alt) tuple for geo utility functions."""
+        return (self.lon, self.lat, self.alt)
+
+    @staticmethod
+    def from_tuple(t: tuple[float, float, float]) -> Point3D:
+        """create from (lon, lat, alt) tuple."""
+        return Point3D(lon=t[0], lat=t[1], alt=t[2])
+
+    @staticmethod
+    def center(points: list[Point3D]) -> Point3D:
+        """arithmetic mean of a list of 3D points."""
+        n = len(points)
+        if n == 0:
+            raise ValueError("no points for center")
+        return Point3D(
+            lon=sum(p.lon for p in points) / n,
+            lat=sum(p.lat for p in points) / n,
+            alt=sum(p.alt for p in points) / n,
+        )
+
+
+@dataclass
+class Violation:
+    """constraint violation from safety validation."""
+
+    is_warning: bool
+    message: str
+    violation_kind: str | None = None
+    constraint_id: str | None = None
+    waypoint_index: int | None = None
+
+
+@dataclass
+class ResolvedConfig:
+    """merged inspection config: operator override > template default > hardcoded."""
+
+    altitude_offset: Meters = 0.0
+    angle_offset_above: Degrees | None = None
+    angle_offset_below: Degrees | None = None
+    measurement_speed_override: MetersPerSecond | None = None
+    measurement_density: int = 8
+    custom_tolerances: dict | None = None
+    hover_duration: Seconds | None = None
+    horizontal_distance: Meters | None = None
+    sweep_angle: Degrees | None = None
+    angle_source: str | None = None
+    angle_start: Degrees | None = None
+    angle_end: Degrees | None = None
+    capture_mode: str = "VIDEO_CAPTURE"
+    recording_setup_duration: Seconds = 5.0
+    buffer_distance: Meters = DEFAULT_BUFFER_DISTANCE_M
+    # method-specific fields
+    height_above_lights: Meters | None = None
+    lateral_offset: Meters | None = None
+    distance_from_lha: Meters | None = None
+    height_above_lha: Meters | None = None
+    camera_gimbal_angle: Degrees | None = None
+    selected_lha_id: UUID | str | None = None
+    lha_setting_angle_override_id: UUID | str | None = None
+    hover_bearing: Degrees | None = None
+    hover_bearing_reference: str | None = None
+    direction_reversed: bool = False
+    # approach-descent: distance back of the touchpoint the descent starts from,
+    # and an optional operator override for the PAPI-derived glide slope angle.
+    descent_start_distance: Meters | None = None
+    descent_glide_slope_override: Degrees | None = None
+    # surface-scan: surface target + serpentine layout knobs.
+    scan_surface_id: UUID | str | None = None
+    scan_length_mode: str | None = None
+    scan_length_from: Meters | None = None
+    scan_length_to: Meters | None = None
+    scan_width: Meters | None = None
+    scan_width_side: str | None = None
+    scan_height: Meters | None = None
+    scan_run_count: int | None = None
+    scan_run_orientation: str | None = None
+    scan_sidelap_percent: float | None = None
+
+
+@dataclass
+class WaypointData:
+    """intermediate waypoint before persisting."""
+
+    lon: float
+    lat: float
+    alt: Meters
+    heading: Degrees = 0.0
+    speed: MetersPerSecond = 5.0
+    waypoint_type: WaypointType = WaypointType.MEASUREMENT
+    camera_action: CameraAction = CameraAction.PHOTO_CAPTURE
+    camera_target: Point3D | None = None
+    inspection_id: UUID | None = None
+    hover_duration: Seconds | None = None
+    gimbal_pitch: Degrees | None = None
+
+
+@dataclass
+class MethodPrep:
+    """pre-computation output from a method's prepare step."""
+
+    path_distance: Meters = 0.0
+    default_speed: MetersPerSecond = 5.0
+    density_for_speed: int = 8
+    needs_fov_check: bool = False
+    runway_center: Point3D | None = None
+    target_lha_pos: Point3D | None = None
+    target_agl_type: str | None = None
+    rwy_heading_override: float | None = None
+    touchpoint: Point3D | None = None
+    # surface-scan: resolved target surface, run count, and the per-image
+    # ground footprint; suggestion carries the suboptimal-run-count hint.
+    scan_surface: AirfieldSurface | None = None
+    scan_run_count: int | None = None
+    scan_footprint: Meters | None = None
+    suggestion: str | None = None
+
+
+@dataclass(frozen=True)
+class MethodContext:
+    """immutable inputs shared by every method prepare + handler.
+
+    bundles the always-present pass inputs so prepares take `(ctx)` and handlers
+    take `(ctx, prep)` instead of a 16-kwarg fan-out. method-specific resolved
+    values (touchpoint, runway_center, target lha, scan surface) live on
+    MethodPrep, not here. `speed` is the resolved transit speed the handler
+    flies; prepares run before speed resolution and read `default_speed`.
+    """
+
+    inspection: Inspection
+    config: ResolvedConfig
+    center: Point3D
+    runway_heading: Degrees
+    glide_slope: Degrees
+    speed: MetersPerSecond
+    default_speed: MetersPerSecond
+    setting_angles: list[Degrees]
+    template: InspectionTemplate
+    surfaces: list[AirfieldSurface]
+    drone: DroneProfile | None
+    elevation_provider: ElevationProvider | None
+    ordered_lhas: list[Point3D]
+
+
+@dataclass
+class InspectionPass:
+    """waypoints from a single inspection."""
+
+    waypoints: list[WaypointData] = field(default_factory=list)
+    inspection_id: UUID | None = None
+
+
+@dataclass
+class MissionData:
+    """all entities loaded in phase 1 - no further entity queries after this.
+    spatial predicates still use the db session during validation, but these
+    are computational operations on already-loaded geometry data."""
+
+    mission: Mission
+    airport: Airport
+    drone: DroneProfile | None
+    obstacles: list[Obstacle]
+    safety_zones: list[SafetyZone]
+    surfaces: list[AirfieldSurface]
+    constraints: list[ConstraintRule]
+    default_speed: MetersPerSecond
+    elevation_provider: ElevationProvider | None = None

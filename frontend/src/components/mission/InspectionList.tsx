@@ -1,0 +1,302 @@
+import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { GripVertical, Trash2, Eye, EyeOff, Plus, ChevronDown } from "lucide-react";
+import type { AGLResponse, AglType } from "@/types/airport";
+import type { InspectionResponse } from "@/types/mission";
+import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
+import type { InspectionMethod } from "@/types/enums";
+import { compatibleMethods } from "@/utils/methodAglCompatibility";
+import { methodBadgeStyle } from "@/utils/inspectionMethodBadge";
+import { MAX_INSPECTIONS } from "@/constants/mission";
+
+interface InspectionListProps {
+  inspections: InspectionResponse[];
+  templates: Map<string, InspectionTemplateResponse>;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onReorder: (ids: string[]) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  isDraft: boolean;
+  canReorder: boolean;
+  visibleIds: Set<string>;
+  onToggleVisibility: (id: string) => void;
+  // optional - enables per-row method dropdown filtered by AGL compat
+  agls?: AGLResponse[];
+  onChangeMethod?: (inspectionId: string, method: InspectionMethod) => void;
+}
+
+export default function InspectionList({
+  inspections,
+  templates,
+  selectedId,
+  onSelect,
+  onReorder,
+  onAdd,
+  onRemove,
+  isDraft,
+  canReorder,
+  visibleIds,
+  onToggleVisibility,
+  agls,
+  onChangeMethod,
+}: InspectionListProps) {
+  /** reorderable inspection list with per-row method, visibility, and remove controls. */
+  const { t } = useTranslation();
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const dragNode = useRef<HTMLDivElement | null>(null);
+
+  const sorted = inspections.slice().sort(
+    (a, b) => a.sequence_order - b.sequence_order,
+  );
+
+  const canAdd = isDraft && inspections.length < MAX_INSPECTIONS;
+  const addTooltip = !isDraft
+    ? t("mission.config.addDisabledNotDraft")
+    : inspections.length >= MAX_INSPECTIONS
+      ? t("mission.config.addDisabledMaxReached")
+      : undefined;
+
+  function handleDragStart(e: React.DragEvent, idx: number) {
+    if (!canReorder) {
+      e.preventDefault();
+      return;
+    }
+    setDragIdx(idx);
+    dragNode.current = e.currentTarget as HTMLDivElement;
+    e.dataTransfer.effectAllowed = "move";
+    // make the dragged element semi-transparent after a tick
+    requestAnimationFrame(() => {
+      if (dragNode.current) dragNode.current.style.opacity = "0.4";
+    });
+  }
+
+  function handleDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragIdx === null || idx === dragIdx) {
+      setDropIdx(null);
+      return;
+    }
+    setDropIdx(idx);
+  }
+
+  function handleDrop(e: React.DragEvent, targetIdx: number) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === targetIdx) {
+      resetDrag();
+      return;
+    }
+
+    const reordered = [...sorted];
+    const [moved] = reordered.splice(dragIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    onReorder(reordered.map((insp) => insp.id));
+    resetDrag();
+  }
+
+  function resetDrag() {
+    if (dragNode.current) dragNode.current.style.opacity = "1";
+    dragNode.current = null;
+    setDragIdx(null);
+    setDropIdx(null);
+  }
+
+  return (
+    <div>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setCollapsed(!collapsed)}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setCollapsed(!collapsed);
+          }
+        }}
+      >
+        <span className="text-sm font-semibold text-tv-text-primary flex items-center gap-2">
+          <span className="rounded-full px-3 py-1 bg-tv-bg border border-tv-border">
+            {t("mission.config.inspections")}
+          </span>
+          <span
+            className="flex items-center justify-center min-w-[1.5rem] h-6 rounded-full px-1.5 text-xs font-semibold bg-tv-accent text-tv-accent-text"
+          >
+            {inspections.length}/{MAX_INSPECTIONS}
+          </span>
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAdd(); }}
+            disabled={!canAdd}
+            title={addTooltip}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              canAdd
+                ? "bg-tv-accent text-tv-accent-text hover:bg-tv-accent-hover"
+                : "border border-tv-border bg-tv-surface text-tv-text-muted opacity-50 cursor-not-allowed"
+            }`}
+            data-testid="add-inspection-btn"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("mission.config.addInspection")}
+          </button>
+          <ChevronDown className={`h-4 w-4 text-tv-text-primary transition-transform duration-200 ${collapsed ? "" : "rotate-180"}`} />
+        </div>
+      </div>
+      {!collapsed && <div className="border-b border-tv-border -mx-4 mt-3" />}
+
+      {!collapsed && sorted.length === 0 && (
+        <p className="text-sm text-tv-text-muted py-4 text-center">
+          {t("mission.config.noInspectionSelected")}
+        </p>
+      )}
+
+      {!collapsed && (
+      <div className="space-y-1 mt-2 max-h-60 overflow-y-auto">
+        {sorted.map((insp, idx) => {
+          const template = templates.get(insp.template_id);
+          const isSelected = selectedId === insp.id;
+          const isVisible = visibleIds.has(insp.id);
+          const isDropTarget = dropIdx === idx && dragIdx !== idx;
+
+          return (
+            <div key={insp.id}>
+              {/* drop indicator line - above */}
+              {isDropTarget && dragIdx !== null && dragIdx > idx && (
+                <div className="h-0.5 bg-tv-accent rounded-full mx-3 -mb-0.5" />
+              )}
+              <div
+                role="button"
+                tabIndex={0}
+                draggable={canReorder}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDrop={(e) => handleDrop(e, idx)}
+                onDragEnd={resetDrag}
+                onClick={() => onSelect(isSelected ? null : insp.id)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(isSelected ? null : insp.id);
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-2xl text-sm cursor-pointer transition-colors border ${
+                  isSelected
+                    ? "border-tv-accent bg-tv-surface"
+                    : "border-transparent hover:bg-tv-surface-hover"
+                }`}
+                data-testid={`inspection-row-${insp.id}`}
+              >
+                {canReorder && (
+                  <GripVertical className="h-4 w-4 text-tv-text-muted flex-shrink-0 cursor-grab" />
+                )}
+
+                <span className="flex items-center justify-center h-5 w-5 rounded-full bg-tv-accent/20 text-tv-accent text-xs font-semibold flex-shrink-0">
+                  {idx + 1}
+                </span>
+
+                <span className="flex-1 text-tv-text-primary truncate">
+                  {template?.name ?? insp.template_id.slice(0, 8)}
+                </span>
+
+                <span
+                  className="flex-shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium leading-none"
+                  style={methodBadgeStyle(insp.method)}
+                  data-testid={`inspection-method-badge-${insp.id}`}
+                >
+                  {t(`map.inspectionMethodShort.${insp.method}`, insp.method)}
+                </span>
+
+                {onChangeMethod && template && (() => {
+                  // resolve this template's AGL types, filter methods
+                  const aglTypes: AglType[] = [];
+                  if (agls) {
+                    const seen = new Set<AglType>();
+                    for (const aglId of template.target_agl_ids ?? []) {
+                      const agl = agls.find((a) => a.id === aglId);
+                      if (agl && !seen.has(agl.agl_type)) {
+                        seen.add(agl.agl_type);
+                        aglTypes.push(agl.agl_type);
+                      }
+                    }
+                  }
+                  const available = compatibleMethods(
+                    template.methods,
+                    aglTypes,
+                  );
+                  if (available.length <= 1) return null;
+                  return (
+                    <select
+                      value={insp.method}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        onChangeMethod(
+                          insp.id,
+                          e.target.value as InspectionMethod,
+                        );
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={!isDraft}
+                      className="px-2 py-1 rounded-full text-[11px] border border-tv-border bg-tv-bg text-tv-text-primary disabled:opacity-50"
+                      data-testid={`inspection-method-select-${insp.id}`}
+                    >
+                      {available.map((m) => (
+                        <option key={m} value={m}>
+                          {m.replace(/_/g, " ")}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleVisibility(insp.id);
+                  }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-tv-text-primary/10"
+                  title={t("mission.config.visible")}
+                  data-testid={`toggle-visibility-${insp.id}`}
+                >
+                  {isVisible ? (
+                    <Eye className="h-4 w-4 text-tv-accent" />
+                  ) : (
+                    <EyeOff className="h-4 w-4 text-tv-text-muted" />
+                  )}
+                </button>
+
+                {isDraft && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(insp.id);
+                    }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-colors text-tv-text-secondary hover:bg-tv-error/15 hover:text-tv-error"
+                    title={t("mission.config.removeInspection")}
+                    data-testid={`remove-inspection-${insp.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {/* drop indicator line - below */}
+              {isDropTarget && dragIdx !== null && dragIdx < idx && (
+                <div className="h-0.5 bg-tv-accent rounded-full mx-3 -mt-0.5" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      )}
+    </div>
+  );
+}

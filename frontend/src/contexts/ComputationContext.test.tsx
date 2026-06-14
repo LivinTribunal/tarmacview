@@ -1,0 +1,483 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ComputationProvider, useComputation } from "./ComputationContext";
+import ComputationNotification from "@/components/common/ComputationNotification";
+
+const mockRefreshMissions = vi.fn();
+const mockRefreshSelectedMission = vi.fn();
+let mockSelectedMission: Record<string, unknown> | null = null;
+
+vi.mock("./MissionContext", () => ({
+  useMission: () => ({
+    selectedMission: mockSelectedMission,
+    refreshMissions: mockRefreshMissions,
+    refreshSelectedMission: mockRefreshSelectedMission,
+  }),
+}));
+
+const mockGenerateTrajectory = vi.fn();
+const mockGetComputationStatus = vi.fn();
+
+vi.mock("@/api/missions", () => ({
+  generateTrajectory: (...args: unknown[]) => mockGenerateTrajectory(...args),
+  getComputationStatus: (...args: unknown[]) => mockGetComputationStatus(...args),
+}));
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}));
+
+let testQueryClient: QueryClient;
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
+function wrapper({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={testQueryClient}>
+      <ComputationProvider>{children}</ComputationProvider>
+    </QueryClientProvider>
+  );
+}
+
+describe("ComputationContext", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    testQueryClient = createTestQueryClient();
+    mockSelectedMission = { id: "m-1", name: "Test Mission", computation_status: "IDLE" };
+  });
+
+  it("throws when useComputation is used outside provider", () => {
+    expect(() => renderHook(() => useComputation())).toThrow(
+      "useComputation must be used within ComputationProvider",
+    );
+  });
+
+  it("starts with IDLE status", () => {
+    const { result } = renderHook(() => useComputation(), { wrapper });
+    expect(result.current.status).toBe("IDLE");
+    expect(result.current.isComputing).toBe(false);
+    expect(result.current.lastResult).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("transitions to COMPLETED on successful computation", async () => {
+    const mockFlightPlan = { id: "fp-1", waypoints: [] };
+    mockGenerateTrajectory.mockResolvedValueOnce({
+      flight_plan: mockFlightPlan,
+      mission_status: "PLANNED",
+    });
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(result.current.status).toBe("COMPUTING");
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("COMPLETED");
+    });
+
+    expect(mockGenerateTrajectory).toHaveBeenCalledWith("m-1", expect.any(AbortSignal));
+    expect(result.current.lastResult).toEqual(mockFlightPlan);
+    expect(result.current.isComputing).toBe(false);
+    expect(mockRefreshMissions).toHaveBeenCalled();
+    expect(mockRefreshSelectedMission).toHaveBeenCalled();
+  });
+
+  it("transitions to FAILED on error", async () => {
+    mockGenerateTrajectory.mockRejectedValueOnce(
+      Object.assign(new Error("server error"), {
+        response: { data: { detail: "trajectory computation failed" } },
+      }),
+    );
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("FAILED");
+    });
+
+    expect(result.current.error).toBe("trajectory computation failed");
+    expect(result.current.lastResult).toBeNull();
+  });
+
+  it("prevents double-trigger via computingRef guard", async () => {
+    let resolveFirst: (value: unknown) => void;
+    const firstCall = new Promise((r) => { resolveFirst = r; });
+    mockGenerateTrajectory.mockReturnValueOnce(firstCall);
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(result.current.status).toBe("COMPUTING");
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(mockGenerateTrajectory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirst!({ flight_plan: { id: "fp-1" }, mission_status: "PLANNED" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("COMPLETED");
+    });
+  });
+
+  it("isComputing resets to false after successful computation", async () => {
+    mockGenerateTrajectory.mockResolvedValueOnce({
+      flight_plan: { id: "fp-1" },
+      mission_status: "PLANNED",
+    });
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(result.current.isComputing).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isComputing).toBe(false);
+    });
+
+    expect(result.current.status).toBe("COMPLETED");
+  });
+
+  it("isComputing resets to false after failed computation", async () => {
+    mockGenerateTrajectory.mockRejectedValueOnce(new Error("backend error"));
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(result.current.isComputing).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isComputing).toBe(false);
+    });
+
+    expect(result.current.status).toBe("FAILED");
+    expect(result.current.error).toBe("backend error");
+  });
+
+  it("loading state clears on abort/cancel error", async () => {
+    const cancelError = new Error("canceled");
+    cancelError.name = "AbortError";
+    mockGenerateTrajectory.mockRejectedValueOnce(cancelError);
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(result.current.isComputing).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isComputing).toBe(false);
+    });
+
+    expect(result.current.status).toBe("IDLE");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("loading state clears on axios CanceledError", async () => {
+    const cancelError = Object.assign(new Error("canceled"), { code: "ERR_CANCELED" });
+    mockGenerateTrajectory.mockRejectedValueOnce(cancelError);
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.isComputing).toBe(false);
+    });
+
+    expect(result.current.status).toBe("IDLE");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("dismiss resets to IDLE", async () => {
+    mockGenerateTrajectory.mockResolvedValueOnce({
+      flight_plan: { id: "fp-1" },
+      mission_status: "PLANNED",
+    });
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("COMPLETED");
+    });
+
+    act(() => {
+      result.current.dismiss();
+    });
+
+    expect(result.current.status).toBe("IDLE");
+    expect(result.current.lastResult).toBeNull();
+  });
+});
+
+describe("ComputationContext session reconciliation", () => {
+  const SESSION_KEY = "tarmacview_computation";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    testQueryClient = createTestQueryClient();
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("resets to COMPLETED when session says COMPUTING but backend shows COMPLETED", async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      status: "COMPUTING",
+      missionId: "m-1",
+      missionName: "Test",
+      error: null,
+    }));
+    mockSelectedMission = {
+      id: "m-1",
+      name: "Test",
+      computation_status: "COMPLETED",
+      computation_error: null,
+    };
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("COMPLETED");
+    });
+  });
+
+  it("resets to FAILED when session says COMPUTING but backend shows FAILED", async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      status: "COMPUTING",
+      missionId: "m-1",
+      missionName: "Test",
+      error: null,
+    }));
+    mockSelectedMission = {
+      id: "m-1",
+      name: "Test",
+      computation_status: "FAILED",
+      computation_error: "computation timed out",
+    };
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("FAILED");
+    });
+    expect(result.current.error).toBe("computation timed out");
+  });
+
+  it("resets to IDLE when session says COMPUTING but backend shows IDLE", async () => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      status: "COMPUTING",
+      missionId: "m-1",
+      missionName: "Test",
+      error: null,
+    }));
+    mockSelectedMission = {
+      id: "m-1",
+      name: "Test",
+      computation_status: "IDLE",
+      computation_error: null,
+    };
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("IDLE");
+    });
+  });
+});
+
+describe("ComputationContext polling", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    testQueryClient = createTestQueryClient();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts polling when selectedMission has COMPUTING status on mount", async () => {
+    mockSelectedMission = { id: "m-1", name: "Test", computation_status: "COMPUTING" };
+    mockGetComputationStatus.mockResolvedValueOnce({
+      computation_status: "COMPLETED",
+      computation_error: null,
+    });
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    expect(result.current.status).toBe("COMPUTING");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+
+    expect(mockGetComputationStatus).toHaveBeenCalledWith("m-1");
+    expect(result.current.status).toBe("COMPLETED");
+  });
+
+  it("polling detects FAILED status from backend", async () => {
+    mockSelectedMission = { id: "m-1", name: "Test", computation_status: "COMPUTING" };
+    mockGetComputationStatus.mockResolvedValueOnce({
+      computation_status: "FAILED",
+      computation_error: "timed out",
+    });
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+
+    expect(result.current.status).toBe("FAILED");
+    expect(result.current.error).toBe("timed out");
+  });
+
+  it("polling handles network error gracefully", async () => {
+    mockSelectedMission = { id: "m-1", name: "Test", computation_status: "COMPUTING" };
+    mockGetComputationStatus.mockRejectedValueOnce(new Error("network error"));
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+
+    expect(result.current.status).toBe("FAILED");
+    expect(result.current.error).toBe("network error");
+  });
+});
+
+describe("ComputationNotification", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    testQueryClient = createTestQueryClient();
+    mockSelectedMission = { id: "m-1", name: "Test", computation_status: "IDLE" };
+  });
+
+  it("renders nothing when IDLE", () => {
+    render(
+      <QueryClientProvider client={testQueryClient}>
+        <ComputationProvider>
+          <ComputationNotification />
+        </ComputationProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByTestId("computation-notification")).not.toBeInTheDocument();
+  });
+
+  it("shows COMPUTING state via context", () => {
+    mockSelectedMission = { id: "m-1", name: "Test Mission", computation_status: "IDLE" };
+    mockGenerateTrajectory.mockReturnValueOnce(new Promise(() => {}));
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    act(() => {
+      result.current.startComputation("m-1");
+    });
+
+    expect(result.current.status).toBe("COMPUTING");
+    expect(result.current.missionName).toBe("Test Mission");
+  });
+});
+
+describe("ComputationContext applyTerminalStatus auto-dismiss", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    testQueryClient = createTestQueryClient();
+    mockSelectedMission = { id: "m-1", name: "Test", computation_status: "IDLE" };
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("COMPLETED refreshes then auto-dismisses after 5s", async () => {
+    mockGenerateTrajectory.mockResolvedValueOnce({ flight_plan: { id: "fp-1" } });
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await act(async () => {
+      result.current.startComputation("m-1");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.status).toBe("COMPLETED");
+    expect(mockRefreshMissions).toHaveBeenCalled();
+    expect(mockRefreshSelectedMission).toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4999);
+    });
+    expect(result.current.status).toBe("COMPLETED");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(result.current.status).toBe("IDLE");
+  });
+
+  it("FAILED auto-dismisses after 8s, not 5s", async () => {
+    mockGenerateTrajectory.mockRejectedValueOnce(new Error("boom"));
+
+    const { result } = renderHook(() => useComputation(), { wrapper });
+
+    await act(async () => {
+      result.current.startComputation("m-1");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.status).toBe("FAILED");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(result.current.status).toBe("FAILED");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(result.current.status).toBe("IDLE");
+  });
+});

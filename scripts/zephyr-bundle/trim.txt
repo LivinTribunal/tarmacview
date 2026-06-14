@@ -1,0 +1,99 @@
+# rsync --exclude-from manifest for the zephyr bundle.
+#
+# format notes:
+# - lines without a leading slash match the basename in any directory
+# - lines with a slash are anchored from the source root
+# - trailing slash means directory-only
+# - leading `#` and blank lines are comments
+#
+# whenever a new "agent-only" or "maintainer-only" path is introduced on
+# main, add it here so prepare.sh keeps producing a clean bundle.
+
+# claude code agent artifacts
+.claude/
+.claude-pr/
+CLAUDE.md
+.mcp.json
+memory/
+
+# github agent automation
+.github/workflows/harnext-*.yml
+.github/workflows/claude-assistant.yml
+.github/workflows/gap-agent.yml
+.github/workflows/codeql.yml
+.github/workflows/ci.yml
+.github/ISSUE_TEMPLATE/
+.github/PULL_REQUEST_TEMPLATE/
+.github/pull_request_template.md
+
+# maintainer-only lint/quality configs
+.codacy.yaml
+.pre-commit-config.yaml
+harness.config.json
+
+# internal/working docs not for distribution
+CONTEXT.md
+OPERATIONS.md
+docs/adr/
+docs/agents/
+docs/audits/
+docs/conventions.md
+docs/backups.md
+docs/design-reference/
+docs/exported_routes_schema.json
+docs/harness-gaps.md
+docs/kmz-wpml-audit.md
+docs/layers.md
+docs/templates/
+docs/audit-trajectory-vs-zephyr.md
+
+# spec/thesis docs not for distribution (diagrams keep, moved separately)
+docs/specs/CHAPTER3-SYSTEM-DESIGN.md
+docs/specs/DESIGN-SYSTEM.md
+docs/specs/MAP-SYMBOLOGY.md
+docs/specs/SPEC.md
+docs/specs/TRAJECTORY-CONTEXT.md
+docs/specs/WIREFRAME.md
+docs/specs/PAPI*.kmz
+# zephyr provided these to us - no point shipping their own docs back
+docs/specs/ZEPHYR_*.pdf
+
+# dev-only scripts not needed at runtime
+scripts/check-*
+scripts/verify-*
+scripts/risk-policy-gate.sh
+scripts/structural-tests.sh
+scripts/lint-architecture*
+scripts/inspect-wpml-gimbal.py
+scripts/zephyr-bundle/
+
+# maintainer-only seed (the bundle ships its own 01-seed.sql)
+db/.gitignore
+db/01-seed.full.sql
+db/01-seed.local.sql
+
+# common dev/build/cache artifacts
+.git/
+.gitignore
+.gitattributes
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+.venv/
+backend/.venv/
+frontend/dist/
+frontend/.vite/
+dist/
+build/
+out/
+coverage/
+.coverage
+
+# local-only runtime state - never ship
+chrome/
+backups/
+*.dump

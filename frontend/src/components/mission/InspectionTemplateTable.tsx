@@ -1,0 +1,192 @@
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronUp, ChevronDown, Copy, Trash2 } from "lucide-react";
+import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
+import type { AGLResponse } from "@/types/airport";
+import { methodBadgeStyle } from "@/utils/inspectionMethodBadge";
+import { formatAglDisplayName } from "@/utils/agl";
+import useListSort, { type SortDir } from "@/components/common/useListSort";
+
+type SortField = "name" | "agl" | "method" | "usedIn" | "created" | "lastUpdated";
+
+function SortIcon({
+  field,
+  sortField,
+  sortDir,
+}: {
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
+}) {
+  /** active-column sort chevron. */
+  if (sortField !== field) return null;
+  return sortDir === "asc" ? (
+    <ChevronUp className="h-3.5 w-3.5 inline ml-1" />
+  ) : (
+    <ChevronDown className="h-3.5 w-3.5 inline ml-1" />
+  );
+}
+
+interface InspectionTemplateTableProps {
+  templates: InspectionTemplateResponse[];
+  aglMap: Map<string, AGLResponse>;
+  onRowClick: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+  page: number;
+  pageSize: number;
+}
+
+export default function InspectionTemplateTable({
+  templates,
+  aglMap,
+  onRowClick,
+  onDuplicate,
+  onDelete,
+  page,
+  pageSize,
+}: InspectionTemplateTableProps) {
+  /** sortable, paginated table of inspection templates. */
+  const { t } = useTranslation();
+
+  const compareTemplate = useCallback(
+    (
+      a: InspectionTemplateResponse,
+      b: InspectionTemplateResponse,
+      field: SortField,
+    ): number => {
+      switch (field) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "agl": {
+          const aglA = aglMap.get(a.target_agl_ids[0] ?? "")?.name ?? "";
+          const aglB = aglMap.get(b.target_agl_ids[0] ?? "")?.name ?? "";
+          return aglA.localeCompare(aglB);
+        }
+        case "method":
+          return (a.methods[0] ?? "").localeCompare(b.methods[0] ?? "");
+        case "usedIn":
+          return (a.mission_count ?? 0) - (b.mission_count ?? 0);
+        case "created":
+          return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        case "lastUpdated":
+          return (a.updated_at ?? "").localeCompare(b.updated_at ?? "");
+      }
+    },
+    [aglMap],
+  );
+
+  const { sortedRows: sorted, sortKey: sortField, sortDir, handleSort } = useListSort<
+    InspectionTemplateResponse,
+    SortField
+  >(templates, "name", compareTemplate, "asc", ["usedIn", "created", "lastUpdated"]);
+
+  const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
+
+  function formatMethod(method: string) {
+    return t(`map.inspectionMethodShort.${method}`, method);
+  }
+
+  function formatDate(dateStr: string | null) {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString();
+  }
+
+  if (templates.length === 0) {
+    return (
+      <p className="text-sm text-tv-text-muted py-8 text-center">
+        {t("coordinator.inspections.noMatch")}
+      </p>
+    );
+  }
+
+  const columns: [SortField, string][] = [
+    ["name", t("coordinator.inspections.columns.name")],
+    ["agl", t("coordinator.inspections.columns.aglSystem")],
+    ["method", t("coordinator.inspections.columns.method")],
+    ["usedIn", t("coordinator.inspections.columns.usedIn")],
+    ["created", t("coordinator.inspections.columns.created")],
+    ["lastUpdated", t("coordinator.inspections.columns.lastUpdated")],
+  ];
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" data-testid="template-table">
+          <thead>
+            <tr className="border-b border-tv-border text-left">
+              {columns.map(([field, label]) => (
+                <th
+                  key={field}
+                  onClick={() => handleSort(field)}
+                  className="py-3 px-3 text-xs uppercase font-semibold text-tv-text-secondary cursor-pointer select-none hover:text-tv-text-primary transition-colors"
+                >
+                  {label}
+                  <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+                </th>
+              ))}
+              <th className="py-3 px-3 w-20" aria-label={t("common.actions")} />
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.map((tpl) => {
+              const agl = aglMap.get(tpl.target_agl_ids[0] ?? "");
+              return (
+                <tr
+                  key={tpl.id}
+                  onClick={() => onRowClick(tpl.id)}
+                  className="border-b border-tv-border last:border-b-0 cursor-pointer hover:bg-tv-surface-hover transition-colors"
+                  data-testid={`template-row-${tpl.id}`}
+                >
+                  <td className="py-3 px-3 text-tv-text-primary font-medium">
+                    {tpl.name}
+                  </td>
+                  <td className="py-3 px-3 text-tv-text-secondary">
+                    {agl ? formatAglDisplayName(agl) : "—"}
+                  </td>
+                  <td className="py-3 px-3">
+                    <span
+                      className="inline-block rounded-full px-2.5 py-0.5 text-xs"
+                      style={methodBadgeStyle(tpl.methods[0] ?? "")}
+                    >
+                      {formatMethod(tpl.methods[0] ?? "")}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-tv-text-secondary">
+                    {tpl.mission_count ?? 0}
+                  </td>
+                  <td className="py-3 px-3 text-tv-text-secondary">
+                    {formatDate(tpl.created_at)}
+                  </td>
+                  <td className="py-3 px-3 text-tv-text-secondary">
+                    {formatDate(tpl.updated_at)}
+                  </td>
+                  <td className="py-3 px-3">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onDuplicate(tpl.id); }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors text-tv-text-secondary hover:bg-tv-text-primary/10 hover:text-tv-text-primary"
+                        aria-label={t("coordinator.inspections.duplicateTemplate")}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onDelete(tpl.id); }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors text-tv-text-secondary hover:bg-tv-error/15 hover:text-tv-error"
+                        aria-label={t("coordinator.inspections.deleteTemplate")}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

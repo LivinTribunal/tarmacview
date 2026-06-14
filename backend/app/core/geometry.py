@@ -1,0 +1,91 @@
+"""WKT geometry helpers - the single seam between stored strings and Shapely.
+
+geometry columns store raw WKT strings (POINT Z (lon lat alt),
+LINESTRING Z (...), POLYGON Z ((...))). every consumer that needs to operate
+on the geometry parses through Shapely here.
+"""
+
+from __future__ import annotations
+
+from shapely import from_wkt
+from shapely.geometry.base import BaseGeometry
+
+
+def wkt_to_shapely(wkt: str | None) -> BaseGeometry | None:
+    """parse a WKT string to a Shapely geometry, returning None on empty input."""
+    if wkt is None or wkt == "":
+        return None
+    return from_wkt(wkt)
+
+
+def wkt_to_geojson(wkt: str | None) -> dict | None:
+    """parse a WKT string to a GeoJSON dict (Point/LineString/Polygon, all 3D)."""
+    geom = wkt_to_shapely(wkt)
+    if geom is None:
+        return None
+
+    if geom.geom_type == "Point":
+        return {"type": "Point", "coordinates": _coords_3d(list(geom.coords)[0])}
+
+    if geom.geom_type == "LineString":
+        return {"type": "LineString", "coordinates": [_coords_3d(c) for c in geom.coords]}
+
+    if geom.geom_type == "Polygon":
+        rings = [[_coords_3d(c) for c in geom.exterior.coords]]
+        for interior in geom.interiors:
+            rings.append([_coords_3d(c) for c in interior.coords])
+        return {"type": "Polygon", "coordinates": rings}
+
+    raise ValueError(f"unsupported geometry type: {geom.geom_type}")
+
+
+def _coords_3d(c) -> list[float]:
+    """normalize a coordinate tuple to [x, y, z] with z defaulting to 0."""
+    if len(c) >= 3:
+        return [float(c[0]), float(c[1]), float(c[2])]
+    return [float(c[0]), float(c[1]), 0.0]
+
+
+def point_lonlatalt(wkt: str | None) -> tuple[float, float, float]:
+    """parse a Point WKT string to (lon, lat, alt); strict on empty/None/non-Point."""
+    if not wkt:
+        raise ValueError("missing point geometry")
+    geojson = wkt_to_geojson(wkt)
+    if geojson is None or geojson.get("type") != "Point":
+        raise ValueError(f"expected Point geometry, got {geojson and geojson.get('type')}")
+    coords = geojson["coordinates"]
+    return (float(coords[0]), float(coords[1]), float(coords[2]) if len(coords) > 2 else 0.0)
+
+
+def polygon_xy(wkt: str | None) -> list[tuple[float, float]]:
+    """parse a Polygon WKT string to a list of (lon, lat) exterior-ring pairs.
+
+    returns [] on empty/None input; raises ValueError on non-Polygon geometry.
+    """
+    if not wkt:
+        return []
+    geojson = wkt_to_geojson(wkt)
+    if geojson is None:
+        return []
+    if geojson.get("type") != "Polygon":
+        raise ValueError(f"expected Polygon geometry, got {geojson.get('type')}")
+    rings = geojson.get("coordinates") or []
+    if not rings or not rings[0]:
+        return []
+    return [(float(c[0]), float(c[1])) for c in rings[0]]
+
+
+def linestring_xy(wkt: str | None) -> list[tuple[float, float]]:
+    """parse a LineString WKT string to a list of (lon, lat) pairs.
+
+    returns [] on empty/None input; raises ValueError on non-LineString geometry.
+    """
+    if not wkt:
+        return []
+    geojson = wkt_to_geojson(wkt)
+    if geojson is None:
+        return []
+    if geojson.get("type") != "LineString":
+        raise ValueError(f"expected LineString geometry, got {geojson.get('type')}")
+    coords = geojson.get("coordinates") or []
+    return [(float(c[0]), float(c[1])) for c in coords]

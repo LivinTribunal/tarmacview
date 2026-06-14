@@ -1,0 +1,43 @@
+{
+  "version": {
+    "major": 5,
+    "minor": 16,
+    "patch": 1,
+    "build": "9205",
+    "component": "DATABASE"
+  },
+  "route": {
+    "name": "Test Route",
+    "checkAerodromeNfz": false,
+    "checkCustomNfz": true,
+    "segments": []
+  },
+  "customNfzList": [
+    {
+      "name": "Restricted A",
+      "type": "RESTRICTED",
+      "polygon": {
+        "points": [
+          {"latitude": 0.86742, "longitude": 0.31591},
+          {"latitude": 0.86742, "longitude": 0.31608},
+          {"latitude": 0.86760, "longitude": 0.31608},
+          {"latitude": 0.86760, "longitude": 0.31591},
+          {"latitude": 0.86742, "longitude": 0.31591}
+        ]
+      }
+    },
+    {
+      "name": "Tower",
+      "type": "OBSTACLE",
+      "polygon": {
+        "points": [
+          {"latitude": 0.86747, "longitude": 0.31600},
+          {"latitude": 0.86747, "longitude": 0.31601},
+          {"latitude": 0.86749, "longitude": 0.31601},
+          {"latitude": 0.86749, "longitude": 0.31600},
+          {"latitude": 0.86747, "longitude": 0.31600}
+        ]
+      }
+    }
+  ]
+}

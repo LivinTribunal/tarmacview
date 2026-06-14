@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --tv-bg: #ffffff;
+  --tv-surface: #f5f5f5;
+  --tv-surface-hover: #ebebeb;
+  --tv-border: #e9e9e9;
+  --tv-text-primary: #161616;
+  --tv-text-primary-soft: #3a3a3a;
+  --tv-text-primary-hover: #000000;
+  --tv-text-secondary: #6b6b6b;
+  --tv-text-muted: #757575;
+  --tv-accent: #3bbb3b;
+  --tv-accent-hover: #2ea62e;
+  --tv-accent-busy: #1f7a1f;
+  --tv-accent-text: #ffffff;
+  --tv-accent-magenta: #e91e90;
+  --tv-agl-runway-edge: #f7b32b;
+  --tv-error: #e54545;
+  --tv-warning: #e5a545;
+  --tv-info: #4595e5;
+  --tv-success: #3bbb3b;
+  --tv-nav-active-bg: #3bbb3b;
+  --tv-nav-active-text: #ffffff;
+  --tv-section-label-bg: #f0f0f0;
+
+  /* status badge colors */
+  --tv-status-draft-bg: #e9e9e9;
+  --tv-status-draft-text: #6b6b6b;
+  --tv-status-planned-bg: #dbeafe;
+  --tv-status-planned-text: #2563eb;
+  --tv-status-validated-bg: #dcfce7;
+  --tv-status-validated-text: #16a34a;
+  --tv-status-exported-bg: #f3e8ff;
+  --tv-status-exported-text: #9333ea;
+  --tv-status-completed-bg: #d1fae5;
+  --tv-status-completed-text: #059669;
+  --tv-status-cancelled-bg: #fee2e2;
+  --tv-status-cancelled-text: #dc2626;
+
+  /* inspection colors */
+  --tv-inspection-1: #4595e5;
+  --tv-inspection-2: #3bbb3b;
+  --tv-inspection-3: #e5a545;
+  --tv-inspection-4: #9b59b6;
+  --tv-inspection-5: #e54545;
+
+  /* inspection method colors */
+  --tv-method-horizontal-range-bg: rgba(69, 149, 229, 0.15);
+  --tv-method-horizontal-range-text: #4595e5;
+  --tv-method-vertical-profile-bg: rgba(155, 89, 182, 0.15);
+  --tv-method-vertical-profile-text: #9b59b6;
+  --tv-method-approach-descent-bg: rgba(20, 130, 200, 0.15);
+  --tv-method-approach-descent-text: #1577c2;
+  --tv-method-fly-over-bg: rgba(59, 187, 59, 0.15);
+  --tv-method-fly-over-text: #2e8b2e;
+  --tv-method-parallel-side-sweep-bg: rgba(229, 165, 69, 0.15);
+  --tv-method-parallel-side-sweep-text: #c77d0c;
+  --tv-method-hover-point-lock-bg: rgba(233, 30, 144, 0.15);
+  --tv-method-hover-point-lock-text: #c4117a;
+  --tv-method-meht-check-bg: rgba(14, 165, 165, 0.15);
+  --tv-method-meht-check-text: #0e9a9a;
+  --tv-method-surface-scan-bg: rgba(120, 113, 108, 0.15);
+  --tv-method-surface-scan-text: #78716c;
+
+  /* safety zone colors */
+  --tv-zone-ctr-fill: rgba(69, 149, 229, 0.2);
+  --tv-zone-ctr-border: #4595e5;
+  --tv-zone-restricted-fill: rgba(229, 165, 69, 0.2);
+  --tv-zone-restricted-border: #e5a545;
+  --tv-zone-prohibited-fill: rgba(229, 69, 69, 0.2);
+  --tv-zone-prohibited-border: #e54545;
+  --tv-zone-no-fly-fill: rgba(229, 229, 69, 0.2);
+  --tv-zone-no-fly-border: #e5e545;
+
+  /* map panel */
+  --tv-map-bg: #1a1a1a;
+
+  /* waypoint highlight - active hover/selection halo on the 2d map */
+  --tv-waypoint-highlight: #ff6b00;
+  --tv-waypoint-highlight-halo: #ffffff;
+}
+
+.dark {
+  --tv-bg: #000000;
+  --tv-surface: #1a1a1a;
+  --tv-surface-hover: #252525;
+  --tv-border: #2a2a2a;
+  --tv-text-primary: #e9e9e9;
+  --tv-text-primary-soft: #b8b8b8;
+  --tv-text-primary-hover: #ffffff;
+  --tv-text-secondary: #8a8a8a;
+  --tv-text-muted: #7a7a7a;
+  --tv-accent: #3bbb3b;
+  --tv-accent-hover: #2ea62e;
+  --tv-accent-busy: #256b25;
+  --tv-accent-text: #ffffff;
+  --tv-accent-magenta: #e91e90;
+  --tv-agl-runway-edge: #f7b32b;
+  --tv-error: #e54545;
+  --tv-warning: #e5a545;
+  --tv-info: #4595e5;
+  --tv-success: #3bbb3b;
+  --tv-nav-active-bg: #3bbb3b;
+  --tv-nav-active-text: #ffffff;
+  --tv-section-label-bg: #111111;
+
+  /* status badge colors - dark */
+  --tv-status-draft-bg: #2a2a2a;
+  --tv-status-draft-text: #8a8a8a;
+  --tv-status-planned-bg: #1e3a5f;
+  --tv-status-planned-text: #60a5fa;
+  --tv-status-validated-bg: #14532d;
+  --tv-status-validated-text: #4ade80;
+  --tv-status-exported-bg: #3b0764;
+  --tv-status-exported-text: #c084fc;
+  --tv-status-completed-bg: #064e3b;
+  --tv-status-completed-text: #34d399;
+  --tv-status-cancelled-bg: #450a0a;
+  --tv-status-cancelled-text: #f87171;
+
+  /* inspection method colors - dark */
+  --tv-method-horizontal-range-bg: rgba(69, 149, 229, 0.2);
+  --tv-method-horizontal-range-text: #60a5fa;
+  --tv-method-vertical-profile-bg: rgba(155, 89, 182, 0.2);
+  --tv-method-vertical-profile-text: #c084fc;
+  --tv-method-approach-descent-bg: rgba(20, 130, 200, 0.2);
+  --tv-method-approach-descent-text: #38bdf8;
+  --tv-method-fly-over-bg: rgba(59, 187, 59, 0.2);
+  --tv-method-fly-over-text: #4ade80;
+  --tv-method-parallel-side-sweep-bg: rgba(229, 165, 69, 0.2);
+  --tv-method-parallel-side-sweep-text: #fbbf24;
+  --tv-method-hover-point-lock-bg: rgba(233, 30, 144, 0.2);
+  --tv-method-hover-point-lock-text: #f472b6;
+  --tv-method-meht-check-bg: rgba(14, 165, 165, 0.2);
+  --tv-method-meht-check-text: #2dd4bf;
+  --tv-method-surface-scan-bg: rgba(168, 162, 158, 0.2);
+  --tv-method-surface-scan-text: #d6d3d1;
+
+  /* map panel - dark */
+  --tv-map-bg: #0a0a0a;
+}
+
+/* hide number input spinner buttons */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+html {
+  font-size: 17px;
+}
+
+body {
+  margin: 0;
+  font-family: "DM Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--tv-bg);
+  color: var(--tv-text-primary);
+}
+
+/* global scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tv-border) transparent;
+}
+
+@supports not (scrollbar-width: thin) {
+  *::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--tv-border);
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--tv-text-muted);
+  }
+}
+
+/* maplibre navigation control - design system styling */
+.maplibregl-ctrl-group {
+  border-radius: 16px !important;
+  overflow: hidden;
+  border: 1px solid var(--tv-border) !important;
+  box-shadow: none !important;
+  background: var(--tv-surface) !important;
+}
+
+.maplibregl-ctrl-group button {
+  border-radius: 0 !important;
+  background-color: var(--tv-surface) !important;
+  color: var(--tv-text-primary) !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--tv-surface-hover) !important;
+}
+
+.maplibregl-ctrl-group button+button {
+  border-top: 1px solid var(--tv-border) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: var(--tv-maplibre-icon-filter, none);
+}
+
+.dark .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+  margin-bottom: 62px;
+  margin-right: 14px;
+}
+
+/* role-based accent color overrides */
+.role-coordinator {
+  --tv-accent: #e5a545;
+  --tv-accent-hover: #d4942e;
+  --tv-nav-active-bg: #e5a545;
+}
+
+.role-admin {
+  --tv-accent: #e54545;
+  --tv-accent-hover: #d43030;
+  --tv-nav-active-bg: #e54545;
+}
+
+@keyframes pulse-ring {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}

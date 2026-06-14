@@ -1,0 +1,43 @@
+# FastAPI + server
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
+mangum==0.21.0
+
+# Database
+sqlalchemy==2.0.49
+shapely==2.1.2
+alembic==1.18.4
+psycopg2-binary==2.9.12
+asyncpg==0.31.0
+
+# Auth
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.27
+
+# Validation
+pydantic==2.13.3
+pydantic-settings==2.14.0
+email-validator==2.3.0
+
+# Export formats
+simplekml==1.3.6
+lxml==6.1.0
+matplotlib==3.10.9
+reportlab==4.5.0
+
+# Terrain / elevation - GeoTIFF DEM upload + Open-Elevation API download (#467)
+rasterio==1.5.0
+numpy==2.4.4
+
+# Image metadata - EXIF GPS extraction for photo-derived placement
+exifread==3.5.1
+
+# Testing
+pytest==9.0.3
+pytest-asyncio==1.3.0
+httpx==0.28.1
+testcontainers[postgres]==4.14.2
+
+# Dev
+ruff==0.15.12

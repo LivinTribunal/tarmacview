@@ -1,0 +1,61 @@
+"""field-link DTOs - hub status proxy and hub-reported media events."""
+
+from datetime import datetime
+from typing import Literal
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from app.schemas.geometry import PointZ
+
+MediaFileStatusStr = Literal["RECEIVED", "MATCHED", "UNASSIGNED", "INGESTED"]
+
+
+class FieldLinkDevice(BaseModel):
+    """one device known to the field hub."""
+
+    sn: str
+    model_name: str | None = None
+    model_key: str | None = None
+    domain: int | None = None
+    online: bool = False
+    bound: bool = False
+    gateway_sn: str | None = None
+
+
+class FieldLinkStatusResponse(BaseModel):
+    """hub reachability plus the device snapshot."""
+
+    hub_online: bool
+    broker_connected: bool = False
+    devices: list[FieldLinkDevice] = []
+
+
+class MediaEventCreate(BaseModel):
+    """hub-reported arrival of one uploaded original."""
+
+    object_key: str
+    fingerprint: str
+    # device-reported capture time - never server receive time
+    captured_at: datetime | None = None
+    position: PointZ | None = None
+    device_sn: str | None = None
+    # hub callback payload, persisted verbatim for the matching slice
+    raw_callback: dict | None = None
+
+
+class DroneMediaFileResponse(BaseModel):
+    """drone media file row."""
+
+    id: UUID
+    object_key: str
+    fingerprint: str
+    captured_at: datetime | None = None
+    capture_position: PointZ | None = None
+    device_sn: str | None = None
+    mission_id: UUID | None = None
+    status: MediaFileStatusStr
+    received_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

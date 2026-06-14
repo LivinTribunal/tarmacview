@@ -1,0 +1,60 @@
+"""backwards-compatible shim.
+
+the airport service was split into the ``app.services.airport`` package by
+aggregate (see ``app/services/airport/__init__.py``). this module re-exports
+the prior public surface so ``from app.services import airport_service`` and
+every ``airport_service.<symbol>`` reference keep resolving byte-identically
+for the routers under ``app/api/routes/airports/``.
+"""
+
+from app.services.airport import (  # noqa: F401
+    ELEVATION_FIELDS,
+    GEOTIFF_NODATA,
+    MAX_BATCH_TIMEOUT_SECONDS,
+    MAX_EDGE_LIGHT_UNITS,
+    PAPI_MAX_LIGHTS,
+    __all__,
+    _normalize_position_altitude,
+    bulk_change_drone,
+    bulk_generate_lhas,
+    couple_surfaces,
+    create_agl,
+    create_airport,
+    create_lha,
+    create_obstacle,
+    create_reverse_surface,
+    create_safety_zone,
+    create_surface,
+    decouple_surfaces,
+    delete_agl,
+    delete_airport,
+    delete_lha,
+    delete_obstacle,
+    delete_safety_zone,
+    delete_surface,
+    delete_terrain_dem,
+    download_terrain_for_location,
+    elevation_fields_changed,
+    get_airport,
+    get_airport_lonlat,
+    get_dem_file_path,
+    get_elevation_at_point,
+    list_agls,
+    list_airports,
+    list_airports_with_counts,
+    list_lhas,
+    list_obstacles,
+    list_safety_zones,
+    list_surfaces,
+    recalculate_obstacle_dimensions,
+    recalculate_surface_dimensions,
+    renormalize_airport_altitudes,
+    set_default_drone,
+    update_agl,
+    update_airport,
+    update_lha,
+    update_obstacle,
+    update_safety_zone,
+    update_surface,
+    upload_terrain_dem,
+)

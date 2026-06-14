@@ -1,0 +1,146 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import Input from "@/components/common/Input";
+import Button from "@/components/common/Button";
+import type { AirportDetailResponse } from "@/types/airport";
+
+interface AirportInfoPanelProps {
+  airport: AirportDetailResponse;
+  onUpdate: (data: Record<string, unknown>) => void;
+  onDelete?: () => void;
+}
+
+export default function AirportInfoPanel({
+  airport,
+  onUpdate,
+  onDelete,
+}: AirportInfoPanelProps) {
+  /** collapsible editable airport metadata panel. */
+  const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState(true);
+  const [form, setForm] = useState({
+    name: airport.name,
+    icao_code: airport.icao_code,
+    city: airport.city ?? "",
+    country: airport.country ?? "",
+    elevation: airport.elevation,
+  });
+
+  // reset local form whenever the airport identity changes; without this the
+  // panel stays stuck on the previous airport's metadata when the user picks
+  // a different airport in the airport selector.
+  useEffect(() => {
+    setForm({
+      name: airport.name,
+      icao_code: airport.icao_code,
+      city: airport.city ?? "",
+      country: airport.country ?? "",
+      elevation: airport.elevation,
+    });
+  }, [airport.id, airport.name, airport.icao_code, airport.city, airport.country, airport.elevation]);
+
+  function handleChange(field: string, value: string | number | null) {
+    /** propagate field change to parent. */
+    setForm((prev) => ({ ...prev, [field]: value }));
+    onUpdate({ [field]: value });
+  }
+
+  return (
+    <div
+      className="rounded-2xl border border-tv-border bg-tv-bg"
+      data-testid="airport-info-panel"
+    >
+      <div className="flex w-full items-center justify-between px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-2 flex-1"
+        >
+          <span className="rounded-full px-3 py-1 bg-tv-surface border border-tv-border text-xs font-semibold text-tv-text-primary">
+            {t("coordinator.detail.airportInfo")}
+          </span>
+          <span
+            className="flex items-center justify-center min-w-[1.25rem] h-5 rounded-full px-1.5 text-[10px] font-semibold bg-tv-accent text-tv-accent-text"
+          >
+            {airport.icao_code}
+          </span>
+        </button>
+        <button type="button" onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? (
+            <ChevronDown className="h-3.5 w-3.5 text-tv-text-muted" />
+          ) : (
+            <ChevronUp className="h-3.5 w-3.5 text-tv-text-muted" />
+          )}
+        </button>
+      </div>
+
+      {!collapsed && (
+        <div className="border-t border-tv-border px-3 py-2 flex flex-col gap-1.5">
+          <Input
+            id="airport-name"
+            label={t("coordinator.createAirport.name")}
+            hint={t("coordinator.createAirport.nameHelp")}
+            value={form.name}
+            onChange={(e) => handleChange("name", e.target.value)}
+            className="!px-3 !py-1.5 !text-xs"
+          />
+          <Input
+            id="airport-icao"
+            label={t("coordinator.createAirport.icaoCode")}
+            hint={t("coordinator.createAirport.icaoCodeHelp")}
+            value={form.icao_code}
+            onChange={(e) => handleChange("icao_code", e.target.value.toUpperCase())}
+            className="!px-3 !py-1.5 !text-xs"
+          />
+          <div className="grid grid-cols-2 gap-1.5">
+            <Input
+              id="airport-city"
+              label={t("coordinator.createAirport.city")}
+              hint={t("coordinator.createAirport.cityHelp")}
+              value={form.city}
+              onChange={(e) => handleChange("city", e.target.value || null)}
+              className="!px-3 !py-1.5 !text-xs"
+            />
+            <Input
+              id="airport-country"
+              label={t("coordinator.createAirport.country")}
+              hint={t("coordinator.createAirport.countryHelp")}
+              value={form.country}
+              onChange={(e) => handleChange("country", e.target.value || null)}
+              className="!px-3 !py-1.5 !text-xs"
+            />
+          </div>
+          <Input
+            id="airport-elevation"
+            label={t("coordinator.detail.airportElevation")}
+            hint={t("coordinator.detail.airportElevationHelp")}
+            type="number"
+            value={String(form.elevation)}
+            onChange={(e) => {
+              if (e.target.value === "") {
+                handleChange("elevation", null);
+              } else {
+                const parsed = parseFloat(e.target.value);
+                if (!isNaN(parsed)) handleChange("elevation", parsed);
+              }
+            }}
+            className="!px-3 !py-1.5 !text-xs"
+          />
+          {onDelete && (
+            <div className="pt-2 border-t border-tv-border mt-2">
+              <Button
+                variant="danger"
+                onClick={onDelete}
+                className="w-full !text-xs"
+                data-testid="delete-airport-button"
+              >
+                {t("coordinator.detail.deleteAirport")}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

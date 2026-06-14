@@ -1,0 +1,11 @@
+exclude_paths:
+  - 'backend/tests/**'
+  - 'backend/**/conftest.py'
+  - 'backend/migrations/versions/**'
+  - 'frontend/src/**/*.test.ts'
+  - 'frontend/src/**/*.test.tsx'
+  - 'frontend/src/**/__tests__/**'
+  - 'frontend/dist/**'
+  - 'frontend/coverage/**'
+  - 'docs/**'
+  - '**/*.md'

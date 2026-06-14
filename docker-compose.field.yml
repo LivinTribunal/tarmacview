@@ -1,0 +1,21 @@
+# field profile override - auto-wires the backend -> fieldhub link.
+# the backend service has no `profiles:` key, so it runs under both the default
+# and the field profile. setting the hub vars on it in docker-compose.yml would
+# leak into plain `docker compose up` and break the no-hub default, so they live
+# here and apply only when this override is loaded alongside the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.field.yml --profile field up
+#
+# the field launcher (start-field.sh / .bat) carries these flags. this file is
+# deliberately not named docker-compose.override.yml - that auto-loads on every
+# command, which would re-break the no-hub default. plain `docker compose up`
+# never loads it, so the backend's FIELDHUB_URL/_CA stay empty and
+# field_link_service short-circuits to the offline response with no network call.
+services:
+  backend:
+    environment:
+      # in-compose hub service address + the local CA mounted at /certs/fieldhub.
+      # FIELDHUB_SHARED_SECRET is inherited from the base backend/fieldhub (one
+      # ${FIELDHUB_SHARED_SECRET:-} from .env.docker), so X-Hub-Secret matches.
+      FIELDHUB_URL: ${FIELDHUB_URL:-https://fieldhub:8443}
+      FIELDHUB_CA: ${FIELDHUB_CA:-/certs/fieldhub/ca.crt}

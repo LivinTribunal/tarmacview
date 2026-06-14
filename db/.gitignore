@@ -1,0 +1,7 @@
+# personal/local seed with test airports — never commit, never publish.
+# kept outside db/initdb/ so docker-compose's `./db/initdb` mount doesn't
+# load it on a maintainer's machine; reviewers never see it (gitignored,
+# never reaches their clone). To use locally, see INSTALL.md "Optional —
+# using a richer local seed".
+01-seed.full.sql
+01-seed.local.sql

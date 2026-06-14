@@ -37,14 +37,14 @@ def detect_lights(image_path: str, reference_points: List[Dict]) -> Dict[str, Di
 
         if not detected_lights_list:
             logger.warning("No lights detected, using default positions")
-            return _generate_default_positions(width, height)
+            return _generate_default_positions(width, height, reference_points)
 
         # Enhanced PAPI detection with line-based approach
         papi_candidates = _filter_papi_candidates(detected_lights_list)
 
         if not papi_candidates:
             logger.warning("No high-intensity PAPI candidates found, using default positions")
-            return _generate_default_positions(width, height)
+            return _generate_default_positions(width, height, reference_points)
 
         # Find the best line of 4 PAPI lights
         best_papi_line = _find_best_papi_line(papi_candidates)
@@ -61,7 +61,7 @@ def detect_lights(image_path: str, reference_points: List[Dict]) -> Dict[str, Di
 
     except Exception as e:
         logger.error(f"Error in light detection: {e}")
-        return _generate_default_positions(width, height)
+        return _generate_default_positions(width, height, reference_points)
 
 
 def _filter_papi_candidates(detected_lights_list: List[DetectedLight]) -> List[DetectedLight]:
@@ -437,8 +437,64 @@ def _fallback_papi_detection(
     return _convert_to_papi_positions(top_candidates, width, height)
 
 
-def _generate_default_positions(width: int, height: int) -> Dict[str, Dict]:
-    """Generate default PAPI positions when detection fails with boundary clamping"""
+def _project_reference_points(reference_points: List[Dict]) -> Dict[str, Dict]:
+    """Pre-place PAPI boxes from the snapshotted LHA geometry projected onto the frame.
+
+    The reference points are the colinear PAPI lights' ground truth (lat/lon). With no
+    camera pose available at first-frame time a true 3d->2d projection isn't possible, so
+    project the lights onto a horizontal band preserving their relative along-bar spacing
+    - the operator nudges from the LHA ground truth rather than an even grid. Returns {}
+    when fewer than two usable points define the bar so the caller can fall back.
+    """
+    coords = [
+        (ref["latitude"], ref["longitude"])
+        for ref in reference_points
+        if ref.get("latitude") is not None and ref.get("longitude") is not None
+    ]
+    if len(coords) < 2:
+        return {}
+
+    lats = np.array([c[0] for c in coords], dtype=float)
+    lons = np.array([c[1] for c in coords], dtype=float)
+    # local planar offsets; the earth-radius scale cancels under the normalization below
+    east = (lons - lons.mean()) * np.cos(np.radians(lats.mean()))
+    north = lats - lats.mean()
+
+    # project each light onto the bar axis (first -> last light), normalize to [0, 1]
+    axis_east, axis_north = east[-1] - east[0], north[-1] - north[0]
+    axis_len = float(np.hypot(axis_east, axis_north))
+    if axis_len == 0:
+        return {}
+    along = (east * axis_east + north * axis_north) / axis_len
+    span = float(along.max() - along.min())
+    if span == 0:
+        return {}
+    fraction = (along - along.min()) / span
+
+    # spread across the central horizontal band (20-80%), vertically centered
+    papi_names = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]
+    detected_lights: Dict[str, Dict] = {}
+    for i, frac in enumerate(fraction):
+        if i >= len(papi_names):
+            break
+        x_percent = max(5, min(95, 20 + float(frac) * 60))
+        detected_lights[papi_names[i]] = {"x": x_percent, "y": 50.0, "size": 8}
+    return detected_lights
+
+
+def _generate_default_positions(
+    width: int, height: int, reference_points: List[Dict] | None = None
+) -> Dict[str, Dict]:
+    """Pre-place PAPI positions, projecting the LHA geometry when reference points exist.
+
+    Prefers the snapshotted reference points' relative along-bar spacing projected onto
+    the frame; falls back to an even width/3 grid only when too few reference points are
+    available to define the bar.
+    """
+    projected = _project_reference_points(reference_points or [])
+    if projected:
+        return projected
+
     detected_lights = {}
     base_x = width // 3
     base_y = height // 2

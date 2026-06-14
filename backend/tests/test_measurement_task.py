@@ -248,3 +248,28 @@ def test_real_engine_first_frame_on_synthetic_clip(tmp_path):
     assert metadata.get("frame_width") == width
     # detection always returns the four PAPI slots (real detection or default fallback)
     assert set(detected.keys()) == set(_LIGHTS)
+
+
+def test_default_positions_project_reference_points():
+    """the no-detection fallback pre-places boxes from the LHA geometry, not a grid."""
+    pytest.importorskip("cv2")
+    from app.services.video_processing.processor.detection import (
+        _generate_default_positions,
+        _project_reference_points,
+    )
+
+    # four colinear PAPI lights with deliberately uneven spacing (along-bar 0, 1, 2, 5)
+    refs = [{"latitude": 50.0, "longitude": lon} for lon in (0.0, 0.001, 0.002, 0.005)]
+
+    projected = _project_reference_points(refs)
+    assert set(projected) == set(_LIGHTS)
+    xs = [projected[name]["x"] for name in _LIGHTS]
+    # monotonic left-to-right; spacing mirrors the ground truth (A-B == B-C < C-D)
+    assert xs == sorted(xs)
+    assert (xs[1] - xs[0]) == pytest.approx(xs[2] - xs[1])
+    assert (xs[3] - xs[2]) > (xs[2] - xs[1])
+
+    # the fallback consumes the projection; an empty ref set keeps the even grid
+    assert _generate_default_positions(320, 240, refs) == projected
+    grid = _generate_default_positions(320, 240, [])
+    assert [grid[name]["x"] for name in _LIGHTS] != xs

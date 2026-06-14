@@ -182,6 +182,21 @@ backend's `FIELDHUB_URL`/`_CA` stay empty and
 response with no network call — `GET /api/v1/field-link/status` reports
 `hub_online: false`.
 
+### Cert-free emulator profile (BlueStacks)
+
+Validating the Pilot connect/login flow without a real RC uses an emulator
+(DJI Pilot 2 in BlueStacks), and that environment can't use the production
+HTTPS path: BlueStacks reaches the host only through the `10.0.2.2` loopback
+alias (the host LAN IP hairpins through Docker Desktop's proxy and resets), and
+its Android WebView won't trust the local CA. So a separate **cert-free run-kit**
+in `emulator/` runs the *same* `fieldhub` image over **plain HTTP** behind an
+nginx front (`http://10.0.2.2:8080`, plain MQTT on `1883`, throwaway sqlite, no
+postgres) — Pilot's native Cloud Service flow connects with no certificate. It is
+mutually exclusive with the `field` profile (shared host ports), and the
+TLS-only legs (STS→S3, MQTTS, the on-RC CA) are validated separately against the
+production `field` profile. Run kit + step-by-step procedure: `emulator/README.md`
+and `docs/emulator-validation.md`.
+
 ## 4. Flows
 
 ### 4.0 One-time provisioning (office, internet available)

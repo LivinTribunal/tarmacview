@@ -1,6 +1,10 @@
 """object storage - presigned PUT/GET against the s3-compatible media bucket."""
 
+import logging
+
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _client(*, public: bool):
@@ -50,3 +54,11 @@ def presigned_get(object_key: str) -> str:
         Params={"Bucket": settings.s3_bucket, "Key": object_key},
         ExpiresIn=settings.s3_presign_expiry,
     )
+
+
+def delete_object(object_key: str) -> None:
+    """best-effort delete of one stored object - an orphan never blocks the caller."""
+    try:
+        _client(public=False).delete_object(Bucket=settings.s3_bucket, Key=object_key)
+    except Exception:
+        logger.warning("failed to delete object %s from bucket", object_key, exc_info=True)

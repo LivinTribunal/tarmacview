@@ -457,6 +457,36 @@ def move_media(
     return row, mission
 
 
+def delete_media(db: Session, media_id: UUID) -> tuple[Mission | None, str, str | None]:
+    """delete one manual upload, re-densifying its inspection.
+
+    only MANUAL-origin rows are deletable (422 otherwise) and a row is blocked
+    once INGESTED (409). the source inspection's order is renumbered 1..N after
+    the row is removed. returns (mission, object_key, entity_name) for the audit
+    row + post-commit object cleanup; flushes, the route commits.
+    """
+    row = db.query(DroneMediaFile).filter(DroneMediaFile.id == media_id).first()
+    if row is None:
+        raise NotFoundError("drone media file not found")
+    if row.origin != MediaOrigin.MANUAL.value:
+        raise DomainError("only manual uploads can be deleted", status_code=422)
+    row._block_after_ingest()
+
+    mission = _lock_mission(db, row.mission_id) if row.mission_id is not None else None
+    source_id = row.inspection_id
+    object_key = row.object_key
+    entity_name = row.filename or row.object_key
+
+    db.delete(row)
+    db.flush()
+
+    if source_id is not None:
+        _renumber_inspection(db, source_id, _inspection_media(db, source_id))
+        db.flush()
+
+    return mission, object_key, entity_name
+
+
 def reorder_inspection_media(
     db: Session, inspection_id: UUID, ordered_ids: list[UUID]
 ) -> tuple[Mission, InspectionMediaGroup]:

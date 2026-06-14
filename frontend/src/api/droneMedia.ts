@@ -86,6 +86,10 @@ export async function reorderInspectionMedia(
   return res.data;
 }
 
+export async function deleteDroneMedia(mediaId: string): Promise<void> {
+  await client.delete(`/drone-media/${mediaId}`);
+}
+
 export async function assignDroneMedia(
   mediaId: string,
   missionId: string | null,

@@ -4,6 +4,7 @@ import {
   closestCenter,
   DndContext,
   type DragEndEvent,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useDroppable,
@@ -18,10 +19,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Film, GripVertical, Loader2, Upload } from "lucide-react";
+import { Film, GripVertical, Loader2, Trash2, Upload } from "lucide-react";
 import Modal from "@/components/common/Modal";
 import {
   completeDroneMediaUpload,
+  deleteDroneMedia,
   listMissionDroneMedia,
   moveDroneMedia,
   reorderInspectionMedia,
@@ -62,39 +64,111 @@ function formatSize(bytes: number | null): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** one draggable media row inside a container. */
-function SortableFileRow({
-  file,
-  dragLabel,
-}: {
-  file: DroneMediaFileResponse;
-  dragLabel: string;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: file.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
+/** apply a new id order to one inspection group, renumbering order_index 1..N. */
+function applyReorder(
+  media: MissionInspectionMediaResponse,
+  inspectionId: string,
+  orderedIds: string[],
+): MissionInspectionMediaResponse {
+  return {
+    ...media,
+    inspections: media.inspections.map((group) => {
+      if (group.inspection_id !== inspectionId) return group;
+      const byId = new Map(group.files.map((f) => [f.id, f]));
+      const files = orderedIds.flatMap((id, i) => {
+        const file = byId.get(id);
+        return file ? [{ ...file, order_index: i + 1 }] : [];
+      });
+      return { ...group, files };
+    }),
+  };
+}
+
+/** find one media file across every inspection group and the unassigned bucket. */
+function findFile(
+  media: MissionInspectionMediaResponse,
+  fileId: string,
+): DroneMediaFileResponse | null {
+  for (const group of media.inspections) {
+    const hit = group.files.find((f) => f.id === fileId);
+    if (hit) return hit;
+  }
+  return media.unassigned.find((f) => f.id === fileId) ?? null;
+}
+
+/** move one file to another inspection / position (or the unassigned bucket),
+ *  re-densifying both the source and destination groups. */
+function applyMove(
+  media: MissionInspectionMediaResponse,
+  fileId: string,
+  targetInspectionId: string | null,
+  orderIndex: number | null,
+): MissionInspectionMediaResponse {
+  const moved = findFile(media, fileId);
+  if (!moved) return media;
+
+  // pull the file out of wherever it sits, renumbering each group 1..N
+  const stripped: MissionInspectionMediaResponse = {
+    ...media,
+    inspections: media.inspections.map((group) => ({
+      ...group,
+      files: group.files
+        .filter((f) => f.id !== fileId)
+        .map((f, i) => ({ ...f, order_index: i + 1 })),
+    })),
+    unassigned: media.unassigned.filter((f) => f.id !== fileId),
   };
 
+  if (targetInspectionId === null) {
+    return {
+      ...stripped,
+      unassigned: [...stripped.unassigned, { ...moved, inspection_id: null, order_index: null }],
+    };
+  }
+
+  return {
+    ...stripped,
+    inspections: stripped.inspections.map((group) => {
+      if (group.inspection_id !== targetInspectionId) return group;
+      const files = group.files.slice();
+      const pos =
+        orderIndex == null
+          ? files.length
+          : Math.min(Math.max(orderIndex - 1, 0), files.length);
+      files.splice(pos, 0, { ...moved, inspection_id: targetInspectionId });
+      return { ...group, files: files.map((f, i) => ({ ...f, order_index: i + 1 })) };
+    }),
+  };
+}
+
+/** drop one file from wherever it sits, renumbering its inspection group 1..N. */
+function applyDelete(
+  media: MissionInspectionMediaResponse,
+  fileId: string,
+): MissionInspectionMediaResponse {
+  return {
+    ...media,
+    inspections: media.inspections.map((group) =>
+      group.files.some((f) => f.id === fileId)
+        ? {
+            ...group,
+            files: group.files
+              .filter((f) => f.id !== fileId)
+              .map((f, i) => ({ ...f, order_index: i + 1 })),
+          }
+        : group,
+    ),
+    unassigned: media.unassigned.filter((f) => f.id !== fileId),
+  };
+}
+
+const FILE_ROW_CLASS =
+  "flex items-center gap-2 py-1.5 px-2 rounded-lg border border-tv-border bg-tv-bg";
+
+/** the shared visual body of a media row (order badge, icon, name, size). */
+function FileRowBody({ file }: { file: DroneMediaFileResponse }) {
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      data-testid={`media-file-${file.id}`}
-      className="flex items-center gap-2 py-1.5 px-2 rounded-lg border border-tv-border bg-tv-bg"
-    >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label={dragLabel}
-        data-testid={`media-drag-${file.id}`}
-        className="cursor-grab text-tv-text-secondary hover:text-tv-text-primary"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+    <>
       {file.order_index != null && (
         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-tv-surface-hover text-xs font-semibold text-tv-text-secondary">
           {file.order_index}
@@ -109,6 +183,65 @@ function SortableFileRow({
           <p className="text-xs text-tv-text-secondary">{formatSize(file.size_bytes)}</p>
         )}
       </div>
+    </>
+  );
+}
+
+/** one draggable media row inside a container. */
+function SortableFileRow({
+  file,
+  dragLabel,
+  deleteLabel,
+  onDelete,
+}: {
+  file: DroneMediaFileResponse;
+  dragLabel: string;
+  deleteLabel: string;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: file.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} data-testid={`media-file-${file.id}`} className={FILE_ROW_CLASS}>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={dragLabel}
+        data-testid={`media-drag-${file.id}`}
+        className="cursor-grab text-tv-text-secondary hover:text-tv-text-primary"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <FileRowBody file={file} />
+      {file.origin === "MANUAL" && (
+        <button
+          type="button"
+          onClick={() => onDelete(file.id)}
+          aria-label={deleteLabel}
+          title={deleteLabel}
+          data-testid={`media-delete-${file.id}`}
+          className="shrink-0 text-tv-text-secondary hover:text-tv-error"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** a static clone of a media row that follows the cursor while dragging. */
+function DragPreviewRow({ file }: { file: DroneMediaFileResponse }) {
+  return (
+    <div className={`${FILE_ROW_CLASS} shadow-lg`}>
+      <GripVertical className="h-4 w-4 text-tv-text-secondary" />
+      <FileRowBody file={file} />
     </div>
   );
 }
@@ -126,7 +259,7 @@ function DroppableContainer({
     <div
       ref={setNodeRef}
       className={`flex flex-col gap-1.5 rounded-xl p-2 transition-colors ${
-        isOver ? "bg-tv-surface-hover ring-1 ring-tv-accent" : ""
+        isOver ? "bg-tv-surface-hover ring-1 ring-inset ring-tv-accent" : ""
       }`}
     >
       {children}
@@ -197,26 +330,32 @@ export default function UploadDroneMediaDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyContainer, setBusyContainer] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setMedia(await listMissionDroneMedia(missionId));
-    } catch {
-      setError(t("mission.uploadDroneMediaDialog.loadError"));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [missionId, t]);
+  // spinner only on the first load - action-triggered refetches reconcile
+  // silently so the list never blanks mid-reorder
+  const fetchData = useCallback(
+    async ({ spinner = false }: { spinner?: boolean } = {}) => {
+      if (spinner) setIsLoading(true);
+      setError(null);
+      try {
+        setMedia(await listMissionDroneMedia(missionId));
+      } catch {
+        setError(t("mission.uploadDroneMediaDialog.loadError"));
+      } finally {
+        if (spinner) setIsLoading(false);
+      }
+    },
+    [missionId, t],
+  );
 
   useEffect(() => {
-    if (isOpen) void fetchData();
+    if (isOpen) void fetchData({ spinner: true });
   }, [isOpen, fetchData]);
 
   const containers: Container[] = useMemo(() => {
@@ -281,26 +420,42 @@ export default function UploadDroneMediaDialog({
     }
   }
 
+  async function handleDelete(fileId: string) {
+    // optimistically drop the row so it vanishes immediately, then reconcile
+    setMedia((prev) => (prev ? applyDelete(prev, fileId) : prev));
+    try {
+      await deleteDroneMedia(fileId);
+    } catch {
+      setError(t("mission.uploadDroneMediaDialog.deleteError"));
+    }
+    await fetchData();
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     const { active, over } = event;
     if (!over) return;
-    const activeId = String(active.id);
+    const draggedId = String(active.id);
     const overId = String(over.id);
 
-    const source = itemContainer.get(activeId);
+    const source = itemContainer.get(draggedId);
     const target = resolveContainer(overId);
     if (!source || !target) return;
 
     if (source.id === target.id) {
       // reorder within an inspection (the unassigned bucket carries no order)
       if (target.inspectionId === null) return;
+      const inspectionId = target.inspectionId;
       const ids = target.files.map((f) => f.id);
-      const oldIndex = ids.indexOf(activeId);
+      const oldIndex = ids.indexOf(draggedId);
       const newIndex = overId === target.id ? ids.length - 1 : ids.indexOf(overId);
       if (oldIndex === newIndex || newIndex < 0) return;
       const ordered = arrayMove(ids, oldIndex, newIndex);
+      // optimistically apply the new order so the dragged row stays put instead
+      // of snapping back to its old slot while the reorder request round-trips
+      setMedia((prev) => (prev ? applyReorder(prev, inspectionId, ordered) : prev));
       try {
-        await reorderInspectionMedia(target.inspectionId, ordered);
+        await reorderInspectionMedia(inspectionId, ordered);
       } catch {
         setError(t("mission.uploadDroneMediaDialog.reorderError"));
       }
@@ -315,8 +470,12 @@ export default function UploadDroneMediaDialog({
       const overIndex = overId === target.id ? ids.length : ids.indexOf(overId);
       orderIndex = (overIndex < 0 ? ids.length : overIndex) + 1;
     }
+    // optimistically land the row in its new group so it doesn't jump back to
+    // the source while the move request round-trips
+    const targetInspectionId = target.inspectionId;
+    setMedia((prev) => (prev ? applyMove(prev, draggedId, targetInspectionId, orderIndex) : prev));
     try {
-      await moveDroneMedia(activeId, target.inspectionId, orderIndex);
+      await moveDroneMedia(draggedId, targetInspectionId, orderIndex);
     } catch {
       setError(t("mission.uploadDroneMediaDialog.moveError"));
     }
@@ -324,6 +483,9 @@ export default function UploadDroneMediaDialog({
   }
 
   const hasInspections = media !== null && media.inspections.length > 0;
+  const activeFile = activeId
+    ? (itemContainer.get(activeId)?.files.find((f) => f.id === activeId) ?? null)
+    : null;
 
   return (
     <Modal
@@ -353,7 +515,9 @@ export default function UploadDroneMediaDialog({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={(e) => setActiveId(String(e.active.id))}
             onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
           >
             {containers.map((container) => (
               <section
@@ -389,6 +553,8 @@ export default function UploadDroneMediaDialog({
                         key={file.id}
                         file={file}
                         dragLabel={t("mission.uploadDroneMediaDialog.dragHandle")}
+                        deleteLabel={t("mission.uploadDroneMediaDialog.deleteFile")}
+                        onDelete={handleDelete}
                       />
                     ))}
                   </SortableContext>
@@ -407,6 +573,9 @@ export default function UploadDroneMediaDialog({
                 </DroppableContainer>
               </section>
             ))}
+            <DragOverlay dropAnimation={null}>
+              {activeFile ? <DragPreviewRow file={activeFile} /> : null}
+            </DragOverlay>
           </DndContext>
         )}
       </div>

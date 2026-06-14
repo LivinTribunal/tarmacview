@@ -4,6 +4,7 @@ import en from "@/i18n/locales/en.json";
 import UploadDroneMediaDialog from "./UploadDroneMediaDialog";
 import {
   completeDroneMediaUpload,
+  deleteDroneMedia,
   listMissionDroneMedia,
   moveDroneMedia,
   reorderInspectionMedia,
@@ -61,6 +62,7 @@ vi.mock("@dnd-kit/core", () => ({
     capturedDragEnd = onDragEnd;
     return <div data-testid="dnd-context">{children}</div>;
   },
+  DragOverlay: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   closestCenter: vi.fn(),
   PointerSensor: vi.fn(),
   KeyboardSensor: vi.fn(),
@@ -100,6 +102,7 @@ vi.mock("@/api/droneMedia", () => ({
   completeDroneMediaUpload: vi.fn(),
   moveDroneMedia: vi.fn(),
   reorderInspectionMedia: vi.fn(),
+  deleteDroneMedia: vi.fn(),
 }));
 
 function makeFile(
@@ -248,6 +251,42 @@ describe("UploadDroneMediaDialog", () => {
     // appended after b1 (the lone existing file) -> order 2
     expect(moveDroneMedia).toHaveBeenCalledWith("a1", "insp-2", 2);
     expect(reorderInspectionMedia).not.toHaveBeenCalled();
+  });
+
+  it("deletes a manual file when its trash button is clicked", async () => {
+    vi.mocked(deleteDroneMedia).mockResolvedValue(undefined);
+    renderDialog();
+    await screen.findByTestId("media-group-insp-1");
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("media-delete-a1"));
+    });
+
+    expect(deleteDroneMedia).toHaveBeenCalledWith("a1");
+    // initial load + reconcile refetch after the delete
+    await waitFor(() => expect(listMissionDroneMedia).toHaveBeenCalledTimes(2));
+  });
+
+  it("only manual files expose a delete button", async () => {
+    vi.mocked(listMissionDroneMedia).mockResolvedValue({
+      ...MEDIA,
+      inspections: [
+        {
+          inspection_id: "insp-1",
+          method: "HORIZONTAL_RANGE",
+          sequence_order: 1,
+          files: [
+            makeFile({ id: "manual1", origin: "MANUAL" }),
+            makeFile({ id: "hub1", origin: "HUB" }),
+          ],
+        },
+      ],
+    });
+    renderDialog();
+    await screen.findByTestId("media-file-hub1");
+
+    expect(screen.getByTestId("media-delete-manual1")).toBeInTheDocument();
+    expect(screen.queryByTestId("media-delete-hub1")).not.toBeInTheDocument();
   });
 
   it("surfaces a load error", async () => {

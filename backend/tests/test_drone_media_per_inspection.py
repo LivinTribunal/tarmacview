@@ -255,6 +255,39 @@ def test_move_missing_media_404(client):
     assert r.status_code == 404
 
 
+# delete
+
+
+def test_delete_redensifies_inspection_and_drops_object(
+    client, mission_with_inspections, monkeypatch
+):
+    """deleting a manual file removes it, drops its object, and renumbers 1..N."""
+    deleted_keys = []
+    monkeypatch.setattr(object_storage, "delete_object", lambda key: deleted_keys.append(key))
+
+    mission_id, (insp_a, _) = mission_with_inspections
+    a1 = _complete_upload(client, mission_id, insp_a, "a1.mp4")
+    a2 = _complete_upload(client, mission_id, insp_a, "a2.mp4")
+    a3 = _complete_upload(client, mission_id, insp_a, "a3.mp4")
+
+    r = client.delete(f"{PATH}/{a2['id']}")
+    assert r.status_code == 204, r.text
+    assert deleted_keys == [a2["object_key"]]
+
+    body = client.get(f"/api/v1/missions/{mission_id}/drone-media").json()
+    groups = {g["inspection_id"]: g for g in body["inspections"]}
+    assert [(f["id"], f["order_index"]) for f in groups[insp_a]["files"]] == [
+        (a1["id"], 1),
+        (a3["id"], 2),
+    ]
+
+
+def test_delete_missing_media_404(client):
+    """deleting a media id that doesn't exist is 404."""
+    r = client.delete(f"{PATH}/00000000-0000-0000-0000-000000000000")
+    assert r.status_code == 404
+
+
 # model-level guards
 
 
@@ -313,4 +346,32 @@ def test_service_move_after_ingest_blocked_409(client, mission_with_inspections,
 
     with pytest.raises(DomainError) as exc:
         drone_media_service.move_media(db_session, a1["id"], insp_b, None)
+    assert exc.value.status_code == 409
+
+
+def test_service_delete_rejects_hub_origin_422(client, mission_with_inspections, db_session):
+    """only manual uploads are deletable - a hub-origin row raises 422."""
+    mission_id, (insp_a, _) = mission_with_inspections
+    a1 = _complete_upload(client, mission_id, insp_a, "a1.mp4")
+
+    row = db_session.query(DroneMediaFile).filter(DroneMediaFile.id == a1["id"]).first()
+    row.origin = "HUB"
+    db_session.flush()
+
+    with pytest.raises(DomainError) as exc:
+        drone_media_service.delete_media(db_session, a1["id"])
+    assert exc.value.status_code == 422
+
+
+def test_service_delete_after_ingest_blocked_409(client, mission_with_inspections, db_session):
+    """a delete on an INGESTED row raises the model's 409 block."""
+    mission_id, (insp_a, _) = mission_with_inspections
+    a1 = _complete_upload(client, mission_id, insp_a, "a1.mp4")
+
+    row = db_session.query(DroneMediaFile).filter(DroneMediaFile.id == a1["id"]).first()
+    row.status = "INGESTED"
+    db_session.flush()
+
+    with pytest.raises(DomainError) as exc:
+        drone_media_service.delete_media(db_session, a1["id"])
     assert exc.value.status_code == 409

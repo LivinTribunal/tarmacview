@@ -21,7 +21,7 @@ from app.schemas.drone_media import (
     UploadUrlResponse,
 )
 from app.schemas.field_link import DroneMediaFileResponse
-from app.services import drone_media_service
+from app.services import drone_media_service, object_storage
 from app.utils.audit import log_audit
 
 router = APIRouter(prefix="/api/v1/drone-media", tags=["drone-media"])
@@ -190,3 +190,30 @@ def move_media(
     )
     db.commit()
     return row
+
+
+@router.delete("/{media_id}", status_code=204)
+def delete_media(
+    media_id: UUID,
+    request: Request,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """delete one manual upload and drop its stored object."""
+    mission, object_key, entity_name = drone_media_service.delete_media(db, media_id)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.DELETE,
+        entity_type="DroneMediaFile",
+        entity_id=media_id,
+        entity_name=entity_name,
+        details={"object_key": object_key},
+        ip_address=request.client.host if request.client else None,
+        airport_id=mission.airport_id if mission else None,
+    )
+    db.commit()
+
+    # the row is gone for good - drop the object after the commit so a failed
+    # commit can't orphan a deleted-row reference
+    object_storage.delete_object(object_key)

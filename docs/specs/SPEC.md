@@ -8,7 +8,7 @@
 
 ### Airport Infrastructure
 
-**airport** — icao_code (VARCHAR 4, unique), name, elevation, location (PointZ 4326)
+**airport** — icao_code (VARCHAR 4, unique), name, elevation, location (PointZ 4326), terrain_source (TerrainSource enum, default FLAT), dem_file_path (nullable, local geotiff backing DEM elevation lookups)
 
 **airfield_surface** — airport_id (FK), identifier (VARCHAR 10), surface_type (RUNWAY|TAXIWAY discriminator), geometry (LineStringZ 4326, derived centerline), boundary (PolygonZ 4326, nullable, the actual drawn polygon - source of truth for rendering), buffer_distance (Float, default `DEFAULT_BUFFER_DISTANCE_M` = 5.0 m, the no-go ring honored by both the planner and the 2D/3D renderer), paired_surface_id (UUID, nullable, opt-in self-FK to the reciprocal RUNWAY direction with `ON DELETE SET NULL`; partial unique index keeps the link symmetric), heading / length / width (Float, nullable, populated for both types). RUNWAY adds: threshold_position (PointZ), end_position (PointZ). Single-table inheritance.
 
@@ -82,6 +82,7 @@ When two RUNWAY surfaces are paired, the service layer enforces reciprocal geome
 | ScanRunOrientation | LENGTH_WISE, WIDTH_WISE |
 | SafetyZoneType | CTR, RESTRICTED, PROHIBITED, TEMPORARY_NO_FLY |
 | ObstacleType | BUILDING, TOWER, ANTENNA, VEGETATION, OTHER |
+| TerrainSource | FLAT, DEM_UPLOAD, DEM_API, DEM_SRTM |
 | LampType | HALOGEN, LED |
 | PAPISide | LEFT, RIGHT |
 | LhaSelectionMode | ALL, RANGE, FROM_THRESHOLD, CUSTOM |

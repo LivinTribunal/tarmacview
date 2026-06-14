@@ -49,6 +49,8 @@ def get_field_link_status(
             hub_online=True,
             broker_connected=bool(body.get("broker_connected", False)),
             devices=[FieldLinkDevice(**device) for device in body.get("devices", [])],
+            connect_url=body.get("connect_url"),
+            public_host=body.get("public_host"),
         )
     except (httpx.HTTPError, ValueError, TypeError, AttributeError):
         logger.warning("field hub status fetch failed", exc_info=True)

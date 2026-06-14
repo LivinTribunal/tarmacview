@@ -22,3 +22,6 @@ class InternalStatusResponse(BaseModel):
 
     broker_connected: bool
     devices: list[InternalDeviceStatus]
+    # device-facing connect address pilot 2 points at - null when unprovisioned
+    connect_url: str | None = None
+    public_host: str | None = None

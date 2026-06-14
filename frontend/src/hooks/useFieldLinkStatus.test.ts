@@ -14,6 +14,8 @@ const ONLINE: FieldLinkStatusResponse = {
   hub_online: true,
   broker_connected: true,
   devices: [],
+  connect_url: null,
+  public_host: null,
 };
 
 beforeEach(() => {
@@ -48,6 +50,8 @@ describe("useFieldLinkStatus", () => {
       hub_online: false,
       broker_connected: false,
       devices: [],
+      connect_url: null,
+      public_host: null,
     });
   });
 

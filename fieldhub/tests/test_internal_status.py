@@ -62,3 +62,26 @@ def test_empty_registry_snapshot(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["devices"] == []
+
+
+def test_status_surfaces_connect_url(client, monkeypatch):
+    """the snapshot carries the device-facing connect address and host."""
+    monkeypatch.setattr(settings, "shared_secret", "s3cret")
+    monkeypatch.setattr(settings, "public_host", "192.168.8.50")
+
+    body = client.get(STATUS_PATH, headers={"X-Hub-Secret": "s3cret"}).json()
+
+    assert body["public_host"] == "192.168.8.50"
+    assert body["connect_url"] == "https://192.168.8.50:8443"
+
+
+def test_status_connect_url_null_when_unprovisioned(client, monkeypatch):
+    """no host configured -> null connect fields, not empty strings."""
+    monkeypatch.setattr(settings, "shared_secret", "s3cret")
+    monkeypatch.setattr(settings, "public_host", "")
+    monkeypatch.setattr(settings, "mqtt_device_addr", "")
+
+    body = client.get(STATUS_PATH, headers={"X-Hub-Secret": "s3cret"}).json()
+
+    assert body["public_host"] is None
+    assert body["connect_url"] is None

@@ -16,6 +16,7 @@ import ExportFormatSection from "./ExportFormatSection";
 import MissionReportSection from "./MissionReportSection";
 import MissionLifecycleSection from "./MissionLifecycleSection";
 import SendToDroneSection from "./SendToDroneSection";
+import FieldHubDialog from "./FieldHubDialog";
 import AltitudeClampWarning from "./AltitudeClampWarning";
 
 const DJI_WPMZ_FORMATS = new Set(["KMZ", "WPML"]);
@@ -86,6 +87,7 @@ export default function ExportPanel({
     mission.dji_heading_mode ?? "smoothTransition",
   );
   const [acknowledgeClamps, setAcknowledgeClamps] = useState(false);
+  const [fieldHubOpen, setFieldHubOpen] = useState(false);
 
   // clear the operator's acknowledgment whenever the warning is dismissed or
   // a fresh clamp set arrives, so the next download requires a deliberate tick.
@@ -300,6 +302,13 @@ export default function ExportPanel({
         missionStatus={status}
         linkStatus={fieldLinkStatus}
         onDispatched={onDispatched}
+        onOpenFieldHub={() => setFieldHubOpen(true)}
+      />
+
+      <FieldHubDialog
+        isOpen={fieldHubOpen}
+        onClose={() => setFieldHubOpen(false)}
+        status={fieldLinkStatus}
       />
 
       <MissionReportSection

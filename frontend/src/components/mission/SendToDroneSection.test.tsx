@@ -28,6 +28,8 @@ const LINK_ONLINE: FieldLinkStatusResponse = {
   hub_online: true,
   broker_connected: true,
   devices: [M350],
+  connect_url: "https://192.168.8.50:8443",
+  public_host: "192.168.8.50",
 };
 
 const DISPATCH: WaylineDispatchResponse = {
@@ -65,7 +67,13 @@ describe("SendToDroneSection", () => {
 
   it("disables the button when the hub is offline", () => {
     renderSection({
-      linkStatus: { hub_online: false, broker_connected: false, devices: [] },
+      linkStatus: {
+        hub_online: false,
+        broker_connected: false,
+        devices: [],
+        connect_url: null,
+        public_host: null,
+      },
     });
 
     expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();

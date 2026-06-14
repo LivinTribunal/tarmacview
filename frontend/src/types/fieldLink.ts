@@ -14,6 +14,8 @@ export interface FieldLinkStatusResponse {
   hub_online: boolean;
   broker_connected: boolean;
   devices: FieldLinkDevice[];
+  connect_url: string | null;
+  public_host: string | null;
 }
 
 // matches backend/app/schemas/wayline_dispatch.py

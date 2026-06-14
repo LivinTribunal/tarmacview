@@ -11,11 +11,8 @@ import {
 } from "recharts";
 import { useTranslation } from "react-i18next";
 import type { LightSeries, LightSeriesPoint } from "@/types/measurement";
-import {
-  CHART_AXIS_COLOR,
-  CHART_GRID_COLOR,
-  lightColor,
-} from "./chartColors";
+import { CHART_COLORS } from "@/constants/palette";
+import { lightColor } from "./chartColors";
 
 interface LightTimeseriesChartProps {
   title: string;
@@ -48,29 +45,29 @@ export default function LightTimeseriesChart({
       {hasData ? (
         <ResponsiveContainer width="100%" height={260}>
           <LineChart margin={{ top: 5, right: 16, bottom: 16, left: 0 }}>
-            <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
+            <CartesianGrid stroke={CHART_COLORS.GRID} strokeDasharray="3 3" />
             <XAxis
               type="number"
               dataKey="timestamp"
-              stroke={CHART_AXIS_COLOR}
-              tick={{ fontSize: 11, fill: CHART_AXIS_COLOR }}
+              stroke={CHART_COLORS.AXIS}
+              tick={{ fontSize: 11, fill: CHART_COLORS.AXIS }}
               label={{
                 value: t("results.charts.timeAxis"),
                 position: "insideBottom",
                 offset: -8,
                 fontSize: 11,
-                fill: CHART_AXIS_COLOR,
+                fill: CHART_COLORS.AXIS,
               }}
             />
             <YAxis
-              stroke={CHART_AXIS_COLOR}
-              tick={{ fontSize: 11, fill: CHART_AXIS_COLOR }}
+              stroke={CHART_COLORS.AXIS}
+              tick={{ fontSize: 11, fill: CHART_COLORS.AXIS }}
               label={{
                 value: yLabel,
                 angle: -90,
                 position: "insideLeft",
                 fontSize: 11,
-                fill: CHART_AXIS_COLOR,
+                fill: CHART_COLORS.AXIS,
               }}
             />
             <Tooltip

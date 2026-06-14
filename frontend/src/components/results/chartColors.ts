@@ -1,24 +1,13 @@
-// per-light line colors for the recharts results charts.
-//
-// these hex literals mirror the --tv-inspection-* tokens in index.css. recharts
-// applies stroke/fill as SVG presentation attributes, which do not resolve CSS
-// var() references, so the raw hex has to live here - same compromise as
-// `src/constants/palette.ts` for the maplibre paint layer. keep in sync with
-// --tv-inspection-1..4 / --tv-text-muted / --tv-border.
+// per-light line-color lookup for the recharts results charts. the canonical
+// hex lives in `src/constants/palette.ts` alongside the maplibre palette -
+// recharts applies stroke/fill as svg presentation attributes which do not
+// resolve css var(), so the raw hex must be defined there.
 
-export const LIGHT_COLORS: Record<string, string> = {
-  PAPI_A: "#4595e5",
-  PAPI_B: "#3bbb3b",
-  PAPI_C: "#e5a545",
-  PAPI_D: "#9b59b6",
-};
-
-export const FALLBACK_LIGHT_COLOR = "#6b6b6b";
-
-// chart chrome (axis, grid) - mirrors --tv-text-muted / --tv-border
-export const CHART_AXIS_COLOR = "#757575";
-export const CHART_GRID_COLOR = "#e9e9e9";
+import {
+  INSPECTION_LIGHT_COLORS,
+  INSPECTION_LIGHT_FALLBACK_COLOR,
+} from "@/constants/palette";
 
 export function lightColor(name: string): string {
-  return LIGHT_COLORS[name] ?? FALLBACK_LIGHT_COLOR;
+  return INSPECTION_LIGHT_COLORS[name] ?? INSPECTION_LIGHT_FALLBACK_COLOR;
 }

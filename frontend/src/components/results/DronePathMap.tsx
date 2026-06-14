@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useTranslation } from "react-i18next";
 import type { DronePathPoint, ReferencePoint } from "@/types/measurement";
 import { makeSatelliteStyle } from "@/components/map/mapStyles";
-import { TRAJECTORY_COLORS, AGL_COLORS } from "@/constants/palette";
+import { TRAJECTORY_COLORS, AGL_COLORS, NEUTRAL } from "@/constants/palette";
 
 interface DronePathMapProps {
   dronePath: DronePathPoint[];
@@ -85,7 +85,7 @@ export default function DronePathMap({
           "circle-radius": 6,
           "circle-color": AGL_COLORS.PAPI,
           "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": NEUTRAL.WHITE,
         },
       });
 

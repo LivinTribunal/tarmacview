@@ -2091,5 +2091,47 @@
   "errors": {
     "webglUnsupported": "WebGL nie je podporovaný",
     "webglUnsupportedHint": "Táto aplikácia vyžaduje WebGL na vykresľovanie máp a 3D pohľadov. Použite moderný prehliadač s povolenou hardvérovou akceleráciou."
+  },
+  "results": {
+    "title": "Výsledky merania",
+    "status": "Stav: {{status}}",
+    "loadError": "Výsledky merania sa nepodarilo načítať.",
+    "notReady": "Toto meranie ešte nedokončilo spracovanie. Výsledky sa zobrazia po dokončení behu.",
+    "downloadPdf": "Stiahnuť PDF",
+    "generatingPdf": "Generuje sa…",
+    "noData": "Pre tento graf nie sú dáta.",
+    "table": {
+      "title": "Prechodové uhly",
+      "light": "Svetlo",
+      "setting": "Nastavený uhol",
+      "tolerance": "Tolerancia",
+      "measured": "Namerané",
+      "result": "Výsledok",
+      "empty": "Žiadne súhrny pre jednotlivé svetlá."
+    },
+    "verdict": {
+      "pass": "VYHOVUJE",
+      "fail": "NEVYHOVUJE",
+      "unknown": "NEZNÁME"
+    },
+    "charts": {
+      "angle": "Elevačný uhol v čase",
+      "angleUnit": "Uhol (°)",
+      "intensity": "Intenzita v čase",
+      "intensityUnit": "Intenzita",
+      "chromaticity": "Chromatickosť (podiel červenej) v čase",
+      "chromaticityUnit": "r / (r+g+b)",
+      "timeAxis": "Čas (s)"
+    },
+    "map": {
+      "title": "Trasa dronu",
+      "noPath": "Nezaznamenaná žiadna trasa dronu."
+    },
+    "video": {
+      "title": "Anotované video",
+      "empty": "Žiadne anotované video nie je k dispozícii.",
+      "enhanced": "Vylepšené",
+      "combined": "Všetky PAPI svetlá"
+    }
   }
 }

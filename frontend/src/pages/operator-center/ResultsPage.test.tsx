@@ -1,0 +1,110 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router";
+import type { MeasurementResults } from "@/types/measurement";
+import ResultsPage from "./ResultsPage";
+
+vi.mock("@/api/measurements", () => ({
+  getMeasurementResults: vi.fn(),
+  downloadMeasurementReport: vi.fn(),
+}));
+
+// stub the heavy chart / map / video children - exercised by their own tests
+vi.mock("@/components/results/LightAngleChart", () => ({
+  default: () => <div data-testid="mock-angle-chart" />,
+}));
+vi.mock("@/components/results/ChromaticityChart", () => ({
+  default: () => <div data-testid="mock-chromaticity-chart" />,
+}));
+vi.mock("@/components/results/IntensityChart", () => ({
+  default: () => <div data-testid="mock-intensity-chart" />,
+}));
+vi.mock("@/components/results/DronePathMap", () => ({
+  default: () => <div data-testid="mock-drone-path-map" />,
+}));
+vi.mock("@/components/results/AnnotatedVideoPlayer", () => ({
+  default: () => <div data-testid="mock-video-player" />,
+}));
+
+import { getMeasurementResults } from "@/api/measurements";
+
+const baseResults: MeasurementResults = {
+  id: "m1",
+  inspection_id: "i1",
+  status: "DONE",
+  has_results: true,
+  runway_heading: 90,
+  reference_points: [],
+  summaries: [
+    {
+      light_name: "PAPI_A",
+      setting_angle: 3.0,
+      tolerance: 0.5,
+      measured_transition_angle: 3.1,
+      passed: true,
+    },
+  ],
+  lights: [],
+  drone_path: [],
+  video_urls: {},
+};
+
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={["/measurements/m1/results"]}>
+      <Routes>
+        <Route
+          path="/measurements/:measurementId/results"
+          element={<ResultsPage />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("ResultsPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders the table and charts for a finished run", async () => {
+    vi.mocked(getMeasurementResults).mockResolvedValue(baseResults);
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-page")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("transition-angle-table")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-angle-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-chromaticity-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-intensity-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-drone-path-map")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-video-player")).toBeInTheDocument();
+    expect(screen.getByTestId("download-pdf-btn")).toBeInTheDocument();
+  });
+
+  it("shows the pending state when the run is not done", async () => {
+    vi.mocked(getMeasurementResults).mockResolvedValue({
+      ...baseResults,
+      status: "PROCESSING",
+      has_results: false,
+      summaries: [],
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-pending")).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("transition-angle-table")).toBeNull();
+    expect(screen.queryByTestId("mock-angle-chart")).toBeNull();
+  });
+
+  it("shows an error when the results fail to load", async () => {
+    vi.mocked(getMeasurementResults).mockRejectedValue(new Error("boom"));
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-error")).toBeInTheDocument(),
+    );
+  });
+});

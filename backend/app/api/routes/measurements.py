@@ -8,6 +8,7 @@ read-only polls. routes stay HTTP-only: orchestration + the engine seams live in
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import OperatorUser
@@ -21,10 +22,11 @@ from app.schemas.measurement import (
     LightSummaryResponse,
     MeasurementPreviewResponse,
     MeasurementResponse,
+    MeasurementResultsResponse,
     MeasurementStatusResponse,
     ReferencePointResponse,
 )
-from app.services import measurement_service
+from app.services import measurement_report_service, measurement_service
 from app.utils.audit import log_audit
 
 router = APIRouter(prefix="/api/v1", tags=["measurements"])
@@ -130,6 +132,35 @@ def get_preview(
         status=m.status.value,
         first_frame_url=url,
         boxes=[LightBox(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in m.light_boxes],
+    )
+
+
+@router.get("/measurements/{measurement_id}/data", response_model=MeasurementResultsResponse)
+def get_results_data(
+    measurement_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """full results payload - per-light series, drone path, summaries, video urls."""
+    return measurement_service.build_results_data(db, measurement_id)
+
+
+@router.get("/measurements/{measurement_id}/pdf-report", response_class=Response)
+def get_pdf_report(
+    measurement_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """server-rendered measurement results pdf (summary table + per-light charts)."""
+    operator_label = current_user.name or current_user.email or "N/A"
+    pdf_bytes, filename = measurement_report_service.generate_measurement_report(
+        db, measurement_id, operator_label=operator_label
+    )
+    sanitized = filename.replace('"', "").replace("\r", "").replace("\n", "")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{sanitized}"'},
     )
 
 

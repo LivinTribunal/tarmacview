@@ -21,6 +21,7 @@ import MissionValidationPage from "@/pages/operator-center/MissionValidationPage
 import AirportPage from "@/pages/operator-center/AirportPage";
 import OperatorDronesPage from "@/pages/operator-center/OperatorDronesPage";
 import OperatorDroneDetailPage from "@/pages/operator-center/OperatorDroneDetailPage";
+import ResultsPage from "@/pages/operator-center/ResultsPage";
 import AirportListPage from "@/pages/coordinator-center/AirportListPage";
 import AirportEditPage from "@/pages/coordinator-center/AirportEditPage";
 import InspectionListPage from "@/pages/coordinator-center/InspectionListPage";
@@ -74,6 +75,10 @@ function App() {
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="drones" element={<OperatorDronesPage />} />
               <Route path="drones/:id" element={<OperatorDroneDetailPage />} />
+              <Route
+                path="measurements/:measurementId/results"
+                element={<ResultsPage />}
+              />
               {/* airport-required routes - redirect to dashboard if no airport */}
               <Route element={<RequireAirport />}>
                 <Route path="missions" element={<MissionListPage />} />

@@ -75,7 +75,7 @@ docker compose up -d postgres
 ## Project Structure
 
 ```
-drone-mission-planning-module/
+tarmacview/
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/     # FastAPI routers — HTTP layer only
@@ -286,7 +286,7 @@ Business logic belongs on model methods, not in services. Services handle DB acc
 
 ### Issue tracker
 
-Issues and PRDs live in GitHub Issues for `LivinTribunal/drone-mission-planning-module`. Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and PRDs live in GitHub Issues for `LivinTribunal/tarmacview`. Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 

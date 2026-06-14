@@ -20,6 +20,10 @@ The system implements the inspection methods specified by ZEPHYR UAS s.r.o., pri
 2. **Operator** — creates a Mission targeting an airport, adds Inspections (each pinned to specific AGL targets and an inspection method), generates the trajectory, reviews the validation report on the 2D map and 3D fly-along, and exports the flight plan for the drone.
 3. **Super-Admin** — manages users, audit log, and system settings (offline elevation provider toggles, AI integration keys, maintenance mode, etc.).
 
+## Measurement & verification (in progress)
+
+TarmacView is being extended from a planning tool into a closed loop. After a mission is flown, the operator uploads the drone video per inspection and an imported video-processing engine (OpenCV, vendored from the **airport-lights-detection** project) measures each PAPI light's actual glide-slope angle, chromaticity transition, and intensity over the flight. Results are scored against the same `LHA.setting_angle` / `tolerance` ground truth the mission was planned from, closing the loop plan → fly → measure → verify. Processing runs in a Celery worker; videos and result artifacts live in S3-compatible object storage (MinIO locally, S3 in the cloud). See [docs/specs/TARMACVIEW-MERGE-PLAN.md](docs/specs/TARMACVIEW-MERGE-PLAN.md).
+
 ## Architecture at a glance
 
 ```
@@ -30,7 +34,7 @@ Application layer   Python 3.12 + FastAPI + Pydantic v2 + Shapely (in-process sp
 Data layer          PostgreSQL 16 (geometry stored as WKT strings)
 ```
 
-Three Docker containers wire it all up: `postgres`, `backend` (uvicorn behind nginx), and `frontend` (React bundle served by nginx). The browser sees only nginx on port 80, which proxies `/api/*` to the backend and serves the SPA elsewhere. An opt-in compose profile `field` adds the Field Hub stack (`fieldhub` + EMQX + MinIO) for wireless DJI mission dispatch and media return on the field laptop — see [docs/specs/FIELD-HUB.md](docs/specs/FIELD-HUB.md); the default stack is unaffected when the profile is off.
+The default stack runs as Docker containers: `postgres`, `redis`, `minio` (S3-compatible object store), `backend` (uvicorn behind nginx), a Celery `worker` for video processing, and `frontend` (React bundle served by nginx). The browser sees only nginx on port 80, which proxies `/api/*` to the backend and serves the SPA elsewhere. An opt-in compose profile `field` adds the Field Hub stack (`fieldhub` + EMQX) for wireless DJI mission dispatch and media return on the field laptop — see [docs/specs/FIELD-HUB.md](docs/specs/FIELD-HUB.md); the default stack is unaffected when the profile is off.
 
 The codebase follows a **DDD-lite** pattern with three tactical mechanisms: aggregate-root invariant enforcement (`Mission.transition_to()`, `Airport.add_surface()`), value objects (`Coordinate`, `AltitudeRange`, `IcaoCode`, `Speed`), and business methods on entities. Services handle database I/O and HTTP concerns; business rules stay on the model.
 

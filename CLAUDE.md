@@ -5,6 +5,12 @@
 TarmacView — Drone Mission Planning Module for airport lighting inspection.
 Python 3.12 + FastAPI backend, React 18 + TypeScript + Vite frontend, PostgreSQL 16.
 
+Being merged with the airport-lights-detection backend into one product: a vendored
+OpenCV video-processing engine (`backend/app/services/video_processing/`) runs in a
+Celery worker (`backend/app/workers/`) to measure flown PAPI footage against the
+planned `LHA` ground truth. Media + result artifacts live in S3-compatible object
+storage (MinIO locally, S3 in the cloud). Plan: `docs/specs/TARMACVIEW-MERGE-PLAN.md`.
+
 ## Build & Run Commands
 
 ```bash
@@ -75,7 +81,7 @@ docker compose up -d postgres
 ## Project Structure
 
 ```
-drone-mission-planning-module/
+tarmacview/
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/     # FastAPI routers — HTTP layer only
@@ -83,10 +89,14 @@ drone-mission-planning-module/
 │   │   ├── models/         # SQLAlchemy ORM models
 │   │   ├── schemas/        # Pydantic v2 request/response DTOs
 │   │   ├── services/       # All business logic
+│   │   │   └── video_processing/  # vendored PAPI light-detection engine (see VENDORED.md)
+│   │   ├── workers/        # Celery app + video-processing tasks
 │   │   ├── utils/          # shared utility helpers
 │   │   └── main.py         # FastAPI app + CORS + middleware
 │   ├── migrations/         # Alembic migration files
 │   ├── tests/              # pytest test files
+│   ├── Dockerfile.worker   # worker image (backend + opencv/celery/ffmpeg)
+│   ├── requirements-video.txt  # engine/worker deps (pending merge into requirements.txt)
 │   └── requirements.txt    # Pinned deps (PROTECTED)
 ├── frontend/
 │   ├── src/
@@ -286,7 +296,7 @@ Business logic belongs on model methods, not in services. Services handle DB acc
 
 ### Issue tracker
 
-Issues and PRDs live in GitHub Issues for `LivinTribunal/drone-mission-planning-module`. Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and PRDs live in GitHub Issues for `LivinTribunal/tarmacview`. Use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 

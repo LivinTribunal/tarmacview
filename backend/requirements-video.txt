@@ -1,0 +1,17 @@
+# video-processing engine + celery worker dependencies.
+#
+# requirements.txt is a protected file (humans only). these deps are kept
+# separate until a human merges them in; backend/Dockerfile.worker installs both
+# files. reportlab, numpy, matplotlib, mangum and python-multipart are already
+# pinned in requirements.txt, so they are intentionally not repeated here.
+#
+# pins are provisional - taken from the airport-lights-detection engine source
+# where given. tighten once the stack builds and tests pass.
+
+opencv-python-headless==4.12.0.88
+celery==5.4.0
+redis==5.2.1
+boto3==1.42.16
+scipy==1.16.3
+pillow==12.0.0
+plotly==6.5.0

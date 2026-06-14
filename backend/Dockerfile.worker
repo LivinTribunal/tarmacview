@@ -1,0 +1,25 @@
+# worker image - the backend app plus the video-processing deps, runs the celery
+# worker. requirements-video.txt holds the deps not yet merged into the protected
+# requirements.txt; this image installs both.
+
+# stage 1: install dependencies
+FROM python:3.12-slim AS deps
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev gcc \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt requirements-video.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-video.txt
+
+# stage 2: runtime - ffmpeg + opencv runtime libs + libpq
+FROM python:3.12-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 ffmpeg libglib2.0-0 libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
+COPY . .
+RUN useradd --no-create-home --shell /bin/false appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=2"]

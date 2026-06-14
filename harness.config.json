@@ -162,7 +162,7 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.052Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/harness.config.json"
+        "/Users/moravik/Documents/thesis/tarmacview/harness.config.json"
       ]
     },
     {
@@ -170,8 +170,8 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.052Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/CLAUDE.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.mcp.json"
+        "/Users/moravik/Documents/thesis/tarmacview/CLAUDE.md",
+        "/Users/moravik/Documents/thesis/tarmacview/.mcp.json"
       ]
     },
     {
@@ -179,9 +179,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.052Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/docs/architecture.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/docs/conventions.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/docs/layers.md"
+        "/Users/moravik/Documents/thesis/tarmacview/docs/architecture.md",
+        "/Users/moravik/Documents/thesis/tarmacview/docs/conventions.md",
+        "/Users/moravik/Documents/thesis/tarmacview/docs/layers.md"
       ]
     },
     {
@@ -189,7 +189,7 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.052Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.pre-commit-config.yaml"
+        "/Users/moravik/Documents/thesis/tarmacview/.pre-commit-config.yaml"
       ]
     },
     {
@@ -197,7 +197,7 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/risk-policy-gate.sh"
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/risk-policy-gate.sh"
       ]
     },
     {
@@ -205,10 +205,10 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/ci.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/structural-tests.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/harness-smoke.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/structural-tests.sh"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/ci.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/structural-tests.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/harness-smoke.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/structural-tests.sh"
       ]
     },
     {
@@ -216,11 +216,11 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/code-review-agent.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/review-agent-rerun.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/auto-resolve-threads.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/review-agent-utils.ts",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/review-prompt.md"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/code-review-agent.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/review-agent-rerun.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/auto-resolve-threads.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/review-agent-utils.ts",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/review-prompt.md"
       ]
     },
     {
@@ -228,9 +228,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/remediation-agent.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/remediation-agent-prompt.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/remediation-guard.ts"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/remediation-agent.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/remediation-agent-prompt.md",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/remediation-guard.ts"
       ]
     },
     {
@@ -238,10 +238,10 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/harness-ui-capture-browser-evidence.ts",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/harness-ui-verify-browser-evidence.ts",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/browser-evidence.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.gitignore"
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/harness-ui-capture-browser-evidence.ts",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/harness-ui-verify-browser-evidence.ts",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/browser-evidence.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/.gitignore"
       ]
     },
     {
@@ -249,9 +249,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/PULL_REQUEST_TEMPLATE.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/PULL_REQUEST_TEMPLATE/agent-pr.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/pull_request_template.md"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/PULL_REQUEST_TEMPLATE.md",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/PULL_REQUEST_TEMPLATE/agent-pr.md",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/pull_request_template.md"
       ]
     },
     {
@@ -259,8 +259,8 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/lint-architecture-config.json",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/lint-architecture.ts"
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/lint-architecture-config.json",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/lint-architecture.ts"
       ]
     },
     {
@@ -268,8 +268,8 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/doc-gardening.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/doc-gardening-prompt.md"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/doc-gardening.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/doc-gardening-prompt.md"
       ]
     },
     {
@@ -277,9 +277,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/ISSUE_TEMPLATE/harness-gap.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/docs/harness-gaps.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/weekly-metrics.yml"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/ISSUE_TEMPLATE/harness-gap.md",
+        "/Users/moravik/Documents/thesis/tarmacview/docs/harness-gaps.md",
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/weekly-metrics.yml"
       ]
     },
     {
@@ -287,9 +287,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/issue-triage.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/issue-triage-guard.ts",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.codefactory/prompts/issue-triage.md"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/issue-triage.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/issue-triage-guard.ts",
+        "/Users/moravik/Documents/thesis/tarmacview/.codefactory/prompts/issue-triage.md"
       ]
     },
     {
@@ -297,9 +297,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/issue-planner.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/issue-planner-guard.ts",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.codefactory/prompts/issue-planner.md"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/issue-planner.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/issue-planner-guard.ts",
+        "/Users/moravik/Documents/thesis/tarmacview/.codefactory/prompts/issue-planner.md"
       ]
     },
     {
@@ -307,9 +307,9 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.github/workflows/issue-implementer.yml",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.codefactory/prompts/issue-implementer.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/scripts/issue-implementer-guard.ts"
+        "/Users/moravik/Documents/thesis/tarmacview/.github/workflows/issue-implementer.yml",
+        "/Users/moravik/Documents/thesis/tarmacview/.codefactory/prompts/issue-implementer.md",
+        "/Users/moravik/Documents/thesis/tarmacview/scripts/issue-implementer-guard.ts"
       ]
     },
     {
@@ -317,8 +317,8 @@
       "enabled": true,
       "generatedAt": "2026-03-14T18:10:23.053Z",
       "files": [
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.claude/skills/check-docs/SKILL.md",
-        "/Users/moravik/Documents/thesis/drone-mission-planning-module/.claude/skills/chrome-devtools/SKILL.md"
+        "/Users/moravik/Documents/thesis/tarmacview/.claude/skills/check-docs/SKILL.md",
+        "/Users/moravik/Documents/thesis/tarmacview/.claude/skills/chrome-devtools/SKILL.md"
       ]
     }
   ],

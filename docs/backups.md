@@ -55,7 +55,7 @@ Pick whichever scheduler matches the host. Cron is the recommended default.
 Edit the crontab with `crontab -e` and add a daily entry — 03:00 local time:
 
 ```cron
-0 3 * * * cd /full/path/to/drone-mission-planning-module && ./scripts/backup_db.sh >> /var/log/tarmacview-backup.log 2>&1
+0 3 * * * cd /full/path/to/tarmacview && ./scripts/backup_db.sh >> /var/log/tarmacview-backup.log 2>&1
 ```
 
 The `cd` is required so `git rev-parse --show-toplevel` resolves the repo root.
@@ -72,8 +72,8 @@ After=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/full/path/to/drone-mission-planning-module
-ExecStart=/full/path/to/drone-mission-planning-module/scripts/backup_db.sh
+WorkingDirectory=/full/path/to/tarmacview
+ExecStart=/full/path/to/tarmacview/scripts/backup_db.sh
 User=youruser
 ```
 
@@ -110,10 +110,10 @@ sudo systemctl enable --now tarmacview-backup.timer
     <key>Label</key><string>com.tarmacview.backup</string>
     <key>ProgramArguments</key>
     <array>
-      <string>/full/path/to/drone-mission-planning-module/scripts/backup_db.sh</string>
+      <string>/full/path/to/tarmacview/scripts/backup_db.sh</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/full/path/to/drone-mission-planning-module</string>
+    <string>/full/path/to/tarmacview</string>
     <key>StartCalendarInterval</key>
     <dict>
       <key>Hour</key><integer>3</integer>

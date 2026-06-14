@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this repo live as GitHub issues at `LivinTribunal/drone-mission-planning-module`. Use the `gh` CLI for all operations. The repo is inferred from `git remote -v` automatically.
+Issues and PRDs for this repo live as GitHub issues at `LivinTribunal/tarmacview`. Use the `gh` CLI for all operations. The repo is inferred from `git remote -v` automatically.
 
 ## Conventions
 

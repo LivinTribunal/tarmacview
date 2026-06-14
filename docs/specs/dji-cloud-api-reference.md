@@ -232,9 +232,14 @@ Replies echo `tid`/`bid` and return `{"result": 0}` inside `data` (0 = ok).
 `method` appears on methodful topics (status/services/events/requests).
 
 Behavioral notes:
-- The hub subscribes at minimum to `sys/product/+/status` and
-  `thing/product/+/requests` at startup (the demo's bootstrap set), plus
-  `thing/product/+/osd|state|events` for devices it knows.
+- The hub subscribes its full bootstrap set with `+` wildcards at startup:
+  `sys/product/+/status`, `thing/product/+/requests`, `thing/product/+/events`,
+  and `thing/product/+/osd|state` (the telemetry pair only refreshes the online
+  ttl). It acks any event whose envelope sets `need_reply: 1` on
+  `…/events_reply`, echoing `tid`/`bid` with `{"result": 0}`; events without the
+  flag are ignored, with no payload interpretation or db write.
+- Acks publish at **QoS 1**. DJI blocks on reliable ack delivery to clear the
+  device's pending-connection indicator; a dropped QoS-0 ack can leave it stuck.
 - **Online/offline**: a gateway is online after `update_topo`; the aircraft
   appears as a sub-device in the topology payload. Offline = MQTT
   disconnect (track broker client events and/or MQTT last-will) or an

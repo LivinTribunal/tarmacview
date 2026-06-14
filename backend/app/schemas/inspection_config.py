@@ -125,6 +125,7 @@ class ScanConfigFields(BaseModel):
     scan_run_count: int | None = Field(default=None, ge=1)
     scan_run_orientation: ScanRunOrientationStr | None = None
     scan_sidelap_percent: float | None = Field(default=None, ge=0, le=80)
+    scan_frontlap_percent: float | None = Field(default=None, ge=0, le=80)
 
     @model_validator(mode="after")
     def _check_scan_interval(self) -> "ScanConfigFields":

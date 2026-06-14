@@ -39,6 +39,7 @@ EXPECTED_PUBLIC = {
     "delete_safety_zone",
     "delete_surface",
     "delete_terrain_dem",
+    "download_srtm_for_location",
     "download_terrain_for_location",
     "elevation_fields_changed",
     "get_airport",

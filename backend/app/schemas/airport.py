@@ -46,7 +46,7 @@ class AirportResponse(BaseModel):
     elevation: float
     location: PointZ
     default_drone_profile_id: UUID | None = None
-    terrain_source: Literal["FLAT", "DEM_UPLOAD", "DEM_API"] = "FLAT"
+    terrain_source: Literal["FLAT", "DEM_UPLOAD", "DEM_API", "DEM_SRTM"] = "FLAT"
     dem_file_path: str | None = Field(default=None, exclude=True)
 
     @computed_field
@@ -137,7 +137,7 @@ class ElevationAtPointResponse(BaseModel):
     """ground elevation at a single (lat, lon)."""
 
     elevation: float
-    source: Literal["FLAT", "DEM_UPLOAD", "DEM_API", "API"]
+    source: Literal["FLAT", "DEM_UPLOAD", "DEM_API", "DEM_SRTM", "API"]
 
 
 class PhotoMetadataItem(BaseModel):

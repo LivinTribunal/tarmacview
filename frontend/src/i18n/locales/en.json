@@ -811,6 +811,8 @@
       "scanRunCountAuto": "Recommended: {{count}}",
       "scanSidelap": "Sidelap (%)",
       "scanSidelapHelp": "Overlap between adjacent runs as a percent of the image footprint. Higher sidelap means more runs and fuller coverage. Default: 20%.",
+      "scanFrontlap": "Frontlap (%)",
+      "scanFrontlapHelp": "Forward overlap between consecutive photos along each run, as a percent of the image footprint. Higher frontlap packs more capture points along the track. Default: 0%.",
       "targetLha": "Target LHA",
       "targetLhaHelp": "Specific LHA the drone hovers in front of for Hover Point Lock. Pick the unit you want photographed; the bearing and distance fields are measured from this point.",
       "targetLhaSelect": "Select an LHA...",

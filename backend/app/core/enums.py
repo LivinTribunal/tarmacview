@@ -178,6 +178,8 @@ class TerrainSource(str, enum.Enum):
     FLAT = "FLAT"
     DEM_UPLOAD = "DEM_UPLOAD"
     DEM_API = "DEM_API"
+    # offline-staged Copernicus GLO-30 tiles, served from a local geotiff
+    DEM_SRTM = "DEM_SRTM"
 
 
 class FlightPlanScope(str, enum.Enum):

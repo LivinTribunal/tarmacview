@@ -95,6 +95,7 @@ export interface ScanConfigFields {
   scan_run_count: number | null;
   scan_run_orientation: ScanRunOrientation | null;
   scan_sidelap_percent: number | null;
+  scan_frontlap_percent: number | null;
 }
 
 // runtime key list driving the autosave echo/reset hydration
@@ -109,6 +110,7 @@ export const SCAN_FIELDS = [
   "scan_run_count",
   "scan_run_orientation",
   "scan_sidelap_percent",
+  "scan_frontlap_percent",
 ] as const satisfies readonly (keyof ScanConfigFields)[];
 
 export type ScanField = (typeof SCAN_FIELDS)[number];

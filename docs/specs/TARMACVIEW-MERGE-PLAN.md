@@ -10,6 +10,44 @@ with the airport lights detection backend into a single product,
 
 ---
 
+## 0. Current status & handoff (2026-06-14)
+
+**Phase 0 is complete. `tarmacview` is the working repo from here - hand new work
+to its agents, not the old `drone-mission-planning-module` ones.**
+
+Done:
+- `tarmacview` seeded from the TarmacView base (snapshot import); full repo + this plan.
+- Video-processing engine vendored into `backend/app/services/video_processing/`
+  (inert until Phase 2; excluded from ruff while it stays a verbatim snapshot - see
+  its `VENDORED.md`).
+- Local stack runs and is healthy: `postgres + redis + minio (+ bucket-init) +
+  backend + worker + frontend`. The Celery worker (`backend/app/workers/celery_app.py`)
+  connects to redis.
+- Dev mode without full compose: `./scripts/dev.sh` brings up infra only; run
+  `uvicorn`, `celery`, and `npm run dev` natively with hot-reload.
+- The operator's real working data was restored into the tarmacview DB (copied from
+  the old repo's volume; the original volume is untouched).
+- Harnext pipeline verified live (tagger -> triage -> plan ran; Claude auth OK).
+  State-machine labels cloned from the old repo. `harnext-verify` is disabled here
+  (self-hosted runner still bound to the old repo; not needed - the other stages run
+  GitHub-hosted).
+- CI lint is green. Docs (`README`, `CLAUDE.md`, `architecture.md`) acknowledge the
+  new service; `harness.config.json` repointed to tarmacview.
+
+Next: **Phase 1 - the upload-drone-media form** (Section 8).
+
+Known caveats:
+- `tarmacview` and the old repo share hardcoded compose `container_name`s + port
+  5432, so they cannot run at the same time. De-hardcode if both must coexist.
+- Engine deps live in `backend/requirements-video.txt` (the worker image installs
+  them); the protected `requirements.txt` is untouched. `opencv-python-headless` is
+  pinned to `4.13.0.92` (4.12 capped `numpy<2.3`, which conflicts with the pinned
+  `numpy==2.4.4`).
+- field-hub stays in tarmacview; the separate `tarmacview-field-hub` repo is
+  superseded.
+
+---
+
 ## 1. Goal
 
 Merge two systems into one product:
@@ -198,7 +236,7 @@ area), drone path, reference points, runway, video URLs, transition angles.
 
 ## 8. Phased plan (local-first)
 
-### Phase 0 - Bootstrap
+### Phase 0 - Bootstrap  ✅ done
 - Seed `tarmacview` from this repo (snapshot import).
 - Vendor `application/backend/app/services/video_processing/` (+ schemas/utils)
   into `backend/app/services/video_processing/`; strip boto3 / DynamoDB coupling,
@@ -207,7 +245,7 @@ area), drone path, reference points, runway, video URLs, transition angles.
   add `ffmpeg` to the backend and worker images.
 - Workflows + secrets + docs (Section 9).
 
-### Phase 1 - Upload drone media form (priority)
+### Phase 1 - Upload drone media form (priority)  ⏳ next
 - Extend `DroneMediaFile` (7.1) + migration.
 - Backend: presigned-PUT upload to minio, then complete-upload records the row;
   reorder-within-inspection, move-between-inspections, list grouped by inspection.

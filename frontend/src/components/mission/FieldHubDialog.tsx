@@ -4,6 +4,7 @@ import { Check, Copy, Download, ShieldCheck } from "lucide-react";
 import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 import { downloadCaCert } from "@/api/fieldLink";
 import { encodeQrMatrix, qrMatrixToPath } from "@/utils/qrcode";
+import { QR_DARK } from "@/constants/palette";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 
@@ -38,7 +39,7 @@ function ConnectQr({ url }: { url: string }) {
         aria-label={url}
         data-testid="field-hub-qr"
       >
-        <path d={path} fill="#000000" />
+        <path d={path} fill={QR_DARK} />
       </svg>
       <span className="text-xs text-tv-text-muted">{t("mission.fieldHub.scanHint")}</span>
     </div>

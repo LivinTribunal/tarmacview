@@ -6,6 +6,7 @@ from app.core.enums import (  # noqa: F401
     ExportFormat,
     InspectionMethod,
     LampType,
+    MeasurementStatus,
     MediaFileStatus,
     MissionStatus,
     ObstacleType,
@@ -46,6 +47,7 @@ from app.models.inspection import (  # noqa: F401
     insp_template_methods,
     insp_template_targets,
 )
+from app.models.measurement import Measurement  # noqa: F401
 from app.models.mission import DroneProfile, Mission  # noqa: F401
 from app.models.system_settings import SystemSettings  # noqa: F401
 from app.models.user import User, user_airports  # noqa: F401

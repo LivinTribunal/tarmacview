@@ -6,13 +6,16 @@ IMPORTANT: All elevation/altitude values in this module are WGS84 ellipsoid heig
 - All angle calculations return degrees
 - GPS altitude is WGS84 ellipsoid height (not MSL/orthometric height)
 """
+
+import logging
 import math
-import numpy as np
-from app.core.logging import logger
 from typing import Dict
 
-from app.core.config import settings
+import numpy as np
 
+from app.services.video_processing.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -27,9 +30,9 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
 
-    a = (math.sin(delta_phi / 2) * math.sin(delta_phi / 2) +
-         math.cos(phi1) * math.cos(phi2) *
-         math.sin(delta_lambda / 2) * math.sin(delta_lambda / 2))
+    a = math.sin(delta_phi / 2) * math.sin(delta_phi / 2) + math.cos(phi1) * math.cos(
+        phi2
+    ) * math.sin(delta_lambda / 2) * math.sin(delta_lambda / 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return R * c
@@ -60,18 +63,15 @@ def calculate_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> flo
 
 
 def calculate_horizontal_angle(
-    target_lat: float,
-    target_lon: float,
-    drone_lat: float,
-    drone_lon: float,
-    runway_heading: float
+    target_lat: float, target_lon: float, drone_lat: float, drone_lon: float, runway_heading: float
 ) -> float:
     """
     Calculate the horizontal angle between the runway centerline and the drone position.
 
     The angle is measured at the light/touch point, between the runway centerline
     (which extends in both directions) and the line to the drone position.
-    Positive angles mean drone is to the right of the centerline when looking along the runway heading.
+    Positive angles mean drone is to the right of the
+    centerline when looking along the runway heading.
     Negative angles mean drone is to the left of the centerline.
 
     Args:
@@ -142,7 +142,9 @@ def calculate_angle(drone_data: Dict, light_pos: Dict) -> float:
 
         # Validate elevation data
         if papi_elevation_wgs84 == 0 or papi_elevation_wgs84 is None:
-            logger.warning(f"PAPI elevation_wgs84 is {papi_elevation_wgs84}m - may cause incorrect angles")
+            logger.warning(
+                f"PAPI elevation_wgs84 is {papi_elevation_wgs84}m - may cause incorrect angles"
+            )
 
         if None in [drone_lat, drone_lon, papi_lat, papi_lon]:
             raise ValueError("GPS coordinates are required for accurate PAPI angle calculation")
@@ -164,12 +166,13 @@ def calculate_angle(drone_data: Dict, light_pos: Dict) -> float:
         return round(angle, 3)
 
     except Exception as e:
-        logger.error("="*80)
+        logger.error("=" * 80)
         logger.error(f"❌ EXCEPTION IN calculate_angle: {e}")
         logger.error(f"Exception type: {type(e)}")
         import traceback
+
         logger.error(f"Traceback:\n{traceback.format_exc()}")
-        logger.error("="*80)
+        logger.error("=" * 80)
         return 0.0
 
 
@@ -205,8 +208,12 @@ def calculate_direct_distance(drone_data: Dict, light_pos: Dict) -> float:
         ground_dist = calculate_ground_distance(drone_data, light_pos)
 
         # Convert to float in case values come from DynamoDB as Decimal
-        drone_elevation_wgs84 = float(drone_data.get("elevation_wgs84", drone_data.get("elevation", 100)))
-        papi_elevation_wgs84 = float(light_pos.get("elevation_wgs84", light_pos.get("elevation", 0)))
+        drone_elevation_wgs84 = float(
+            drone_data.get("elevation_wgs84", drone_data.get("elevation", 100))
+        )
+        papi_elevation_wgs84 = float(
+            light_pos.get("elevation_wgs84", light_pos.get("elevation", 0))
+        )
         height_diff = drone_elevation_wgs84 - papi_elevation_wgs84
 
         return math.sqrt(ground_dist**2 + height_diff**2)

@@ -1,0 +1,27 @@
+"""measurement repository port - the narrow seam that keeps the db swappable.
+
+access stays the lowest common denominator (get-by-id, list-by-inspection, save) so
+both the sqlalchemy adapter built now and a future dynamodb adapter can satisfy it
+without the domain, service, or engine changing. see TARMACVIEW-MERGE-PLAN.md D3/§6.
+"""
+
+from abc import ABC, abstractmethod
+from uuid import UUID
+
+from app.domain.measurement.entities import Measurement
+
+
+class MeasurementRepository(ABC):
+    """persistence port for the measurement aggregate."""
+
+    @abstractmethod
+    def get_by_id(self, measurement_id: UUID) -> Measurement | None:
+        """load one measurement aggregate, or None when it does not exist."""
+
+    @abstractmethod
+    def list_by_inspection(self, inspection_id: UUID) -> list[Measurement]:
+        """all measurements for one inspection, newest first."""
+
+    @abstractmethod
+    def save(self, measurement: Measurement) -> Measurement:
+        """insert or update one aggregate and return the persisted form."""

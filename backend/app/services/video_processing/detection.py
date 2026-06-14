@@ -1,30 +1,36 @@
 """
 Light detection classes for video processing
 """
+
+import logging
+from typing import List, Tuple
+
 import cv2
 import numpy as np
-from app.core.logging import logger
-from typing import Dict, List, Tuple, Optional
 
-from app.core.config import settings
-from .utils import measure_light_dimensions, extract_color_from_brightest_pixels
+from app.services.video_processing.config import settings
+
 from .models import DetectedLight
 
+logger = logging.getLogger(__name__)
 
 
 class RunwayLightDetector:
     """Advanced light detection using computer vision techniques"""
 
-    def __init__(self, brightness_threshold: int = None,
-                 min_area: int = None,
-                 max_area: int = None,
-                 saturation_threshold: int = None):
+    def __init__(
+        self,
+        brightness_threshold: int = None,
+        min_area: int = None,
+        max_area: int = None,
+        saturation_threshold: int = None,
+    ):
         self.brightness_threshold = brightness_threshold or settings.VIDEO_BRIGHTNESS_THRESHOLD
         self.min_area = min_area or settings.VIDEO_MIN_AREA
         self.max_area = max_area or settings.VIDEO_MAX_AREA
         self.saturation_threshold = saturation_threshold or settings.VIDEO_SATURATION_THRESHOLD
         logger.info("Light detector initialized")
-        
+
     def preprocess_for_lights(self, frame: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Preprocess frame to enhance light detection"""
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -33,24 +39,34 @@ class RunwayLightDetector:
         value_channel = hsv[:, :, 2]
 
         # Apply CLAHE for contrast enhancement
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(value_channel)
 
         # Create multiple masks for different light conditions
-        bright_mask = cv2.threshold(value_channel, self.brightness_threshold, 255, cv2.THRESH_BINARY)[1]
-        saturated_mask = cv2.threshold(value_channel, self.saturation_threshold, 255, cv2.THRESH_BINARY)[1]
-        enhanced_mask = cv2.threshold(enhanced, settings.VIDEO_ENHANCED_THRESHOLD, 255, cv2.THRESH_BINARY)[1]
+        bright_mask = cv2.threshold(
+            value_channel, self.brightness_threshold, 255, cv2.THRESH_BINARY
+        )[1]
+        saturated_mask = cv2.threshold(
+            value_channel, self.saturation_threshold, 255, cv2.THRESH_BINARY
+        )[1]
+        enhanced_mask = cv2.threshold(
+            enhanced, settings.VIDEO_ENHANCED_THRESHOLD, 255, cv2.THRESH_BINARY
+        )[1]
 
         combined_mask = cv2.bitwise_or(bright_mask, saturated_mask)
         combined_mask = cv2.bitwise_or(combined_mask, enhanced_mask)
 
-        kernel = np.ones((settings.VIDEO_MORPH_KERNEL_SIZE, settings.VIDEO_MORPH_KERNEL_SIZE), np.uint8)
+        kernel = np.ones(
+            (settings.VIDEO_MORPH_KERNEL_SIZE, settings.VIDEO_MORPH_KERNEL_SIZE), np.uint8
+        )
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
 
         return combined_mask, value_channel
-        
-    def detect_lights(self, frame: np.ndarray, downscale_factor: float = 0.5) -> List[DetectedLight]:
+
+    def detect_lights(
+        self, frame: np.ndarray, downscale_factor: float = 0.5
+    ) -> List[DetectedLight]:
         """
         Detect all bright spots and lights in frame.
 
@@ -66,8 +82,9 @@ class RunwayLightDetector:
 
         # Downscale for faster processing
         if downscale_factor < 1.0:
-            small_frame = cv2.resize(frame, None, fx=downscale_factor, fy=downscale_factor,
-                                     interpolation=cv2.INTER_AREA)
+            small_frame = cv2.resize(
+                frame, None, fx=downscale_factor, fy=downscale_factor, interpolation=cv2.INTER_AREA
+            )
             scale_back = 1.0 / downscale_factor
         else:
             small_frame = frame
@@ -78,10 +95,14 @@ class RunwayLightDetector:
 
         # Find contours of bright regions
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         # Adjust area thresholds for downscaled frame
-        min_area_scaled = self.min_area * (downscale_factor ** 2) if downscale_factor < 1.0 else self.min_area
-        max_area_scaled = self.max_area * (downscale_factor ** 2) if downscale_factor < 1.0 else self.max_area
+        min_area_scaled = (
+            self.min_area * (downscale_factor**2) if downscale_factor < 1.0 else self.min_area
+        )
+        max_area_scaled = (
+            self.max_area * (downscale_factor**2) if downscale_factor < 1.0 else self.max_area
+        )
 
         for contour in contours:
             area = cv2.contourArea(contour)
@@ -91,8 +112,8 @@ class RunwayLightDetector:
                 x, y, w, h = cv2.boundingRect(contour)
 
                 # Get center point (in downscaled coordinates)
-                cx = x + w/2
-                cy = y + h/2
+                cx = x + w / 2
+                cy = y + h / 2
 
                 # Create mask for this specific light
                 light_mask = np.zeros(mask.shape, dtype=np.uint8)
@@ -106,11 +127,11 @@ class RunwayLightDetector:
                 brightness = np.mean([r, g, b])
 
                 # Get peak intensity
-                roi = value_channel[y:y+h, x:x+w]
+                roi = value_channel[y : y + h, x : x + w]
                 intensity = np.max(roi) if roi.size > 0 else brightness
 
                 # Determine light type based on characteristics
-                class_name = self.classify_light(r, g, b, area / (downscale_factor ** 2), intensity)
+                class_name = self.classify_light(r, g, b, area / (downscale_factor**2), intensity)
 
                 # Scale coordinates back to original resolution
                 light = DetectedLight(
@@ -118,19 +139,20 @@ class RunwayLightDetector:
                     y=cy * scale_back,
                     width=w * scale_back,
                     height=h * scale_back,
-                    confidence=min(1.0, intensity/255.0),
+                    confidence=min(1.0, intensity / 255.0),
                     class_name=class_name,
                     brightness=brightness,
                     r=int(r),
                     g=int(g),
-                    b=int(b)
+                    b=int(b),
                 )
                 lights.append(light)
-        
+
         return lights
-    
+
     def classify_light(self, r: float, g: float, b: float, area: float, intensity: float) -> str:
-        """Classify light based on color and characteristics with priority for high-intensity PAPI lights"""
+        """Classify light based on color and characteristics
+        with priority for high-intensity PAPI lights"""
         # Normalize RGB values
         total = r + g + b
         if total == 0:
@@ -152,12 +174,19 @@ class RunwayLightDetector:
                 else:
                     return "white_light"
             # White lights (balanced RGB) with high intensity
-            if abs(r_norm - settings.PAPI_WHITE_NORM_CENTER) < settings.PAPI_WHITE_NORM_TOLERANCE and abs(g_norm - settings.PAPI_WHITE_NORM_CENTER) < settings.PAPI_WHITE_NORM_TOLERANCE:
+            if (
+                abs(r_norm - settings.PAPI_WHITE_NORM_CENTER) < settings.PAPI_WHITE_NORM_TOLERANCE
+                and abs(g_norm - settings.PAPI_WHITE_NORM_CENTER)
+                < settings.PAPI_WHITE_NORM_TOLERANCE
+            ):
                 return "white_light"
 
         # Priority 3: Standard color-based classification for lower intensity lights
         # PAPI lights with moderate intensity
-        if r_norm > settings.PAPI_RED_NORM_THRESHOLD and intensity > settings.PAPI_MODERATE_INTENSITY_THRESHOLD:
+        if (
+            r_norm > settings.PAPI_RED_NORM_THRESHOLD
+            and intensity > settings.PAPI_MODERATE_INTENSITY_THRESHOLD
+        ):
             if g_norm < settings.PAPI_GREEN_NORM_THRESHOLD:
                 return "red_light"
             else:
@@ -176,19 +205,22 @@ class RunwayLightDetector:
             return "yellow_light"
 
         # White lights (balanced RGB)
-        if abs(r_norm - settings.PAPI_WHITE_NORM_CENTER) < 0.1 and abs(g_norm - settings.PAPI_WHITE_NORM_CENTER) < 0.1:
+        if (
+            abs(r_norm - settings.PAPI_WHITE_NORM_CENTER) < 0.1
+            and abs(g_norm - settings.PAPI_WHITE_NORM_CENTER) < 0.1
+        ):
             return "white_light"
-        
-        return "runway_light"
 
+        return "runway_light"
 
 
 class PreciseLightDetector:
     """Detects precise light position within a user-defined rectangle using brightness analysis"""
 
     @staticmethod
-    def find_brightest_point_in_rect(frame: np.ndarray, rect_center: Tuple[int, int],
-                                     rect_size: int) -> Tuple[int, int, float]:
+    def find_brightest_point_in_rect(
+        frame: np.ndarray, rect_center: Tuple[int, int], rect_size: int
+    ) -> Tuple[int, int, float]:
         """
         Find the weighted center of brightest RED pixels within a rectangle.
 
@@ -258,13 +290,17 @@ class PreciseLightDetector:
         contrast = (max_red - np.mean(blurred)) / 255.0
         confidence = min(1.0, confidence * (1.0 + contrast))
 
-        logger.debug(f"Found RED-weighted center at ({bright_x}, {bright_y}) with confidence {confidence:.2f}")
+        logger.debug(
+            f"Found RED-weighted center at ({bright_x},"
+            f" {bright_y}) with confidence {confidence:.2f}"
+        )
 
         return (bright_x, bright_y, confidence)
 
     @staticmethod
-    def detect_red_evaluation_area(frame: np.ndarray, rect_center: Tuple[int, int],
-                                   rect_size: int, red_threshold: float = None) -> dict:
+    def detect_red_evaluation_area(
+        frame: np.ndarray, rect_center: Tuple[int, int], rect_size: int, red_threshold: float = None
+    ) -> dict:
         """
         Detect RGB evaluation area using RED channel values.
         Only pixels with top 85% of RED values are considered for evaluation.
@@ -297,7 +333,7 @@ class PreciseLightDetector:
         roi = frame[y1:y2, x1:x2]
 
         if roi.size == 0:
-            return {'center': (cx, cy), 'area_pixels': 0, 'bounds': (x1, y1, x2, y2), 'max_red': 0}
+            return {"center": (cx, cy), "area_pixels": 0, "bounds": (x1, y1, x2, y2), "max_red": 0}
 
         # Extract RED channel (BGR format, so index 2)
         red_channel = roi[:, :, 2]
@@ -341,10 +377,8 @@ class PreciseLightDetector:
             eval_x_max, eval_y_max = x2, y2
 
         return {
-            'center': (center_x, center_y),
-            'area_pixels': int(area_pixels),
-            'bounds': (eval_x_min, eval_y_min, eval_x_max, eval_y_max),
-            'max_red': float(max_red)
+            "center": (center_x, center_y),
+            "area_pixels": int(area_pixels),
+            "bounds": (eval_x_min, eval_y_min, eval_x_max, eval_y_max),
+            "max_red": float(max_red),
         }
-
-

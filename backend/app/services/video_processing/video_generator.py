@@ -3,35 +3,27 @@ Video generation and processing module
 
 This module provides a unified interface to the two-pass video generation functionality.
 """
-import cv2
-import numpy as np
-from app.core.logging import logger
-import time
-import os
-from typing import Dict, List, Tuple, Optional
-from pathlib import Path
 
-from app.core.config import settings
-from .models import GPSData, DetectedLight, TrackedPAPILight
-from .utils import (
-    FrameProcessingCache, BatchFrameProcessor,
-    measure_light_dimensions, extract_color_from_brightest_pixels,
-    convert_to_h264, classify_light_status
-)
-from .gps import GPSExtractor
-from .detection import RunwayLightDetector, PreciseLightDetector
-from .tracking import PAPILightTracker
-from .processor import VideoProcessor
+import logging
+import os
+from typing import Dict, List
+
+import numpy as np
+
+from app.services.video_processing.config import settings
 
 # Import from generation submodules
 from .generation import (
-    OptimizedOverlayRenderer,
     DroneOverlayRenderer,
     InfoOverlayRenderer,
     MeasurementCollector,
+    OptimizedOverlayRenderer,
     TwoPassProcessor,
 )
+from .models import GPSData
+from .utils import BatchFrameProcessor, FrameProcessingCache
 
+logger = logging.getLogger(__name__)
 
 
 class PAPIVideoGenerator:
@@ -68,10 +60,16 @@ class PAPIVideoGenerator:
 
         logger.info(f"Video generator initialized (batch size: {batch_size})")
 
-    def process_video_two_pass(self, video_path: str, session_id: str,
-                              light_positions: Dict, real_gps_data: List,
-                              reference_points: Dict, runway_heading: float,
-                              fps: int = 30) -> tuple:
+    def process_video_two_pass(
+        self,
+        video_path: str,
+        session_id: str,
+        light_positions: Dict,
+        real_gps_data: List,
+        reference_points: Dict,
+        runway_heading: float,
+        fps: int = 30,
+    ) -> tuple:
         """
         TWO-PASS VIDEO PROCESSING ARCHITECTURE
 
@@ -83,14 +81,25 @@ class PAPIVideoGenerator:
         Delegates to: TwoPassProcessor
         """
         return self._two_pass.process_video_two_pass(
-            video_path, session_id, light_positions, real_gps_data,
-            reference_points, runway_heading, fps
+            video_path,
+            session_id,
+            light_positions,
+            real_gps_data,
+            reference_points,
+            runway_heading,
+            fps,
         )
 
-    def collect_measurements_only(self, video_path: str, session_id: str,
-                                 light_positions: Dict, real_gps_data: List,
-                                 reference_points: Dict, runway_heading: float,
-                                 fps: int = 30) -> List[Dict]:
+    def collect_measurements_only(
+        self,
+        video_path: str,
+        session_id: str,
+        light_positions: Dict,
+        real_gps_data: List,
+        reference_points: Dict,
+        runway_heading: float,
+        fps: int = 30,
+    ) -> List[Dict]:
         """
         PASS 1: Collect measurements and compute transition angles.
 
@@ -102,14 +111,26 @@ class PAPIVideoGenerator:
         Delegates to: MeasurementCollector
         """
         return self._measurement_collector.collect_measurements_only(
-            video_path, session_id, light_positions, real_gps_data,
-            reference_points, runway_heading, fps
+            video_path,
+            session_id,
+            light_positions,
+            real_gps_data,
+            reference_points,
+            runway_heading,
+            fps,
         )
 
-    def generate_videos_from_measurements(self, video_path: str, session_id: str,
-                                        light_positions: Dict, measurements_data: List[Dict],
-                                        real_gps_data: List, reference_points: Dict,
-                                        runway_heading: float, fps: int = 30) -> tuple:
+    def generate_videos_from_measurements(
+        self,
+        video_path: str,
+        session_id: str,
+        light_positions: Dict,
+        measurements_data: List[Dict],
+        real_gps_data: List,
+        reference_points: Dict,
+        runway_heading: float,
+        fps: int = 30,
+    ) -> tuple:
         """
         PASS 2: Generate videos from pre-computed measurements.
 
@@ -122,14 +143,20 @@ class PAPIVideoGenerator:
         Delegates to: TwoPassProcessor
         """
         return self._two_pass.generate_videos_from_measurements(
-            video_path, session_id, light_positions, measurements_data,
-            real_gps_data, reference_points, runway_heading, fps
+            video_path,
+            session_id,
+            light_positions,
+            measurements_data,
+            real_gps_data,
+            reference_points,
+            runway_heading,
+            fps,
         )
 
     @staticmethod
-    def compute_transition_angles_from_chromacity(measurements_data: List[Dict],
-                                                   light_name: str,
-                                                   reference_points: Dict = None) -> Dict:
+    def compute_transition_angles_from_chromacity(
+        measurements_data: List[Dict], light_name: str, reference_points: Dict = None
+    ) -> Dict:
         """
         Compute transition angles for a PAPI light based on chromacity analysis.
 
@@ -141,54 +168,87 @@ class PAPIVideoGenerator:
 
     # Overlay rendering methods - delegates to overlay renderers
 
-    def _add_overlays_to_frame_with_tracking_optimized(self, frame: np.ndarray, tracked_positions: Dict,
-                                                      frame_number: int, total_frames: int,
-                                                      measurements_data: List[Dict] = None,
-                                                      drone_telemetry: List[Dict] = None,
-                                                      reference_points: Dict = None,
-                                                      cached_drone_data: Dict = None,
-                                                      original_light_positions: Dict = None):
+    def _add_overlays_to_frame_with_tracking_optimized(
+        self,
+        frame: np.ndarray,
+        tracked_positions: Dict,
+        frame_number: int,
+        total_frames: int,
+        measurements_data: List[Dict] = None,
+        drone_telemetry: List[Dict] = None,
+        reference_points: Dict = None,
+        cached_drone_data: Dict = None,
+        original_light_positions: Dict = None,
+    ):
         """Add optimized overlays to frame. Delegates to: OptimizedOverlayRenderer"""
         return OptimizedOverlayRenderer.add_overlays_to_frame_with_tracking_optimized(
-            frame, tracked_positions, frame_number, total_frames,
-            measurements_data, drone_telemetry, reference_points,
-            cached_drone_data, original_light_positions
+            frame,
+            tracked_positions,
+            frame_number,
+            total_frames,
+            measurements_data,
+            drone_telemetry,
+            reference_points,
+            cached_drone_data,
+            original_light_positions,
         )
 
-    def _add_drone_position_overlay_optimized(self, frame: np.ndarray, frame_number: int,
-                                             tracked_positions: Dict,
-                                             measurements_data: List[Dict] = None,
-                                             reference_points: Dict = None,
-                                             cached_drone_data: Dict = None):
+    def _add_drone_position_overlay_optimized(
+        self,
+        frame: np.ndarray,
+        frame_number: int,
+        tracked_positions: Dict,
+        measurements_data: List[Dict] = None,
+        reference_points: Dict = None,
+        cached_drone_data: Dict = None,
+    ):
         """Add optimized drone overlay. Delegates to: OptimizedOverlayRenderer"""
         return OptimizedOverlayRenderer.add_drone_position_overlay_optimized(
-            frame, frame_number, tracked_positions, measurements_data,
-            reference_points, cached_drone_data
+            frame,
+            frame_number,
+            tracked_positions,
+            measurements_data,
+            reference_points,
+            cached_drone_data,
         )
 
-    def _add_overlays_to_frame_with_tracking(self, frame: np.ndarray, tracked_positions: Dict,
-                                            frame_number: int, total_frames: int,
-                                            measurements_data: List[Dict] = None,
-                                            drone_telemetry: List[Dict] = None,
-                                            reference_points: Dict = None,
-                                            real_gps_data: List[GPSData] = None,
-                                            fps: float = 30.0):
+    def _add_overlays_to_frame_with_tracking(
+        self,
+        frame: np.ndarray,
+        tracked_positions: Dict,
+        frame_number: int,
+        total_frames: int,
+        measurements_data: List[Dict] = None,
+        drone_telemetry: List[Dict] = None,
+        reference_points: Dict = None,
+        real_gps_data: List[GPSData] = None,
+        fps: float = 30.0,
+    ):
         """Add overlays with tracking. Delegates to: OptimizedOverlayRenderer"""
         return OptimizedOverlayRenderer.add_overlays_to_frame_with_tracking(
-            frame, tracked_positions, frame_number, total_frames,
-            measurements_data, drone_telemetry, reference_points,
-            real_gps_data, fps
+            frame,
+            tracked_positions,
+            frame_number,
+            total_frames,
+            measurements_data,
+            drone_telemetry,
+            reference_points,
+            real_gps_data,
+            fps,
         )
 
-    def _add_drone_position_overlay(self, frame: np.ndarray, frame_number: int,
-                                   drone_telemetry: List[Dict] = None,
-                                   reference_points: Dict = None,
-                                   real_gps_data: List[GPSData] = None,
-                                   fps: float = 30.0):
+    def _add_drone_position_overlay(
+        self,
+        frame: np.ndarray,
+        frame_number: int,
+        drone_telemetry: List[Dict] = None,
+        reference_points: Dict = None,
+        real_gps_data: List[GPSData] = None,
+        fps: float = 30.0,
+    ):
         """Add drone position overlay. Delegates to: DroneOverlayRenderer"""
         return DroneOverlayRenderer.add_drone_position_overlay(
-            frame, frame_number, drone_telemetry, reference_points,
-            real_gps_data, fps
+            frame, frame_number, drone_telemetry, reference_points, real_gps_data, fps
         )
 
     def _calculate_angles_to_targets(self, drone_data: Dict, reference_points: Dict = None) -> Dict:
@@ -203,13 +263,16 @@ class PAPIVideoGenerator:
         """Add progress bar overlay. Delegates to: InfoOverlayRenderer"""
         return InfoOverlayRenderer.add_progress_bar(frame, frame_number, total_frames)
 
-    def _add_angle_overlay(self, frame: np.ndarray, frame_number: int,
-                          drone_telemetry: List[Dict] = None,
-                          reference_points: Dict = None,
-                          real_gps_data: List[GPSData] = None,
-                          fps: float = 30.0):
+    def _add_angle_overlay(
+        self,
+        frame: np.ndarray,
+        frame_number: int,
+        drone_telemetry: List[Dict] = None,
+        reference_points: Dict = None,
+        real_gps_data: List[GPSData] = None,
+        fps: float = 30.0,
+    ):
         """Add angle overlay. Delegates to: InfoOverlayRenderer"""
         return InfoOverlayRenderer.add_angle_overlay(
-            frame, frame_number, drone_telemetry, reference_points,
-            real_gps_data, fps
+            frame, frame_number, drone_telemetry, reference_points, real_gps_data, fps
         )

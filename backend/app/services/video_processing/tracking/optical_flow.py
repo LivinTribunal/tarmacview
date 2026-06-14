@@ -1,14 +1,18 @@
 """
 Optical flow tracking for PAPI lights
 """
+
+import logging
+from typing import Dict, Tuple
+
 import cv2
 import numpy as np
-from app.core.logging import logger
-from typing import Dict, List, Tuple
 
-from app.core.config import settings
+from app.services.video_processing.config import settings
+
 from ..models import TrackedPAPILight
 
+logger = logging.getLogger(__name__)
 
 
 class OpticalFlowTracker:
@@ -18,14 +22,21 @@ class OpticalFlowTracker:
         self.prev_gray = None
         self.use_optical_flow = False  # Disabled - using per-frame detection instead
         self.lk_params = dict(
-            winSize=(settings.TRACKING_OPTICAL_FLOW_WIN_SIZE, settings.TRACKING_OPTICAL_FLOW_WIN_SIZE),
+            winSize=(
+                settings.TRACKING_OPTICAL_FLOW_WIN_SIZE,
+                settings.TRACKING_OPTICAL_FLOW_WIN_SIZE,
+            ),
             maxLevel=settings.TRACKING_OPTICAL_FLOW_MAX_LEVEL,
-            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
-                     settings.TRACKING_OPTICAL_FLOW_CRITERIA_COUNT,
-                     settings.TRACKING_OPTICAL_FLOW_CRITERIA_EPS)
+            criteria=(
+                cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
+                settings.TRACKING_OPTICAL_FLOW_CRITERIA_COUNT,
+                settings.TRACKING_OPTICAL_FLOW_CRITERIA_EPS,
+            ),
         )
 
-    def track_with_optical_flow(self, frame: np.ndarray, tracked_lights: Dict[str, TrackedPAPILight]) -> Dict[str, Tuple[int, int, float]]:
+    def track_with_optical_flow(
+        self, frame: np.ndarray, tracked_lights: Dict[str, TrackedPAPILight]
+    ) -> Dict[str, Tuple[int, int, float]]:
         """
         Track all PAPI lights using Lucas-Kanade optical flow.
 

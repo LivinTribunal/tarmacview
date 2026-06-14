@@ -1,33 +1,43 @@
 """
 Helper functions for PAPI light tracking
 """
-import cv2
-import numpy as np
-from app.core.logging import logger
+
+import logging
 import math
 from typing import List, Tuple
 
-from app.core.config import settings
+import numpy as np
+
+from app.services.video_processing.config import settings
+
 from ..models import DetectedLight
 
+logger = logging.getLogger(__name__)
 
 
-def estimate_global_motion(current_lights: List[DetectedLight], prev_lights: List[DetectedLight]) -> Tuple[float, float]:
+def estimate_global_motion(
+    current_lights: List[DetectedLight], prev_lights: List[DetectedLight]
+) -> Tuple[float, float]:
     """Estimate global camera motion between frames using detected lights"""
     if len(current_lights) < 3 or len(prev_lights) < 3:
         return 0.0, 0.0
 
     motions = []
     for curr_light in current_lights:
-        best_dist = float('inf')
+        best_dist = float("inf")
         best_prev = None
 
         for prev_light in prev_lights:
             # Only match lights of similar brightness and characteristics
-            if abs(curr_light.brightness - prev_light.brightness) > settings.TRACKING_MOTION_CONSISTENCY_THRESHOLD:
+            if (
+                abs(curr_light.brightness - prev_light.brightness)
+                > settings.TRACKING_MOTION_CONSISTENCY_THRESHOLD
+            ):
                 continue
 
-            dist = math.sqrt((curr_light.x - prev_light.x)**2 + (curr_light.y - prev_light.y)**2)
+            dist = math.sqrt(
+                (curr_light.x - prev_light.x) ** 2 + (curr_light.y - prev_light.y) ** 2
+            )
             if dist < settings.TRACKING_REASONABLE_MOVEMENT_DISTANCE and dist < best_dist:
                 best_dist = dist
                 best_prev = prev_light
@@ -48,7 +58,9 @@ def estimate_global_motion(current_lights: List[DetectedLight], prev_lights: Lis
     return median_dx, median_dy
 
 
-def validate_motion_consistency(motion_vectors: List[Tuple[float, float]], motion_consistency_threshold: float) -> bool:
+def validate_motion_consistency(
+    motion_vectors: List[Tuple[float, float]], motion_consistency_threshold: float
+) -> bool:
     """
     Validate that all PAPI lights move consistently (they should since they're static
     and only the drone is moving).
@@ -70,7 +82,7 @@ def validate_motion_consistency(motion_vectors: List[Tuple[float, float]], motio
     # Calculate deviation from mean
     deviations = []
     for dx, dy in motion_vectors:
-        deviation = math.sqrt((dx - mean_dx)**2 + (dy - mean_dy)**2)
+        deviation = math.sqrt((dx - mean_dx) ** 2 + (dy - mean_dy) ** 2)
         deviations.append(deviation)
 
     max_deviation = max(deviations)
@@ -79,15 +91,19 @@ def validate_motion_consistency(motion_vectors: List[Tuple[float, float]], motio
     is_consistent = max_deviation < motion_consistency_threshold
 
     if not is_consistent:
-        logger.warning(f"Inconsistent motion detected! Max deviation: {max_deviation:.1f}px (threshold: {motion_consistency_threshold}px)")
+        logger.warning(
+            f"Inconsistent motion detected! Max deviation: {max_deviation:.1f}px"
+            f" (threshold: {motion_consistency_threshold}px)"
+        )
     else:
         logger.debug(f"Motion consistent: max deviation {max_deviation:.1f}px")
 
     return is_consistent
 
 
-def stabilize_position_change(new_x: int, new_y: int, last_x: int, last_y: int,
-                               max_change_pixels: int = None) -> Tuple[int, int]:
+def stabilize_position_change(
+    new_x: int, new_y: int, last_x: int, last_y: int, max_change_pixels: int = None
+) -> Tuple[int, int]:
     """
     Limit position changes to maximum pixels between frames for stable tracking.
 

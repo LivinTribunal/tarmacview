@@ -1,14 +1,18 @@
 """
 Color extraction and light classification utilities
 """
-import cv2
-import numpy as np
+
 from typing import Tuple
 
-from app.core.config import settings
+import cv2
+import numpy as np
+
+from app.services.video_processing.config import settings
 
 
-def extract_color_from_brightest_pixels(roi: np.ndarray, brightness_percentile: float = None) -> Tuple[int, int, int]:
+def extract_color_from_brightest_pixels(
+    roi: np.ndarray, brightness_percentile: float = None
+) -> Tuple[int, int, int]:
     """
     Extract RGB color from pixels with highest RED channel values.
 
@@ -54,7 +58,7 @@ def extract_color_from_brightest_pixels(roi: np.ndarray, brightness_percentile: 
 
     # Create binary mask of pixels with RED >= threshold% of max RED
     threshold_value = max_red * brightness_percentile
-    red_mask = (red_channel >= threshold_value)
+    red_mask = red_channel >= threshold_value
 
     # Count pixels in evaluation area
     area_pixels = np.sum(red_mask)
@@ -74,8 +78,13 @@ def extract_color_from_brightest_pixels(roi: np.ndarray, brightness_percentile: 
     return (r, g, b)
 
 
-def measure_light_dimensions(frame: np.ndarray, center_x: int, center_y: int,
-                            initial_search_size: int, brightness_threshold: float = None) -> Tuple[int, int, int, int]:
+def measure_light_dimensions(
+    frame: np.ndarray,
+    center_x: int,
+    center_y: int,
+    initial_search_size: int,
+    brightness_threshold: float = None,
+) -> Tuple[int, int, int, int]:
     """
     Measure actual light dimensions and compute center of mass of brightest pixels.
 

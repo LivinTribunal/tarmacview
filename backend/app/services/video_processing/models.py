@@ -1,13 +1,15 @@
 """
 Data models for video processing module
 """
+
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
 class DetectedLight:
     """Represents a detected light object"""
+
     x: float
     y: float
     width: float
@@ -39,6 +41,7 @@ class GPSData:
     IMPORTANT: All elevations are WGS84 ellipsoid heights in meters.
     WGS84 is the GPS coordinate system - NOT MSL (Mean Sea Level).
     """
+
     timestamp_ms: float
     latitude: float
     longitude: float
@@ -52,21 +55,22 @@ class GPSData:
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization"""
         return {
-            'timestamp_ms': self.timestamp_ms,
-            'latitude': self.latitude,
-            'longitude': self.longitude,
-            'elevation_wgs84': self.elevation_wgs84,
-            'speed': self.speed,
-            'heading': self.heading,
-            'satellites': self.satellites,
-            'accuracy': self.accuracy,
-            'frame_number': self.frame_number
+            "timestamp_ms": self.timestamp_ms,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "elevation_wgs84": self.elevation_wgs84,
+            "speed": self.speed,
+            "heading": self.heading,
+            "satellites": self.satellites,
+            "accuracy": self.accuracy,
+            "frame_number": self.frame_number,
         }
 
 
 @dataclass
 class TrackedPAPILight:
     """Represents a PAPI light tracked over multiple frames"""
+
     light_name: str  # PAPI_A, PAPI_B, PAPI_C, PAPI_D
     positions: List[Tuple[int, int]]  # (x, y) positions over time
     rgb_values: List[Tuple[int, int, int]]  # RGB values over time
@@ -85,8 +89,8 @@ class TrackedPAPILight:
             return 0.0, 0.0
 
         # Use last few positions for velocity calculation
-        recent_positions = self.positions[-min(5, len(self.positions)):]
-        recent_frames = self.frame_numbers[-len(recent_positions):]
+        recent_positions = self.positions[-min(5, len(self.positions)) :]
+        recent_frames = self.frame_numbers[-len(recent_positions) :]
 
         if len(recent_positions) >= 2:
             dt = recent_frames[-1] - recent_frames[0]

@@ -1,23 +1,27 @@
 """
 Core video processor for PAPI measurements
 """
-import cv2
-import numpy as np
-from app.core.logging import logger
+
+import logging
 from typing import Dict
 
-from app.core.config import settings
+import cv2
+import numpy as np
+
+from app.services.video_processing.config import settings
+
 from ..utils import (
-    extract_color_from_brightest_pixels,
     calculate_angle,
     calculate_ground_distance,
     calculate_horizontal_angle,
     classify_light_status,
-    convert_to_h264
+    convert_to_h264,
+    extract_color_from_brightest_pixels,
 )
-from .metadata import extract_recording_date, extract_first_frame
 from .detection import detect_lights
+from .metadata import extract_first_frame, extract_recording_date
 
+logger = logging.getLogger(__name__)
 
 
 class VideoProcessor:
@@ -39,29 +43,30 @@ class VideoProcessor:
         return detect_lights(image_path, reference_points)
 
     @staticmethod
-    def process_frame(frame: np.ndarray, light_positions: Dict,
-                     drone_data: Dict, reference_points: Dict = None) -> Dict:
+    def process_frame(
+        frame: np.ndarray, light_positions: Dict, drone_data: Dict, reference_points: Dict = None
+    ) -> Dict:
         """Process single frame for light measurements using actual tracked positions"""
         measurements = {}
 
         height, width = frame.shape[:2]
 
         for light_name, pos in light_positions.items():
-            if light_name not in ['PAPI_A', 'PAPI_B', 'PAPI_C', 'PAPI_D']:
+            if light_name not in ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]:
                 continue
 
             # Determine pixel coordinates
-            if 'x' in pos and 'y' in pos and pos['x'] > 100 and pos['y'] > 100:
+            if "x" in pos and "y" in pos and pos["x"] > 100 and pos["y"] > 100:
                 # Use tracked position directly (already in pixel coordinates)
-                pixel_x = int(pos['x'])
-                pixel_y = int(pos['y'])
-                pixel_size = int(pos.get('size', 300))
+                pixel_x = int(pos["x"])
+                pixel_y = int(pos["y"])
+                pixel_size = int(pos.get("size", 300))
                 # Check if RGB values are provided from tracking
-                rgb_values = pos.get('rgb', None)
+                rgb_values = pos.get("rgb", None)
             else:
                 # Treat as percentage coordinates (most common case)
                 x, y = pos.get("x", 50), pos.get("y", 50)
-                size = pos.get("size", pos.get("width", 8))
+                _size = pos.get("size", pos.get("width", 8))
 
                 pixel_x = int((x / 100) * width)
                 pixel_y = int((y / 100) * height)
@@ -85,13 +90,21 @@ class VideoProcessor:
                     r, g, b = extract_color_from_brightest_pixels(roi)
                     rgb_values = [r, g, b]
                 else:
-                    rgb_values = [settings.COLOR_DEFAULT_R, settings.COLOR_DEFAULT_G, settings.COLOR_DEFAULT_B]
+                    rgb_values = [
+                        settings.COLOR_DEFAULT_R,
+                        settings.COLOR_DEFAULT_G,
+                        settings.COLOR_DEFAULT_B,
+                    ]
 
             # Use RGB values from tracking if available
             if isinstance(rgb_values, (list, tuple)) and len(rgb_values) >= 3:
                 r, g, b = rgb_values[0], rgb_values[1], rgb_values[2]
             else:
-                r, g, b = settings.COLOR_DEFAULT_R, settings.COLOR_DEFAULT_G, settings.COLOR_DEFAULT_B
+                r, g, b = (
+                    settings.COLOR_DEFAULT_R,
+                    settings.COLOR_DEFAULT_G,
+                    settings.COLOR_DEFAULT_B,
+                )
 
             # Calculate intensity
             intensity = np.mean([r, g, b])
@@ -108,7 +121,8 @@ class VideoProcessor:
             else:
                 raise ValueError(
                     f"Reference point coordinates for {light_name} are required for measurements. "
-                    f"Please ensure PAPI light GPS coordinates are configured in the database for this runway."
+                    f"Please ensure PAPI light GPS coordinates are"
+                    f" configured in the database for this runway."
                 )
 
             # Calculate angles and distances using GPS coordinates
@@ -122,7 +136,7 @@ class VideoProcessor:
                 papi_gps.get("longitude", 0.0),
                 drone_data.get("latitude", 0.0),
                 drone_data.get("longitude", 0.0),
-                runway_heading
+                runway_heading,
             )
 
             measurements[light_name] = {
@@ -131,14 +145,13 @@ class VideoProcessor:
                 "intensity": intensity,
                 "angle": angle,
                 "horizontal_angle": horizontal_angle,
-                "distance_ground": distance_ground
+                "distance_ground": distance_ground,
             }
 
         return measurements
 
     @staticmethod
-    def create_light_video(video_path: str, light_position: Dict,
-                          output_path: str):
+    def create_light_video(video_path: str, light_position: Dict, output_path: str):
         """Create cropped video for single PAPI light"""
         cap = cv2.VideoCapture(video_path)
 
@@ -147,8 +160,12 @@ class VideoProcessor:
 
         # Handle both old format (width/height) and new format (size)
         if "width" in light_position and "height" in light_position:
-            x, y, w, h = light_position["x"], light_position["y"], \
-                        light_position["width"], light_position["height"]
+            x, y, w, h = (
+                light_position["x"],
+                light_position["y"],
+                light_position["width"],
+                light_position["height"],
+            )
         else:
             # Convert from percentage-based position and size to pixel coordinates
             frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -164,7 +181,7 @@ class VideoProcessor:
             w = h = int((size_pct / 100) * frame_width)  # Square region
 
         # Create video writer with mp4v codec (reliable in Docker)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
 
         if not out.isOpened():
@@ -178,7 +195,7 @@ class VideoProcessor:
                 break
 
             # Extract and write ROI
-            roi = frame[y:y+h, x:x+w]
+            roi = frame[y : y + h, x : x + w]
             out.write(roi)
 
         cap.release()

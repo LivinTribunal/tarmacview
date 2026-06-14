@@ -7,10 +7,8 @@ requires-python = ">=3.12"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-# migrations/versions is alembic-generated; video_processing is a vendored
-# third-party snapshot - lint-cleaned when it's decoupled in phase 2
-# (see app/services/video_processing/VENDORED.md)
-exclude = ["migrations/versions", "app/services/video_processing"]
+# migrations/versions is alembic-generated
+exclude = ["migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

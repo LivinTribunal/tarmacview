@@ -1,11 +1,14 @@
 """
 Video processing utilities
 """
+
+import logging
 import os
 import subprocess
-from app.core.logging import logger
-from app.core.config import settings
 
+from app.services.video_processing.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def convert_to_h264(video_path: str) -> bool:
@@ -24,21 +27,28 @@ def convert_to_h264(video_path: str) -> bool:
 
         # Use ffmpeg with libx264 software encoder
         cmd = [
-            'ffmpeg', '-y',  # Overwrite output
-            '-i', video_path,  # Input file
-            '-c:v', 'libx264',  # Use H.264 software encoder
-            '-preset', settings.FFMPEG_PRESET,  # Encoding speed
-            '-crf', settings.FFMPEG_CRF,  # Quality (lower = better)
-            '-pix_fmt', settings.FFMPEG_PIX_FMT,  # Pixel format for compatibility
-            '-c:a', 'copy',  # Copy audio if exists
-            temp_path
+            "ffmpeg",
+            "-y",  # Overwrite output
+            "-i",
+            video_path,  # Input file
+            "-c:v",
+            "libx264",  # Use H.264 software encoder
+            "-preset",
+            settings.FFMPEG_PRESET,  # Encoding speed
+            "-crf",
+            settings.FFMPEG_CRF,  # Quality (lower = better)
+            "-pix_fmt",
+            settings.FFMPEG_PIX_FMT,  # Pixel format for compatibility
+            "-c:a",
+            "copy",  # Copy audio if exists
+            temp_path,
         ]
 
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=settings.FFMPEG_TIMEOUT_SECONDS
+            timeout=settings.FFMPEG_TIMEOUT_SECONDS,
         )
 
         if result.returncode == 0 and os.path.exists(temp_path):

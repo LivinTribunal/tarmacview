@@ -17,26 +17,36 @@ produces per-light timeseries (status RED/WHITE/TRANSITION, glide-path angle,
 horizontal angle, chromaticity, intensity, area), transition angles, annotated
 videos, and a gzipped measurements JSON.
 
-## Status: vendored, not yet wired
+## Status: decoupled + wired (Phase 2)
 
-Nothing in `app.main` imports this package yet, so its couplings below are inert
-until Phase 2. Do not import it from the app until they are resolved.
+The engine is now wired into the measurement bounded context: `measurement_service`
+lazy-imports it inside the worker runners (`run_first_frame` / `run_processing`) and
+the Celery tasks in `app/workers/measurement_tasks.py` drive it. The backend stays
+import-safe without the worker deps because every engine import is lazy - `app.main`
+never pulls in opencv/celery.
 
-It is excluded from ruff (lint + format) in `backend/pyproject.toml` while it stays
-a verbatim snapshot. When it is decoupled in Phase 2, drop that exclusion and bring
-it up to TarmacView's style.
+It is no longer excluded from ruff: the `app/services/video_processing` ruff exclusion
+was dropped from `backend/pyproject.toml` in Phase 2 and the tree is lint + format
+clean to TarmacView's style.
 
-## Couplings to strip (Phase 2)
+## Couplings stripped (Phase 2)
 
-| Import in the engine | Count | Plan |
-|----------------------|-------|------|
-| `from app.core.config` | 23 | Move the detection thresholds into a small engine-local config (a dataclass), independent of the app `Settings`. |
-| `from app.core.logging` | 21 | Replace with `logging.getLogger(__name__)`. |
-| `from app.repositories` | 2 | Remove. Persistence moves behind the measurement `MeasurementRepository` port; the engine should return domain results, not write the DB. |
-| `from app.services.s3_storage` | 1 | Replace with the shared S3/MinIO storage abstraction (boto3 with `S3_ENDPOINT_URL`). |
+| Import in the engine | Resolution |
+|----------------------|-----------|
+| `from app.core.config` | replaced by the engine-local `config.py` (`EngineConfig` dataclass + `settings` singleton). |
+| `from app.core.logging` | replaced by `logging.getLogger(__name__)` in each module. |
+| `from app.repositories` | removed with `step_functions/`. Persistence lives behind the `MeasurementRepository` port; the engine returns results, it never writes the DB. |
+| `from app.services.s3_storage` | removed with `step_functions/`. Artifacts move through `app.services.object_storage` (boto3 against MinIO/S3) at the service layer, not the engine. |
 
-## To remove (Phase 2)
+`step_functions/` (the AWS Step Functions orchestration that chunked the job across
+Lambda invocations to dodge Lambda's 15-minute cap) was deleted - a single Celery
+task replaces it.
 
-`step_functions/` is the AWS Step Functions orchestration that chunked the job
-across Lambda invocations to dodge Lambda's 15-minute cap. We replace it with a
-single Celery task (`app/workers/`), so this subdirectory will be deleted.
+## Reconstructed thresholds
+
+The upstream snapshot referenced the detection/tracking/video-gen thresholds by name
+but their numeric defaults did not travel with the vendor import. `config.py` holds
+**reconstructed** defaults derived from how each constant is used (intensity scales
+0-255, percentages as frame fractions, etc.). They are sensible starting points, not
+the upstream-tuned values, and can be re-tuned against real footage without touching
+the call sites.

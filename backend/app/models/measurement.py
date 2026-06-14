@@ -1,0 +1,65 @@
+"""measurement orm row - a dumb data holder for the sqlalchemy adapter only.
+
+all measurement business logic lives on the domain aggregate
+(``app.domain.measurement.entities.Measurement``); this table just persists it.
+the heavy per-frame results blob never lands here - ``object_key`` points at the
+gzipped json in object storage. reference points are snapshotted at create time.
+"""
+
+from uuid import uuid4
+
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from app.core.database import Base
+from app.core.enums import MeasurementStatus, enum_check_values
+
+_MEASUREMENT_STATUS_VALUES = enum_check_values(MeasurementStatus)
+
+
+class Measurement(Base):
+    """one inspection's measurement run - metadata + object-storage pointers."""
+
+    __tablename__ = "measurement"
+
+    id = Column(UUID, primary_key=True, default=uuid4)
+    inspection_id = Column(UUID, ForeignKey("inspection.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), nullable=False, default=MeasurementStatus.QUEUED.value)
+    runway_heading = Column(Float, nullable=True)
+    # snapshotted LHA ground truth - an audit record, not a live join
+    reference_points = Column(JSONB, nullable=False, server_default="[]")
+    # operator-confirmed first-frame light boxes (percentage coords)
+    light_boxes = Column(JSONB, nullable=False, server_default="[]")
+    # per-light PASS/FAIL rollup vs setting_angle +/- tolerance
+    summaries = Column(JSONB, nullable=False, server_default="[]")
+    # ordered input video object keys pulled from the inspection's media
+    media_object_keys = Column(JSONB, nullable=False, server_default="[]")
+    # pointer to the extracted first-frame image in object storage
+    first_frame_object_key = Column(String, nullable=True)
+    # pointer to the gzipped results json in object storage
+    object_key = Column(String, nullable=True)
+    # annotated video object keys keyed by light name + enhanced/combined
+    annotated_video_keys = Column(JSONB, nullable=False, server_default="{}")
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            f"status IN ({_MEASUREMENT_STATUS_VALUES})",
+            name="ck_measurement_status",
+        ),
+        Index("ix_measurement_inspection_id", "inspection_id"),
+    )

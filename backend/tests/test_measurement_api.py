@@ -1,0 +1,150 @@
+"""measurement endpoints - create/status/preview/confirm flow with enqueue stubbed."""
+
+import itertools
+from uuid import uuid4
+
+import pytest
+from sqlalchemy.orm import sessionmaker
+
+from app.core.enums import MeasurementStatus
+from app.services import measurement_service
+from tests.data.airports import AIRPORT_PAYLOAD
+
+_icao_counter = itertools.count()
+
+
+def _unique_icao() -> str:
+    """a fresh 4-uppercase-alpha ICAO code per airport (codes are db-unique)."""
+    n = next(_icao_counter)
+    code = ""
+    for _ in range(4):
+        code = chr(ord("A") + n % 26) + code
+        n //= 26
+    return code
+
+
+@pytest.fixture(scope="module")
+def template_id(client):
+    """horizontal-range template for the api-test inspections."""
+    return client.post(
+        "/api/v1/inspection-templates",
+        json={"name": "API Measure Template", "methods": ["HORIZONTAL_RANGE"]},
+    ).json()["id"]
+
+
+@pytest.fixture
+def inspection_with_media(client, template_id):
+    """fresh airport/mission/inspection + one media row per test."""
+    apt = client.post(
+        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
+    ).json()
+    mission = client.post(
+        "/api/v1/missions", json={"name": "API Measure", "airport_id": apt["id"]}
+    ).json()
+    insp = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
+    ).json()
+    client.post(
+        "/api/v1/drone-media/complete-upload",
+        json={
+            "mission_id": mission["id"],
+            "inspection_id": insp["id"],
+            "object_key": "drone-media/manual/api.mp4",
+            "filename": "api.mp4",
+            "size_bytes": 2048,
+        },
+    )
+    return insp["id"]
+
+
+@pytest.fixture(autouse=True)
+def _stub_enqueue(monkeypatch):
+    """record enqueue calls instead of importing celery."""
+    calls = {"first_frame": [], "processing": []}
+    monkeypatch.setattr(
+        measurement_service, "enqueue_first_frame", lambda mid: calls["first_frame"].append(mid)
+    )
+    monkeypatch.setattr(
+        measurement_service, "enqueue_processing", lambda mid: calls["processing"].append(mid)
+    )
+    return calls
+
+
+def test_create_measurement_queues_first_frame(client, inspection_with_media, _stub_enqueue):
+    """POST starts a run (QUEUED) and enqueues the first-frame task."""
+    r = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "QUEUED"
+    assert body["inspection_id"] == inspection_with_media
+    assert len(_stub_enqueue["first_frame"]) == 1
+
+
+def test_create_measurement_missing_inspection_is_404(client):
+    """an unknown inspection cannot start a run."""
+    r = client.post(f"/api/v1/inspections/{uuid4()}/measurement")
+    assert r.status_code == 404
+
+
+def test_status_and_preview_poll(client, inspection_with_media):
+    """status + preview reflect the run's phase; preview has no image yet."""
+    created = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement").json()
+    mid = created["id"]
+
+    status = client.get(f"/api/v1/measurements/{mid}/status")
+    assert status.status_code == 200
+    assert status.json()["status"] == "QUEUED"
+
+    preview = client.get(f"/api/v1/measurements/{mid}/preview")
+    assert preview.status_code == 200
+    assert preview.json()["first_frame_url"] is None
+
+
+def test_status_unknown_measurement_is_404(client):
+    """polling an unknown measurement 404s."""
+    assert client.get(f"/api/v1/measurements/{uuid4()}/status").status_code == 404
+
+
+def test_confirm_lights_requires_awaiting_confirm(client, inspection_with_media):
+    """confirm-lights on a QUEUED run is rejected (409)."""
+    created = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement").json()
+    r = client.post(
+        f"/api/v1/measurements/{created['id']}/confirm-lights",
+        json={"boxes": [{"light_name": "PAPI_A", "x": 10, "y": 50, "size": 8}]},
+    )
+    assert r.status_code == 409
+
+
+def test_confirm_lights_starts_processing(
+    client, db_engine, inspection_with_media, _stub_enqueue, monkeypatch
+):
+    """once AWAITING_CONFIRM, confirm-lights moves to PROCESSING and enqueues it."""
+    created = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement").json()
+    mid = created["id"]
+
+    # drive the run to AWAITING_CONFIRM via the worker step (engine + storage stubbed)
+    monkeypatch.setattr(
+        measurement_service.object_storage,
+        "download_file",
+        lambda key, dest: open(dest, "wb").close(),
+    )
+    monkeypatch.setattr(measurement_service.object_storage, "upload_file", lambda *a, **k: None)
+    monkeypatch.setattr(
+        measurement_service,
+        "extract_first_frame_and_detect",
+        lambda video, image, refs: ({"fps": 30}, {"PAPI_A": {"x": 10, "y": 50, "size": 8}}),
+    )
+    s = sessionmaker(bind=db_engine)()
+    try:
+        measurement_service.run_first_frame(s, __import__("uuid").UUID(mid))
+    finally:
+        s.close()
+
+    r = client.post(
+        f"/api/v1/measurements/{mid}/confirm-lights",
+        json={"boxes": [{"light_name": "PAPI_A", "x": 12, "y": 52, "size": 9}]},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == MeasurementStatus.PROCESSING.value
+    assert len(_stub_enqueue["processing"]) == 1

@@ -1,24 +1,32 @@
 """
 PAPI light tracking module
 """
-import cv2
-from app.core.logging import logger
+
+import logging
 import math
-from typing import Dict, List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Tuple
 
-from app.core.config import settings
-from ..models import TrackedPAPILight, DetectedLight
-from ..detection import RunwayLightDetector, PreciseLightDetector
+from app.services.video_processing.config import settings
+
+from ..detection import PreciseLightDetector, RunwayLightDetector
+from ..models import DetectedLight, TrackedPAPILight
 from ..utils import extract_color_from_brightest_pixels
-from .tracker_helpers import estimate_global_motion, validate_motion_consistency, stabilize_size_change, stabilize_position_change
+from .tracker_helpers import stabilize_position_change, stabilize_size_change
 
+logger = logging.getLogger(__name__)
 
 
 class PAPILightTracker:
     """PAPI light tracker using detection-based tracking"""
 
-    def __init__(self, initial_positions: Dict, frame_width: int, frame_height: int, skip_full_detection: bool = False):
+    def __init__(
+        self,
+        initial_positions: Dict,
+        frame_width: int,
+        frame_height: int,
+        skip_full_detection: bool = False,
+    ):
         """
         Initialize PAPI light tracker.
 
@@ -28,7 +36,8 @@ class PAPILightTracker:
             frame_height: Video frame height
             skip_full_detection: If True, skip expensive full-frame detection and only
                                  use ROI-based refinement around known positions.
-                                 Default: False (full detection every TRACKING_DETECTION_INTERVAL frames)
+                                 Default: False (full detection every
+                                 TRACKING_DETECTION_INTERVAL frames)
         """
         self.frame_width = frame_width
         self.frame_height = frame_height
@@ -44,26 +53,34 @@ class PAPILightTracker:
         self.tracked_lights: Dict[str, TrackedPAPILight] = {}
         valid_lights_count = 0
 
-        logger.info(f"{'='*80}")
-        logger.info(f"TRACKER INIT: Initializing with manual positions for frame size {frame_width}x{frame_height}")
+        logger.info(f"{'=' * 80}")
+        logger.info(
+            f"TRACKER INIT: Initializing with manual positions"
+            f" for frame size {frame_width}x{frame_height}"
+        )
         logger.info(f"TRACKER INIT: Received initial_positions = {initial_positions}")
-        logger.info(f"{'='*80}")
+        logger.info(f"{'=' * 80}")
 
         for light_name, pos in initial_positions.items():
-            if light_name in ['PAPI_A', 'PAPI_B', 'PAPI_C', 'PAPI_D']:
+            if light_name in ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]:
                 # Handle different position data formats
                 if isinstance(pos, dict):
-                    if 'x' in pos and 'y' in pos:
+                    if "x" in pos and "y" in pos:
                         # Use provided coordinates
-                        pixel_x = int((pos['x'] / 100) * frame_width)
-                        pixel_y = int((pos['y'] / 100) * frame_height)
-                        pixel_size = int((pos.get('size', 8) / 100) * frame_width)
-                        logger.info(f"TRACKER INIT: {light_name} = ({pixel_x}, {pixel_y}) pixels from {pos['x']:.2f}%, {pos['y']:.2f}% | size={pixel_size}px")
+                        pixel_x = int((pos["x"] / 100) * frame_width)
+                        pixel_y = int((pos["y"] / 100) * frame_height)
+                        pixel_size = int((pos.get("size", 8) / 100) * frame_width)
+                        logger.info(
+                            f"TRACKER INIT: {light_name} = ({pixel_x}, {pixel_y}) pixels"
+                            f" from {pos['x']:.2f}%, {pos['y']:.2f}% | size={pixel_size}px"
+                        )
                         valid_lights_count += 1
                     else:
                         # Use fallback default positions if coordinates are missing
-                        logger.warning(f"Using fallback position for {light_name}: incomplete data: {pos}")
-                        light_index = ['PAPI_A', 'PAPI_B', 'PAPI_C', 'PAPI_D'].index(light_name)
+                        logger.warning(
+                            f"Using fallback position for {light_name}: incomplete data: {pos}"
+                        )
+                        light_index = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"].index(light_name)
                         pixel_x = int((20 + light_index * 20) / 100 * frame_width)
                         pixel_y = int(50 / 100 * frame_height)
                         pixel_size = int(8 / 100 * frame_width)
@@ -71,7 +88,7 @@ class PAPILightTracker:
                 else:
                     # Handle completely invalid position data
                     logger.warning(f"Using fallback position for {light_name}: invalid data: {pos}")
-                    light_index = ['PAPI_A', 'PAPI_B', 'PAPI_C', 'PAPI_D'].index(light_name)
+                    light_index = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"].index(light_name)
                     pixel_x = int((20 + light_index * 20) / 100 * frame_width)
                     pixel_y = int(50 / 100 * frame_height)
                     pixel_size = int(8 / 100 * frame_width)
@@ -84,7 +101,7 @@ class PAPILightTracker:
                     frame_numbers=[0],
                     confidence_scores=[0.0],
                     sizes=[pixel_size],
-                    evaluation_area=[]  # Will be populated during frame processing
+                    evaluation_area=[],  # Will be populated during frame processing
                 )
 
         if valid_lights_count == 0:
@@ -111,7 +128,7 @@ class PAPILightTracker:
             logger.info(f"Processing {light_name}:")
             logger.info(f"  User-selected center: ({initial_x}, {initial_y}) px")
             logger.info(f"  User-selected size: {initial_size} px")
-            logger.info(f"  Searching for brightest point within rectangle...")
+            logger.info("  Searching for brightest point within rectangle...")
 
             # Find precise position within the rectangle
             refined_x, refined_y, confidence = self.precise_detector.find_brightest_point_in_rect(
@@ -119,7 +136,7 @@ class PAPILightTracker:
             )
 
             # Calculate how much the position moved
-            movement = math.sqrt((refined_x - initial_x)**2 + (refined_y - initial_y)**2)
+            movement = math.sqrt((refined_x - initial_x) ** 2 + (refined_y - initial_y) ** 2)
 
             # Update the tracked light with refined position
             tracked_light.positions[0] = (refined_x, refined_y)
@@ -138,7 +155,7 @@ class PAPILightTracker:
 
         # SPECIAL CASE: For frame 0, refine initial positions
         if frame_number == 0:
-            logger.info(f"{'='*80}")
+            logger.info(f"{'=' * 80}")
             logger.info("UPDATE_FRAME: Frame 0 - Refining manually selected positions")
 
             # Refine positions by finding brightest point in each rectangle
@@ -175,28 +192,37 @@ class PAPILightTracker:
                 # Detect actual size from evaluation area and use it as the baseline
                 # This replaces user-selected size with real detected size
                 actual_size = last_size
-                if eval_area and eval_area.get('area_pixels', 0) > 0:
-                    detected_size = int(math.sqrt(eval_area['area_pixels']) * 3)
+                if eval_area and eval_area.get("area_pixels", 0) > 0:
+                    detected_size = int(math.sqrt(eval_area["area_pixels"]) * 3)
                     actual_size = max(100, detected_size)
                     tracked_light.sizes[0] = actual_size
-                    logger.info(f"UPDATE_FRAME: {light_name} Frame 0 size set to {actual_size}px (detected from {eval_area['area_pixels']}px² area)")
+                    logger.info(
+                        f"UPDATE_FRAME: {light_name} Frame 0 size set to {actual_size}px"
+                        f" (detected from {eval_area['area_pixels']}px² area)"
+                    )
 
                 frame_positions[light_name] = {
-                    'x': last_x,
-                    'y': last_y,
-                    'size': actual_size,
-                    'rgb': rgb,
-                    'confidence': tracked_light.confidence_scores[0],
-                    'evaluation_area': eval_area
+                    "x": last_x,
+                    "y": last_y,
+                    "size": actual_size,
+                    "rgb": rgb,
+                    "confidence": tracked_light.confidence_scores[0],
+                    "evaluation_area": eval_area,
                 }
 
                 # Log evaluation area info
-                if eval_area and eval_area.get('area_pixels', 0) > 0:
-                    logger.info(f"UPDATE_FRAME: {light_name} → ({last_x}, {last_y}) size={actual_size} RGB={rgb}, evaluation area: {eval_area['area_pixels']}px²")
+                if eval_area and eval_area.get("area_pixels", 0) > 0:
+                    logger.info(
+                        f"UPDATE_FRAME: {light_name} → ({last_x}, {last_y}) size={actual_size}"
+                        f" RGB={rgb}, evaluation area: {eval_area['area_pixels']}px²"
+                    )
                 else:
-                    logger.info(f"UPDATE_FRAME: {light_name} → ({last_x}, {last_y}) size={actual_size} RGB={rgb}")
+                    logger.info(
+                        f"UPDATE_FRAME: {light_name} → ({last_x},"
+                        f" {last_y}) size={actual_size} RGB={rgb}"
+                    )
 
-            logger.info(f"{'='*80}")
+            logger.info(f"{'=' * 80}")
             return frame_positions
 
         # For all subsequent frames, use detection-based tracking
@@ -245,16 +271,20 @@ class PAPILightTracker:
                 pred_y = int(last_y + self.global_motion[1] * frame_gap)
 
                 frame_positions[light_name] = {
-                    'x': pred_x,
-                    'y': pred_y,
-                    'size': tracked_light.sizes[-1] if tracked_light.sizes else 20,
-                    'rgb': tracked_light.rgb_values[-1] if tracked_light.rgb_values else [255, 255, 255],
-                    'confidence': 0.1  # Low confidence for predicted position
+                    "x": pred_x,
+                    "y": pred_y,
+                    "size": tracked_light.sizes[-1] if tracked_light.sizes else 20,
+                    "rgb": tracked_light.rgb_values[-1]
+                    if tracked_light.rgb_values
+                    else [255, 255, 255],
+                    "confidence": 0.1,  # Low confidence for predicted position
                 }
                 continue
 
             # Find best matching detection
-            best_match, best_match_idx = self._find_best_match(tracked_light, unmatched_detections, frame_gap)
+            best_match, best_match_idx = self._find_best_match(
+                tracked_light, unmatched_detections, frame_gap
+            )
 
             if best_match:
                 position_dict = self._process_matched_detection(
@@ -277,7 +307,12 @@ class PAPILightTracker:
 
         return frame_positions
 
-    def _find_best_match(self, tracked_light: TrackedPAPILight, unmatched_detections: List[DetectedLight], frame_gap: int):
+    def _find_best_match(
+        self,
+        tracked_light: TrackedPAPILight,
+        unmatched_detections: List[DetectedLight],
+        frame_gap: int,
+    ):
         """Find best matching detection for a tracked light"""
         # Predict where this light should be
         pred_x, pred_y = tracked_light.predict_position(frame_gap)
@@ -287,16 +322,16 @@ class PAPILightTracker:
         pred_y += int(self.global_motion[1] * frame_gap)
 
         best_match = None
-        best_score = float('inf')
+        best_score = float("inf")
         best_match_idx = -1
 
         for idx, detection in enumerate(unmatched_detections):
             # Distance to predicted position
-            pred_distance = math.sqrt((detection.x - pred_x)**2 + (detection.y - pred_y)**2)
+            pred_distance = math.sqrt((detection.x - pred_x) ** 2 + (detection.y - pred_y) ** 2)
 
             # Distance to last known position
             last_x, last_y = tracked_light.get_last_position()
-            last_distance = math.sqrt((detection.x - last_x)**2 + (detection.y - last_y)**2)
+            last_distance = math.sqrt((detection.x - last_x) ** 2 + (detection.y - last_y) ** 2)
 
             # Combined score (weighted towards prediction)
             score = 0.7 * pred_distance + 0.3 * last_distance
@@ -321,7 +356,14 @@ class PAPILightTracker:
 
         return best_match, best_match_idx
 
-    def _process_matched_detection(self, frame, tracked_light: TrackedPAPILight, detection: DetectedLight, frame_number: int, light_name: str) -> Dict:
+    def _process_matched_detection(
+        self,
+        frame,
+        tracked_light: TrackedPAPILight,
+        detection: DetectedLight,
+        frame_number: int,
+        light_name: str,
+    ) -> Dict:
         """Process a matched detection"""
         # REFINE POSITION: Find brightest point within detected area for accuracy
         search_size = max(detection.width, detection.height)
@@ -365,19 +407,29 @@ class PAPILightTracker:
 
         # Log only first frame and then every 100 frames for debugging
         if frame_number == 0 or frame_number % 100 == 0:
-            movement = math.sqrt((refined_x - int(detection.x))**2 + (refined_y - int(detection.y))**2)
-            eval_str = f"{eval_area['area_pixels']}px²" if eval_area and eval_area.get('area_pixels', 0) > 0 else "none"
-            logger.info(f"Frame {frame_number}: {light_name} detected at ({int(detection.x)}, {int(detection.y)}), "
-                       f"refined to ({refined_x}, {refined_y}), stabilized to ({stabilized_x}, {stabilized_y}), "
-                       f"movement={movement:.1f}px, evaluation area: {eval_str}")
+            movement = math.sqrt(
+                (refined_x - int(detection.x)) ** 2 + (refined_y - int(detection.y)) ** 2
+            )
+            eval_str = (
+                f"{eval_area['area_pixels']}px²"
+                if eval_area and eval_area.get("area_pixels", 0) > 0
+                else "none"
+            )
+            logger.info(
+                f"Frame {frame_number}: {light_name} detected"
+                f" at ({int(detection.x)}, {int(detection.y)}), "
+                f"refined to ({refined_x}, {refined_y}),"
+                f" stabilized to ({stabilized_x}, {stabilized_y}), "
+                f"movement={movement:.1f}px, evaluation area: {eval_str}"
+            )
 
         return {
-            'x': stabilized_x,
-            'y': stabilized_y,
-            'size': stabilized_size,
-            'rgb': list(rgb),
-            'confidence': refined_conf,
-            'evaluation_area': eval_area
+            "x": stabilized_x,
+            "y": stabilized_y,
+            "size": stabilized_size,
+            "rgb": list(rgb),
+            "confidence": refined_conf,
+            "evaluation_area": eval_area,
         }
 
     def _process_roi_only_tracking(self, frame, frame_number: int) -> Dict:
@@ -416,8 +468,8 @@ class PAPILightTracker:
 
             # Calculate new size based on detected evaluation area
             new_size = last_size
-            if eval_area and eval_area.get('area_pixels', 0) > 0:
-                detected_size = int(math.sqrt(eval_area['area_pixels']) * 3)
+            if eval_area and eval_area.get("area_pixels", 0) > 0:
+                detected_size = int(math.sqrt(eval_area["area_pixels"]) * 3)
                 max_change = last_size * settings.TRACKING_MAX_SIZE_CHANGE_PERCENT
                 if detected_size > last_size:
                     new_size = min(detected_size, int(last_size + max_change))
@@ -440,12 +492,12 @@ class PAPILightTracker:
                 rgb = tracked_light.rgb_values[-1] if tracked_light.rgb_values else (255, 255, 255)
 
             return light_name, {
-                'refined_x': refined_x,
-                'refined_y': refined_y,
-                'new_size': new_size,
-                'rgb': rgb,
-                'refined_conf': refined_conf,
-                'eval_area': eval_area
+                "refined_x": refined_x,
+                "refined_y": refined_y,
+                "new_size": new_size,
+                "rgb": rgb,
+                "refined_conf": refined_conf,
+                "eval_area": eval_area,
             }
 
         # Process all 4 PAPI lights in parallel
@@ -456,12 +508,12 @@ class PAPILightTracker:
         # Collect results and update tracked lights (must be sequential for state updates)
         for light_name, data in results:
             tracked_light = self.tracked_lights[light_name]
-            refined_x = data['refined_x']
-            refined_y = data['refined_y']
-            new_size = data['new_size']
-            rgb = data['rgb']
-            refined_conf = data['refined_conf']
-            eval_area = data['eval_area']
+            refined_x = data["refined_x"]
+            refined_y = data["refined_y"]
+            new_size = data["new_size"]
+            rgb = data["rgb"]
+            refined_conf = data["refined_conf"]
+            eval_area = data["eval_area"]
 
             # Apply position stabilization to prevent jumpy center detection
             last_x, last_y = tracked_light.get_last_position()
@@ -478,17 +530,19 @@ class PAPILightTracker:
             tracked_light.evaluation_area.append(eval_area)
 
             frame_positions[light_name] = {
-                'x': stabilized_x,
-                'y': stabilized_y,
-                'size': new_size,
-                'rgb': list(rgb) if isinstance(rgb, tuple) else rgb,
-                'confidence': refined_conf,
-                'evaluation_area': eval_area
+                "x": stabilized_x,
+                "y": stabilized_y,
+                "size": new_size,
+                "rgb": list(rgb) if isinstance(rgb, tuple) else rgb,
+                "confidence": refined_conf,
+                "evaluation_area": eval_area,
             }
 
         return frame_positions
 
-    def _process_unmatched_light(self, frame, tracked_light: TrackedPAPILight, frame_gap: int, frame_number: int) -> Dict:
+    def _process_unmatched_light(
+        self, frame, tracked_light: TrackedPAPILight, frame_gap: int, frame_number: int
+    ) -> Dict:
         """Process an unmatched light using predicted position"""
         # Predict position
         pred_x, pred_y = tracked_light.predict_position(frame_gap)
@@ -533,10 +587,10 @@ class PAPILightTracker:
             tracked_light.evaluation_area.append(eval_area)
 
         return {
-            'x': stabilized_x,
-            'y': stabilized_y,
-            'size': last_size,
-            'rgb': list(rgb) if isinstance(rgb, tuple) else rgb,
-            'confidence': max(0.3, refined_conf * 0.5),
-            'evaluation_area': eval_area
+            "x": stabilized_x,
+            "y": stabilized_y,
+            "size": last_size,
+            "rgb": list(rgb) if isinstance(rgb, tuple) else rgb,
+            "confidence": max(0.3, refined_conf * 0.5),
+            "evaluation_area": eval_area,
         }

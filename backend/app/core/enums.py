@@ -218,6 +218,7 @@ class AuditAction(str, enum.Enum):
     DISPATCH = "DISPATCH"
     VALIDATE = "VALIDATE"
     GENERATE_TRAJECTORY = "GENERATE_TRAJECTORY"
+    MEASURE = "MEASURE"
     INVITE_USER = "INVITE_USER"
     DEACTIVATE_USER = "DEACTIVATE_USER"
     ASSIGN_AIRPORT = "ASSIGN_AIRPORT"
@@ -231,3 +232,14 @@ class ComputationStatus(str, enum.Enum):
     COMPUTING = "COMPUTING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class MeasurementStatus(str, enum.Enum):
+    """measurement run lifecycle - drives the two-step video-processing flow."""
+
+    QUEUED = "QUEUED"
+    FIRST_FRAME = "FIRST_FRAME"
+    AWAITING_CONFIRM = "AWAITING_CONFIRM"
+    PROCESSING = "PROCESSING"
+    DONE = "DONE"
+    ERROR = "ERROR"

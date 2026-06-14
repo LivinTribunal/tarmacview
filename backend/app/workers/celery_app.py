@@ -1,9 +1,8 @@
 """celery app + broker config for background video-processing jobs.
 
 the worker container runs `celery -A app.workers.celery_app worker`. measurement
-tasks land here in phase 2; for now this only wires the broker so the worker
-boots. broker + result backend default to the compose redis, overridden by
-REDIS_URL.
+tasks live in `app.workers.measurement_tasks` and are registered via `include`.
+broker + result backend default to the compose redis, overridden by REDIS_URL.
 """
 
 import os
@@ -14,7 +13,12 @@ from celery import Celery
 # native dev falls back to localhost
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-celery_app = Celery("tarmacview", broker=redis_url, backend=redis_url)
+celery_app = Celery(
+    "tarmacview",
+    broker=redis_url,
+    backend=redis_url,
+    include=["app.workers.measurement_tasks"],
+)
 
 # late acks + single prefetch - video jobs are long, so a worker should not
 # hoard queued tasks and should only ack after the job finishes

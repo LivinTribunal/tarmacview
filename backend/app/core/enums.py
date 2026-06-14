@@ -196,6 +196,13 @@ class MediaFileStatus(str, enum.Enum):
     INGESTED = "INGESTED"
 
 
+class MediaOrigin(str, enum.Enum):
+    """how a drone media row entered the system."""
+
+    HUB = "HUB"
+    MANUAL = "MANUAL"
+
+
 class AuditAction(str, enum.Enum):
     """action types for audit log entries."""
 

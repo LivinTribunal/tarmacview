@@ -15,6 +15,7 @@ from app.api.dependencies import (
 from app.core.dependencies import get_db
 from app.core.enums import AuditAction
 from app.schemas.common import DeleteResponse
+from app.schemas.drone_media import MissionInspectionMediaResponse
 from app.schemas.export import ExportRequest
 from app.schemas.mission import (
     MissionDetailResponse,
@@ -23,14 +24,15 @@ from app.schemas.mission import (
 )
 from app.schemas.wayline_dispatch import DispatchRequest, WaylineDispatchResponse
 from app.services import (
+    drone_media_service,
+    mission_service,
+    wayline_dispatch_service,
+)
+from app.services import (
     export as export_service,
 )
 from app.services import (
     mission_report as mission_report_service,
-)
-from app.services import (
-    mission_service,
-    wayline_dispatch_service,
 )
 from app.utils.audit import log_audit
 
@@ -47,6 +49,17 @@ def get_mission(
     """get mission with inspections."""
     mission = check_mission_access(db, current_user, mission_id)
     return mission
+
+
+@router.get("/{mission_id}/drone-media", response_model=MissionInspectionMediaResponse)
+def list_mission_drone_media(
+    mission_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """mission media grouped by inspection plus the unassigned bucket."""
+    check_mission_access(db, current_user, mission_id)
+    return drone_media_service.list_mission_media_by_inspection(db, mission_id)
 
 
 @router.put("/{mission_id}", response_model=MissionResponse)

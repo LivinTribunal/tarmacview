@@ -32,8 +32,12 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost"]}
       # object storage + task broker. S3_ENDPOINT_URL empty = real AWS S3;
       # otherwise the in-compose minio. media uploads + result artifacts live here.
+      # S3_PUBLIC_ENDPOINT is the browser-reachable url presigned upload/download
+      # urls are signed against (host/LAN) - the browser can't resolve the
+      # compose-internal minio hostname.
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
       S3_BUCKET: ${S3_BUCKET:-tarmacview-media}
       S3_REGION: ${S3_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-tarmacview}

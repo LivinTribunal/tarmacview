@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.schemas.geometry import PointZ
 
 MediaFileStatusStr = Literal["RECEIVED", "MATCHED", "UNASSIGNED", "INGESTED"]
+MediaOriginStr = Literal["HUB", "MANUAL"]
 
 
 class FieldLinkDevice(BaseModel):
@@ -49,11 +50,16 @@ class DroneMediaFileResponse(BaseModel):
 
     id: UUID
     object_key: str
-    fingerprint: str
+    fingerprint: str | None = None
     captured_at: datetime | None = None
     capture_position: PointZ | None = None
     device_sn: str | None = None
     mission_id: UUID | None = None
+    inspection_id: UUID | None = None
+    order_index: int | None = None
+    origin: MediaOriginStr
+    filename: str | None = None
+    size_bytes: int | None = None
     status: MediaFileStatusStr
     received_at: datetime
     updated_at: datetime

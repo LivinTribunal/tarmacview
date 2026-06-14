@@ -76,6 +76,19 @@ class Settings(BaseSettings):
     fieldhub_ca: str = ""
     fieldhub_timeout: float = 3.0
 
+    # object storage for drone media + result artifacts. s3_endpoint_url empty =
+    # real AWS S3; otherwise the compose minio (http://minio:9000). presigned
+    # urls are signed against s3_public_endpoint so a browser on the host/LAN can
+    # reach the bucket directly (mirrors the field-hub minio public-endpoint split).
+    s3_endpoint_url: str = ""
+    s3_public_endpoint: str = ""
+    s3_bucket: str = "tarmacview-media"
+    s3_region: str = "us-east-1"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    # presigned url lifetime in seconds
+    s3_presign_expiry: int = 3600
+
     # fernet symmetric encryption key for admin-managed secrets at rest.
     # accepts a 32-byte urlsafe-b64 fernet key or any string (sha256-derived).
     # required when SystemSettings stores an api key; unset -> startup hard-fail

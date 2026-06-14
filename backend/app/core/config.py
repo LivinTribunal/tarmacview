@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     terrain_grid_step_deg: float = 0.00027  # ~30m grid spacing
     terrain_api_batch_size: int = 2000  # max points per API request
     open_elevation_url: str = "https://api.open-elevation.com/api/v1/lookup"
+    # public AWS Open Data bucket for Copernicus GLO-30 (30m) DEM COGs, no login.
+    # overridable for closed-network mirrors, mirrors open_elevation_url.
+    copernicus_dem_base_url: str = "https://copernicus-dem-30m.s3.amazonaws.com"
 
     # per-point elevation API fallback. disabled by default so test
     # runs don't depend on outbound network; production deployments enable via env.

@@ -1,6 +1,7 @@
-"""terrain DEM upload/delete + open-elevation download + airport lon/lat."""
+"""terrain DEM upload/delete + open-elevation download + GLO-30 staging + airport lon/lat."""
 
 import logging
+import math
 import time
 from uuid import UUID
 
@@ -22,6 +23,10 @@ GEOTIFF_NODATA = -9999
 # per-batch ceiling on the open-elevation http timeout, even when the overall
 # download budget still has more headroom.
 MAX_BATCH_TIMEOUT_SECONDS = 60.0
+
+# copernicus GLO-30 COGs are tiled on a 1x1 degree grid named by their SW corner.
+# the leading "10" is the resolution code for the 30m product (90m is "30").
+_GLO30_TILE_PREFIX = "Copernicus_DSM_COG_10"
 
 
 def upload_terrain_dem(
@@ -261,5 +266,126 @@ def download_terrain_for_location(
         "points_downloaded": len(all_elevations),
         "bounds": [min_lon, min_lat, max_lon, max_lat],
         "resolution": [step, step],
+        "file_path": str(final_path),
+    }
+
+
+def _glo30_tile_name(sw_lat: int, sw_lon: int) -> str:
+    """build the copernicus GLO-30 tile basename from its SW-corner integer degrees."""
+    ns = "N" if sw_lat >= 0 else "S"
+    ew = "E" if sw_lon >= 0 else "W"
+    return f"{_GLO30_TILE_PREFIX}_{ns}{abs(sw_lat):02d}_00_{ew}{abs(sw_lon):03d}_00_DEM"
+
+
+def _glo30_tile_url(sw_lat: int, sw_lon: int) -> str:
+    """build the public COG url for the GLO-30 tile at the given SW corner."""
+    name = _glo30_tile_name(sw_lat, sw_lon)
+    base = settings.copernicus_dem_base_url.rstrip("/")
+    return f"{base}/{name}/{name}.tif"
+
+
+def _glo30_tiles_for_bbox(bbox: tuple[float, float, float, float]) -> list[tuple[int, int]]:
+    """list the SW corners of every 1-degree GLO-30 tile covering the bbox.
+
+    bbox is (min_lon, min_lat, max_lon, max_lat). each tile spans
+    ``[corner, corner + 1)`` so a tile is needed for every integer degree from
+    ``floor(min)`` through ``floor(max)`` on each axis.
+    """
+    min_lon, min_lat, max_lon, max_lat = bbox
+    tiles = []
+    for sw_lat in range(math.floor(min_lat), math.floor(max_lat) + 1):
+        for sw_lon in range(math.floor(min_lon), math.floor(max_lon) + 1):
+            tiles.append((sw_lat, sw_lon))
+    return tiles
+
+
+def download_srtm_for_location(
+    airport_id: UUID,
+    apt_lon: float,
+    apt_lat: float,
+    fallback_elevation: float,
+) -> dict:
+    """stage Copernicus GLO-30 (30m) DEM tiles for the airport bbox as a geotiff.
+
+    offline-acquisition counterpart to :func:`download_terrain_for_location`:
+    fetches public 30m COGs over ``/vsicurl`` (no api login), mosaics them, crops
+    to the bbox, and writes a WGS84/EPSG:4326 float32 geotiff that drops into the
+    existing ``upload_terrain_dem`` + renormalize flow. run this while online so
+    ``DEMElevationProvider`` can serve elevations fully offline afterwards.
+
+    session-free - safe to call from a thread pool executor. returns the same
+    ``{terrain_source, bounds, resolution, file_path}`` metadata shape.
+    """
+    try:
+        import numpy as np
+        import rasterio
+        from rasterio.merge import merge
+    except ImportError as e:
+        raise DomainError(
+            "rasterio/numpy not installed - srtm download not available",
+            status_code=501,
+        ) from e
+
+    delta_deg = settings.terrain_grid_delta_deg
+    min_lon = apt_lon - delta_deg
+    max_lon = apt_lon + delta_deg
+    min_lat = apt_lat - delta_deg
+    max_lat = apt_lat + delta_deg
+    bbox = (min_lon, min_lat, max_lon, max_lat)
+
+    tiles = _glo30_tiles_for_bbox(bbox)
+
+    # open every covering tile; missing tiles (ocean, gaps) are skipped, not fatal
+    datasets = []
+    try:
+        for sw_lat, sw_lon in tiles:
+            url = _glo30_tile_url(sw_lat, sw_lon)
+            try:
+                datasets.append(rasterio.open(f"/vsicurl/{url}"))
+            except Exception as e:
+                logger.warning("GLO-30 tile unavailable at %s: %s", url, e)
+
+        if not datasets:
+            raise DomainError(
+                "no GLO-30 tiles available for airport bbox - terrain staging failed",
+                status_code=502,
+            )
+
+        try:
+            mosaic, transform = merge(datasets, bounds=bbox, nodata=GEOTIFF_NODATA)
+        except Exception as e:
+            logger.error("GLO-30 merge failed: %s", e)
+            raise DomainError(
+                "terrain staging failed - GLO-30 mosaic error", status_code=502
+            ) from e
+    finally:
+        for ds in datasets:
+            ds.close()
+
+    data = mosaic[0].astype(np.float32)
+    height, width = data.shape
+
+    TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
+    final_path = TERRAIN_DIR / f"{airport_id}_srtm_cache.tif"
+
+    with rasterio.open(
+        str(final_path),
+        "w",
+        driver="GTiff",
+        height=height,
+        width=width,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=transform,
+        nodata=GEOTIFF_NODATA,
+    ) as dst:
+        dst.write(data, 1)
+
+    return {
+        "terrain_source": "DEM_SRTM",
+        "tiles_used": len(datasets),
+        "bounds": [min_lon, min_lat, max_lon, max_lat],
+        "resolution": [abs(transform.a), abs(transform.e)],
         "file_path": str(final_path),
     }

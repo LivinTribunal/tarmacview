@@ -625,6 +625,21 @@ class TestCreateElevationProviderDEM:
             assert provider is mock_instance
             mock_cls.assert_called_once_with("/some/valid/path.tif", 300.0)
 
+    def test_dem_srtm_provider_created_with_valid_path(self):
+        """DEM_SRTM source with valid path creates DEMElevationProvider (offline geotiff)."""
+        airport = MagicMock()
+        airport.terrain_source = "DEM_SRTM"
+        airport.elevation = 280.0
+        airport.dem_file_path = "/some/srtm_cache.tif"
+
+        with patch("app.services.elevation_provider.DEMElevationProvider") as mock_cls:
+            mock_instance = MagicMock(spec=DEMElevationProvider)
+            mock_cls.return_value = mock_instance
+
+            provider = create_elevation_provider(airport)
+            assert provider is mock_instance
+            mock_cls.assert_called_once_with("/some/srtm_cache.tif", 280.0)
+
     def test_dem_provider_fallback_on_open_error(self):
         """DEM_API source falls back to flat when rasterio.open fails."""
         airport = MagicMock()
@@ -884,6 +899,17 @@ class TestResolveElevationWithSource:
         elevation, source = resolve_elevation_with_source(provider, "DEM_UPLOAD", 50.0, 14.0)
         assert elevation == 123.0
         assert source == "DEM_UPLOAD"
+
+    def test_dem_provider_labels_srtm_terrain(self):
+        """DEM-backed provider reports the DEM_SRTM source verbatim."""
+        mock_dataset = MagicMock()
+        mock_dataset.sample.return_value = iter([[88.0]])
+        mock_dataset.nodata = None
+
+        provider = _make_dem_provider(mock_dataset, fallback=280.0)
+        elevation, source = resolve_elevation_with_source(provider, "DEM_SRTM", 50.0, 14.0)
+        assert elevation == 88.0
+        assert source == "DEM_SRTM"
 
     def test_flat_provider_labels_flat(self):
         """flat-only provider always reports FLAT."""

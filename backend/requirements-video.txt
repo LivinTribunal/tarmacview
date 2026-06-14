@@ -8,7 +8,8 @@
 # pins are provisional - taken from the airport-lights-detection engine source
 # where given. tighten once the stack builds and tests pass.
 
-opencv-python-headless==4.12.0.88
+# 4.13.x lifts opencv's numpy<2.3 cap, so it coexists with the pinned numpy==2.4.4
+opencv-python-headless==4.13.0.92
 celery==5.4.0
 redis==5.2.1
 boto3==1.42.16

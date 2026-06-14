@@ -10,9 +10,9 @@ import os
 
 from celery import Celery
 
-# redis broker + result backend; compose sets REDIS_URL, falls back to the
-# in-compose redis service
-redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+# redis broker + result backend; compose sets REDIS_URL to the in-compose redis,
+# native dev falls back to localhost
+redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 celery_app = Celery("tarmacview", broker=redis_url, backend=redis_url)
 

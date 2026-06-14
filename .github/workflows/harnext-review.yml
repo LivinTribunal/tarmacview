@@ -86,7 +86,7 @@ jobs:
 
           labels=$(gh api "repos/${{ github.repository }}/issues/$NUM/labels" --jq '.[].name')
           iter=$(printf '%s\n' "$labels" | grep -oE '^harnext:review-iter-[0-9]+$' | head -n1 | grep -oE '[0-9]+$' || echo "")
-          if [ -z "$iter" ]; then iter=1; fi
+          if [ -z "$iter" ]; then iter=0; fi
 
           state=$(gh api "repos/${{ github.repository }}/pulls/$NUM/reviews" --jq '.[].state' | tail -n1 || echo "")
 

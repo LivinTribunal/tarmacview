@@ -22,6 +22,10 @@ videos, and a gzipped measurements JSON.
 Nothing in `app.main` imports this package yet, so its couplings below are inert
 until Phase 2. Do not import it from the app until they are resolved.
 
+It is excluded from ruff (lint + format) in `backend/pyproject.toml` while it stays
+a verbatim snapshot. When it is decoupled in Phase 2, drop that exclusion and bring
+it up to TarmacView's style.
+
 ## Couplings to strip (Phase 2)
 
 | Import in the engine | Count | Plan |

@@ -6,18 +6,25 @@ importing celery or opencv, neither of which ships in the test image. a real-eng
 smoke test against a synthetic clip rides behind ``importorskip('cv2')``.
 """
 
+import gzip
+import json
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
-from app.domain.measurement.entities import LightBox
+from app.schemas.measurement import LightBox
 from app.services import measurement_service
 from tests.data.airports import AGL_PAYLOAD, AIRPORT_PAYLOAD, LHA_PAYLOAD, SURFACE_PAYLOAD
 
 _DESIGNATORS = ["A", "B", "C", "D"]
 _LIGHTS = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]
+
+
+def _confirm_boxes():
+    """schema confirm-lights boxes for the four PAPI slots (the service wire shape)."""
+    return [LightBox(light_name=name, x=10.0, y=50.0, size=8.0) for name in _LIGHTS]
 
 
 @pytest.fixture(scope="module")
@@ -94,6 +101,20 @@ def _stub_storage(monkeypatch):
     )
     monkeypatch.setattr(measurement_service.object_storage, "upload_file", lambda *a, **k: None)
     monkeypatch.setattr(measurement_service.object_storage, "put_object", lambda *a, **k: None)
+
+
+def _drive_to_processing(s, created, inspection_id):
+    """create a run and walk it through confirm so run_processing can pick it up."""
+    m = measurement_service.create_measurement(s, inspection_id)
+    s.commit()
+    created.append(m.id)
+    m.transition_to(MeasurementStatus.FIRST_FRAME)
+    m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
+    measurement_service._repo(s).save(m)
+    s.commit()
+    measurement_service.confirm_lights(s, m.id, _confirm_boxes())
+    s.commit()
+    return m
 
 
 def test_create_snapshots_reference_points(session, inspection_with_media):
@@ -174,9 +195,7 @@ def test_run_processing_reaches_done_and_writes_object_key(
     m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
     measurement_service._repo(s).save(m)
     s.commit()
-    measurement_service.confirm_lights(
-        s, m.id, [LightBox(name, 10.0, 50.0, 8.0) for name in _LIGHTS]
-    )
+    measurement_service.confirm_lights(s, m.id, _confirm_boxes())
     s.commit()
 
     result = measurement_service.run_processing(s, m.id)
@@ -205,14 +224,66 @@ def test_run_processing_engine_failure_routes_to_error(session, inspection_with_
     m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
     measurement_service._repo(s).save(m)
     s.commit()
-    measurement_service.confirm_lights(
-        s, m.id, [LightBox(name, 10.0, 50.0, 8.0) for name in _LIGHTS]
-    )
+    measurement_service.confirm_lights(s, m.id, _confirm_boxes())
     s.commit()
 
     result = measurement_service.run_processing(s, m.id)
     assert result.status == MeasurementStatus.ERROR
     assert "opencv exploded" in result.error_message
+
+
+def test_run_processing_serializes_numpy_scalars(session, inspection_with_media, monkeypatch):
+    """engine numpy scalars don't crash json.dumps - the gzipped blob still round-trips."""
+    np = pytest.importorskip("numpy")
+    s, created = session
+    _stub_storage(monkeypatch)
+    captured: dict = {}
+    monkeypatch.setattr(
+        measurement_service.object_storage,
+        "put_object",
+        lambda key, data, **kw: captured.update(data=data),
+    )
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+    measurements_data = [
+        {f"{name.lower()}_transition_angle_middle": np.float64(3.05) for name in _LIGHTS}
+    ]
+    monkeypatch.setattr(
+        measurement_service,
+        "run_two_pass_processing",
+        lambda **kw: (measurements_data, {}, None, None),
+    )
+
+    m = _drive_to_processing(s, created, inspection_with_media)
+    result = measurement_service.run_processing(s, m.id)
+
+    assert result.status == MeasurementStatus.DONE
+    assert result.object_key.endswith("results.json.gz")
+    decoded = json.loads(gzip.decompress(captured["data"]).decode("utf-8"))
+    assert decoded[0]["papi_a_transition_angle_middle"] == 3.05
+
+
+def test_run_processing_summaries_are_plain_floats(session, inspection_with_media, monkeypatch):
+    """measured angles land on the summaries as plain floats, never numpy scalars."""
+    np = pytest.importorskip("numpy")
+    s, created = session
+    _stub_storage(monkeypatch)
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+    measurements_data = [
+        {f"{name.lower()}_transition_angle_middle": np.float64(3.05) for name in _LIGHTS}
+    ]
+    monkeypatch.setattr(
+        measurement_service,
+        "run_two_pass_processing",
+        lambda **kw: (measurements_data, {}, None, None),
+    )
+
+    m = _drive_to_processing(s, created, inspection_with_media)
+    result = measurement_service.run_processing(s, m.id)
+
+    by_name = {sm.light_name: sm for sm in result.summaries}
+    measured = by_name["PAPI_A"].measured_transition_angle
+    assert measured == 3.05
+    assert type(measured) is float
 
 
 def test_run_first_frame_missing_measurement_raises(session):

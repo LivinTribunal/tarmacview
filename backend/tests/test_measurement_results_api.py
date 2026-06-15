@@ -18,13 +18,10 @@ _icao_counter = itertools.count()
 
 
 def _unique_icao() -> str:
-    """a fresh 4-uppercase-alpha ICAO code per airport (codes are db-unique)."""
+    """a fresh db-unique 4-alpha ICAO - 'MR' prefix keeps this file's codes out of
+    the shared session db's AAAA.. range that other test modules also write."""
     n = next(_icao_counter)
-    code = ""
-    for _ in range(4):
-        code = chr(ord("A") + n % 26) + code
-        n //= 26
-    return code
+    return f"MR{chr(ord('A') + (n // 26) % 26)}{chr(ord('A') + n % 26)}"
 
 
 # one frame of the engine blob - papi_a readings keyed lowercase

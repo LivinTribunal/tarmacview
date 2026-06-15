@@ -146,6 +146,7 @@ def create_mission(db: Session, data: MissionCreate) -> Mission:
 - **Naming**: `test_{module}.py` - `test_airport.py`, `test_trajectory_generator.py`
 - **Config**: `pyproject.toml` sets `testpaths = ["tests"]`, `asyncio_mode = "auto"`
 - Test data in `tests/data/` modules, fixtures in `conftest.py`
+- **Unique airport ICAO codes per test file**: the test DB is session-scoped (one Postgres for the whole run, no per-test teardown - see `conftest.py::db_engine`), and `airport.icao_code` is `UNIQUE`. So every `icao_code` a test inserts must be unique across the *entire* suite, not just its own file, or it raises `duplicate key value violates unique constraint "airport_icao_code_key"` depending on collection order. Give each file its own distinctive prefix and never start a counter at `AAAA` (already taken by `test_admin.py`).
 
 ### Frontend
 

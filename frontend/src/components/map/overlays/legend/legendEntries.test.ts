@@ -59,6 +59,7 @@ describe("legendEntries", () => {
       "PLANNED",
       "VALIDATED",
       "EXPORTED",
+      "MEASURED",
       "COMPLETED",
     ]);
   });

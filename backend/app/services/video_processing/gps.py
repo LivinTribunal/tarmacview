@@ -151,6 +151,12 @@ class GPSExtractor:
             timestamp_ms = self._parse_srt_timestamp(lines[1])
             text = " ".join(lines[2:])
             gps_point = self._parse_dji_srt_text(text, timestamp_ms)
+            if gps_point is None:
+                # newer DJI footage (e.g. Matrice 4) writes per-frame telemetry as
+                # bracketed [latitude:]/[longitude:]/abs_alt: fields under a FrameCnt
+                # header rather than the legacy "GPS (lat, lon, alt)" syntax - reuse
+                # the frame-metadata parser that already understands that shape.
+                gps_point = self._parse_dji_frame_metadata(text)
             if gps_point:
                 gps_data.append(gps_point)
 

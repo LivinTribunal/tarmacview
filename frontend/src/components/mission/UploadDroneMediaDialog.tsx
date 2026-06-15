@@ -19,8 +19,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Film, GripVertical, Loader2, Trash2, Upload } from "lucide-react";
+import { Film, GripVertical, Loader2, Play, Trash2, Upload } from "lucide-react";
 import Modal from "@/components/common/Modal";
+import MeasurementFlowDialog from "./MeasurementFlowDialog";
 import {
   completeDroneMediaUpload,
   deleteDroneMedia,
@@ -331,6 +332,10 @@ export default function UploadDroneMediaDialog({
   const [error, setError] = useState<string | null>(null);
   const [busyContainer, setBusyContainer] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [measureTarget, setMeasureTarget] = useState<{
+    inspectionId: string;
+    label: string;
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -488,6 +493,7 @@ export default function UploadDroneMediaDialog({
     : null;
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -537,6 +543,22 @@ export default function UploadDroneMediaDialog({
                       })}
                     </span>
                   </h3>
+                  {container.inspectionId !== null && container.files.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMeasureTarget({
+                          inspectionId: container.inspectionId!,
+                          label: container.label,
+                        })
+                      }
+                      data-testid={`measure-${container.inspectionId}`}
+                      className="flex items-center gap-1 rounded-lg bg-tv-accent px-2.5 py-1 text-xs font-semibold text-tv-accent-text hover:opacity-90"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                      {t("mission.uploadDroneMediaDialog.measure")}
+                    </button>
+                  )}
                 </div>
                 <DroppableContainer id={container.id}>
                   <SortableContext
@@ -580,5 +602,14 @@ export default function UploadDroneMediaDialog({
         )}
       </div>
     </Modal>
+    {measureTarget && (
+      <MeasurementFlowDialog
+        key={measureTarget.inspectionId}
+        inspectionId={measureTarget.inspectionId}
+        inspectionLabel={measureTarget.label}
+        onClose={() => setMeasureTarget(null)}
+      />
+    )}
+    </>
   );
 }

@@ -1141,7 +1141,29 @@
       "confirmIngest": "Potvrdiť spracovanie",
       "confirming": "Potvrdzuje sa...",
       "assignTo": "Priradiť k misii",
-      "noCaptureTime": "Bez času snímania"
+      "noCaptureTime": "Bez času snímania",
+      "measure": "Zmerať"
+    },
+    "measurementFlow": {
+      "title": "Meranie svetiel PAPI",
+      "starting": "Spúšťa sa meranie…",
+      "phase": {
+        "queued": "V poradí…",
+        "firstFrame": "Extrahuje sa prvá snímka…",
+        "processing": "Spracúva sa video…"
+      },
+      "confirmTitle": "Potvrďte rozpoznané svetlá PAPI",
+      "confirmHint": "Potiahnutím rámčeka ho premiestnite, potom potvrďte spustenie analýzy.",
+      "noBoxes": "Žiadne svetlá neboli automaticky rozpoznané. Analýzu môžete spustiť aj tak.",
+      "confirmButton": "Potvrdiť a spracovať",
+      "confirming": "Spúšťa sa…",
+      "doneTitle": "Meranie dokončené",
+      "doneHint": "Analýza sa dokončila. Otvorte výsledky pre zobrazenie grafov a tabuľky pass/fail.",
+      "viewResults": "Zobraziť výsledky",
+      "errorTitle": "Meranie zlyhalo",
+      "startError": "Meranie sa nepodarilo spustiť.",
+      "previewError": "Nepodarilo sa načítať náhľad prvej snímky.",
+      "confirmError": "Spracovanie sa nepodarilo spustiť."
     }
   },
   "missionList": {

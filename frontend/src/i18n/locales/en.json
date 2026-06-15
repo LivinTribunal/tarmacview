@@ -1137,7 +1137,29 @@
       "confirmIngest": "Confirm Ingest",
       "confirming": "Confirming...",
       "assignTo": "Assign to mission",
-      "noCaptureTime": "No capture time"
+      "noCaptureTime": "No capture time",
+      "measure": "Measure"
+    },
+    "measurementFlow": {
+      "title": "Measure PAPI lights",
+      "starting": "Starting measurement…",
+      "phase": {
+        "queued": "Queued…",
+        "firstFrame": "Extracting first frame…",
+        "processing": "Processing video…"
+      },
+      "confirmTitle": "Confirm the detected PAPI lights",
+      "confirmHint": "Drag a box to reposition it, then confirm to run the analysis.",
+      "noBoxes": "No lights were detected automatically. You can still run the analysis.",
+      "confirmButton": "Confirm & process",
+      "confirming": "Starting…",
+      "doneTitle": "Measurement complete",
+      "doneHint": "The analysis finished. Open the results to view charts and the pass/fail table.",
+      "viewResults": "View results",
+      "errorTitle": "Measurement failed",
+      "startError": "Could not start the measurement.",
+      "previewError": "Could not load the first-frame preview.",
+      "confirmError": "Could not start processing."
     }
   },
   "missionList": {

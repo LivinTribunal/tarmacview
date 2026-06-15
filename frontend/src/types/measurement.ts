@@ -19,6 +19,37 @@ export interface ReferencePoint {
   tolerance: number | null;
 }
 
+// one PAPI light's box on the first frame, in percentage coordinates (center + size)
+export interface LightBox {
+  light_name: string;
+  x: number;
+  y: number;
+  size: number;
+}
+
+// lightweight progress poll - status doubles as the phase
+export interface MeasurementStatusResponse {
+  id: string;
+  status: MeasurementStatus;
+  error_message: string | null;
+}
+
+// first-frame image (presigned GET) + the detected/pre-placed boxes to confirm
+export interface MeasurementPreview {
+  id: string;
+  status: MeasurementStatus;
+  first_frame_url: string | null;
+  boxes: LightBox[];
+}
+
+// the fields the start/confirm flow reads off the full aggregate response
+export interface Measurement {
+  id: string;
+  inspection_id: string;
+  status: MeasurementStatus;
+  error_message: string | null;
+}
+
 export interface LightSummary {
   light_name: string;
   setting_angle: number | null;

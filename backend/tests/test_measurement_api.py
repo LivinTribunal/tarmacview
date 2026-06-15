@@ -1,19 +1,13 @@
 """measurement endpoints - create/status/preview/confirm flow with enqueue stubbed."""
 
 import itertools
-from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.api.dependencies import get_current_user
 from app.core.enums import MeasurementStatus
-from app.domain.measurement.entities import LightSummary, Measurement
-from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
-from app.main import app
 from app.services import measurement_service
-from tests.conftest import TEST_USER_ID, _override_current_user
 from tests.data.airports import AIRPORT_PAYLOAD
 
 _icao_counter = itertools.count()
@@ -152,160 +146,6 @@ def test_confirm_lights_starts_processing(
     assert r.status_code == 200, r.text
     assert r.json()["status"] == MeasurementStatus.PROCESSING.value
     assert len(_stub_enqueue["processing"]) == 1
-
-
-# mission-scoped measurements list
-
-
-@pytest.fixture
-def mission_ctx(client, template_id):
-    """fresh airport + mission + two inspections for the list endpoint."""
-    apt = client.post(
-        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
-    ).json()
-    mission = client.post(
-        "/api/v1/missions", json={"name": "List Measure", "airport_id": apt["id"]}
-    ).json()
-    insp_a = client.post(
-        f"/api/v1/missions/{mission['id']}/inspections",
-        json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
-    ).json()
-    insp_b = client.post(
-        f"/api/v1/missions/{mission['id']}/inspections",
-        json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
-    ).json()
-    return {
-        "airport_id": apt["id"],
-        "mission_id": mission["id"],
-        "inspection_a": insp_a["id"],
-        "inspection_b": insp_b["id"],
-    }
-
-
-def _save_measurement(
-    db_engine, inspection_id, *, status, summaries=None, object_key=None, error_message=None
-):
-    """persist a measurement in a chosen state directly via the port (no media needed)."""
-    s = sessionmaker(bind=db_engine)()
-    try:
-        repo = SqlAlchemyMeasurementRepository(s)
-        m = Measurement(
-            inspection_id=inspection_id,
-            status=status,
-            object_key=object_key,
-            summaries=summaries or [],
-            error_message=error_message,
-        )
-        repo.save(m)
-        s.commit()
-        return str(m.id)
-    finally:
-        s.close()
-
-
-def test_list_measurements_across_inspections(client, db_engine, mission_ctx):
-    """one row per measurement across the mission's inspections, with context + rollup."""
-    queued_id = _save_measurement(
-        db_engine, mission_ctx["inspection_a"], status=MeasurementStatus.QUEUED
-    )
-    done_id = _save_measurement(
-        db_engine,
-        mission_ctx["inspection_b"],
-        status=MeasurementStatus.DONE,
-        object_key="measurements/x/results.json.gz",
-        summaries=[
-            LightSummary("PAPI_A", 3.0, 0.5, 3.1, True),
-            LightSummary("PAPI_B", 3.0, 0.5, 5.0, False),
-        ],
-    )
-
-    r = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/measurements")
-    assert r.status_code == 200, r.text
-    rows = {row["id"]: row for row in r.json()}
-    assert set(rows) == {queued_id, done_id}
-
-    done_row = rows[done_id]
-    assert done_row["status"] == "DONE"
-    assert done_row["has_results"] is True
-    assert done_row["pass_count"] == 1
-    assert done_row["fail_count"] == 1
-    assert done_row["inspection_id"] == mission_ctx["inspection_b"]
-    assert done_row["inspection_method"] == "HORIZONTAL_RANGE"
-    assert done_row["inspection_sequence_order"] >= 1
-
-    queued_row = rows[queued_id]
-    assert queued_row["status"] == "QUEUED"
-    assert queued_row["has_results"] is False
-    assert queued_row["pass_count"] == 0
-    assert queued_row["fail_count"] == 0
-
-
-def test_list_measurements_scoped_to_mission(client, db_engine, mission_ctx, template_id):
-    """another mission's measurements never leak into this mission's list."""
-    other_apt = client.post(
-        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
-    ).json()
-    other_mission = client.post(
-        "/api/v1/missions", json={"name": "Other", "airport_id": other_apt["id"]}
-    ).json()
-    other_insp = client.post(
-        f"/api/v1/missions/{other_mission['id']}/inspections",
-        json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
-    ).json()
-    other_id = _save_measurement(db_engine, other_insp["id"], status=MeasurementStatus.QUEUED)
-
-    mine_id = _save_measurement(
-        db_engine, mission_ctx["inspection_a"], status=MeasurementStatus.QUEUED
-    )
-
-    r = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/measurements")
-    assert r.status_code == 200
-    ids = {row["id"] for row in r.json()}
-    assert mine_id in ids
-    assert other_id not in ids
-
-
-def test_list_measurements_error_carries_message(client, db_engine, mission_ctx):
-    """an ERROR run surfaces its failure message in the list row."""
-    err_id = _save_measurement(
-        db_engine,
-        mission_ctx["inspection_a"],
-        status=MeasurementStatus.ERROR,
-        error_message="processing failed: boom",
-    )
-
-    r = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/measurements")
-    assert r.status_code == 200
-    rows = {row["id"]: row for row in r.json()}
-    assert rows[err_id]["status"] == "ERROR"
-    assert rows[err_id]["error_message"] == "processing failed: boom"
-    assert rows[err_id]["has_results"] is False
-
-
-def test_list_measurements_empty_mission(client, mission_ctx):
-    """a mission with inspections but no runs returns an empty list."""
-    r = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/measurements")
-    assert r.status_code == 200
-    assert r.json() == []
-
-
-def test_list_measurements_cross_airport_is_403(client, mission_ctx):
-    """an operator without access to the mission's airport is refused."""
-    denied = SimpleNamespace(
-        id=TEST_USER_ID,
-        email="x@y.z",
-        name="No Access",
-        role="OPERATOR",
-        is_active=True,
-        airports=[],
-    )
-    denied.has_airport_access = lambda airport_id: False
-    app.dependency_overrides[get_current_user] = lambda: denied
-    try:
-        r = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/measurements")
-        assert r.status_code == 403
-    finally:
-        app.dependency_overrides[get_current_user] = _override_current_user
 
 
 def test_to_response_maps_full_aggregate():

@@ -22,6 +22,9 @@ vi.mock("@/components/results/IntensityChart", () => ({
 vi.mock("@/components/results/DronePathMap", () => ({
   default: () => <div data-testid="mock-drone-path-map" />,
 }));
+vi.mock("@/components/results/ClimbProfileChart", () => ({
+  default: () => <div data-testid="mock-climb-profile" />,
+}));
 vi.mock("@/components/results/AnnotatedVideoPlayer", () => ({
   default: () => <div data-testid="mock-video-player" />,
 }));
@@ -79,6 +82,7 @@ describe("ResultsPage", () => {
     expect(screen.getByTestId("mock-chromaticity-chart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-intensity-chart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-drone-path-map")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-climb-profile")).toBeInTheDocument();
     expect(screen.getByTestId("mock-video-player")).toBeInTheDocument();
     expect(screen.getByTestId("download-pdf-btn")).toBeInTheDocument();
   });

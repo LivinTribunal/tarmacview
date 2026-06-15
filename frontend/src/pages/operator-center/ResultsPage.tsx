@@ -14,6 +14,7 @@ import ChromaticityChart from "@/components/results/ChromaticityChart";
 import IntensityChart from "@/components/results/IntensityChart";
 import TransitionAngleTable from "@/components/results/TransitionAngleTable";
 import DronePathMap from "@/components/results/DronePathMap";
+import ClimbProfileChart from "@/components/results/ClimbProfileChart";
 import AnnotatedVideoPlayer from "@/components/results/AnnotatedVideoPlayer";
 
 /** operator results page for one finished measurement run. */
@@ -138,10 +139,15 @@ export default function ResultsPage() {
             <TransitionAngleTable summaries={results.summaries} />
           </Card>
 
+          {/* per-light analysis */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <LightAngleChart lights={results.lights} />
-            <ChromaticityChart lights={results.lights} />
             <IntensityChart lights={results.lights} />
+            <ChromaticityChart lights={results.lights} />
+          </div>
+
+          {/* flown path + climb profile */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Card className="flex flex-col">
               <h3 className="text-sm font-medium text-tv-text-primary mb-3">
                 {t("results.map.title")}
@@ -153,6 +159,7 @@ export default function ResultsPage() {
                 />
               </div>
             </Card>
+            <ClimbProfileChart dronePath={results.drone_path} />
           </div>
 
           <Card>

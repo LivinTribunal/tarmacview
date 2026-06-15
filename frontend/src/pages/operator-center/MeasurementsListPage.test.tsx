@@ -1,9 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { MEASUREMENT_POLL_INTERVAL_MS } from "@/constants/ui";
 import en from "@/i18n/locales/en.json";
 import type { MeasurementListItem } from "@/types/measurement";
 import MeasurementsListPage from "./MeasurementsListPage";
-import { listMissionMeasurements } from "@/api/measurements";
+import { listAirportMeasurements } from "@/api/measurements";
 
 /** resolve a dotted i18n key against the real en.json bundle. */
 function resolveKey(key: string): string {
@@ -39,19 +47,19 @@ vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: vi.fn() },
 }));
 
-const { navigateMock, missionHolder } = vi.hoisted(() => ({
+const { navigateMock, airportHolder } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
-  missionHolder: { current: null as { id: string; name: string } | null },
+  airportHolder: { current: null as { id: string; name: string } | null },
 }));
 
 vi.mock("react-router", () => ({ useNavigate: () => navigateMock }));
 
-vi.mock("@/contexts/MissionContext", () => ({
-  useMission: () => ({ selectedMission: missionHolder.current }),
+vi.mock("@/contexts/AirportContext", () => ({
+  useAirport: () => ({ selectedAirport: airportHolder.current }),
 }));
 
 vi.mock("@/api/measurements", () => ({
-  listMissionMeasurements: vi.fn(),
+  listAirportMeasurements: vi.fn(),
 }));
 
 // stub the heavy flow dialog - its own test covers the resume internals
@@ -61,12 +69,14 @@ vi.mock("@/components/mission/MeasurementFlowDialog", () => ({
   ),
 }));
 
-const listMock = vi.mocked(listMissionMeasurements);
+const listMock = vi.mocked(listAirportMeasurements);
 
 function row(over: Partial<MeasurementListItem>): MeasurementListItem {
   return {
     id: "m1",
     inspection_id: "i1",
+    mission_id: "mission-1",
+    mission_name: "Demo Mission",
     inspection_method: "HORIZONTAL_RANGE",
     inspection_sequence_order: 1,
     status: "DONE",
@@ -82,31 +92,32 @@ function row(over: Partial<MeasurementListItem>): MeasurementListItem {
 describe("MeasurementsListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    missionHolder.current = { id: "mission-1", name: "Demo Mission" };
+    airportHolder.current = { id: "airport-1", name: "Demo Airport" };
     listMock.mockResolvedValue([]);
   });
 
-  it("shows the no-mission-open state when no mission is selected", () => {
-    missionHolder.current = null;
+  it("shows the no-airport state when no airport is selected", () => {
+    airportHolder.current = null;
     render(<MeasurementsListPage />);
-    expect(screen.getByTestId("measurements-no-mission")).toBeInTheDocument();
+    expect(screen.getByTestId("measurements-no-airport")).toBeInTheDocument();
     expect(listMock).not.toHaveBeenCalled();
   });
 
-  it("shows the empty state when the mission has no measurements", async () => {
+  it("shows the empty state when the airport has no measurements", async () => {
     render(<MeasurementsListPage />);
     await waitFor(() =>
       expect(screen.getByTestId("measurements-empty")).toBeInTheDocument(),
     );
-    expect(listMock).toHaveBeenCalledWith("mission-1");
+    expect(listMock).toHaveBeenCalledWith("airport-1");
   });
 
-  it("renders a row per measurement and routes each status", async () => {
+  it("renders the shared table from airport context and routes each status", async () => {
     listMock.mockResolvedValue([
-      row({ id: "done-1", status: "DONE", inspection_sequence_order: 1 }),
+      row({ id: "done-1", status: "DONE", mission_name: "Alpha" }),
       row({
         id: "confirm-1",
         status: "AWAITING_CONFIRM",
+        mission_name: "Bravo",
         inspection_sequence_order: 2,
         has_results: false,
         pass_count: 0,
@@ -115,12 +126,14 @@ describe("MeasurementsListPage", () => {
       row({
         id: "proc-1",
         status: "PROCESSING",
+        mission_name: "Charlie",
         inspection_sequence_order: 3,
         has_results: false,
       }),
       row({
         id: "err-1",
         status: "ERROR",
+        mission_name: "Delta",
         inspection_sequence_order: 4,
         has_results: false,
         error_message: "processing failed: boom",
@@ -129,28 +142,111 @@ describe("MeasurementsListPage", () => {
 
     render(<MeasurementsListPage />);
     await waitFor(() =>
-      expect(screen.getByTestId("measurements-list")).toBeInTheDocument(),
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
     );
 
+    // mission name renders in the shared table (scoped past the mission filter options)
+    expect(
+      within(screen.getByTestId("measurements-table")).getByText("Alpha"),
+    ).toBeInTheDocument();
+
     // DONE -> results page
-    fireEvent.click(screen.getByTestId("view-results-done-1"));
+    fireEvent.click(screen.getByTestId("measurement-row-done-1"));
     expect(navigateMock).toHaveBeenCalledWith(
       "/operator-center/measurements/done-1/results",
     );
 
     // AWAITING_CONFIRM -> resume the confirm step in the flow dialog
-    fireEvent.click(screen.getByTestId("review-confirm-1"));
-    const dialog = await screen.findByTestId("flow-dialog");
-    expect(dialog).toHaveAttribute("data-resume", "confirm-1");
+    fireEvent.click(screen.getByTestId("measurement-row-confirm-1"));
+    expect(await screen.findByTestId("flow-dialog")).toHaveAttribute(
+      "data-resume",
+      "confirm-1",
+    );
 
-    // active run -> watch progress button present
-    expect(screen.getByTestId("watch-proc-1")).toBeInTheDocument();
+    // active run -> resume to watch progress in the flow dialog
+    fireEvent.click(screen.getByTestId("measurement-row-proc-1"));
+    expect(screen.getByTestId("flow-dialog")).toHaveAttribute(
+      "data-resume",
+      "proc-1",
+    );
 
-    // error row surfaces the failed status chip + the error message
-    expect(screen.getByText(en.measurementsList.status.ERROR)).toBeInTheDocument();
+    // error row surfaces its message inline
     expect(screen.getByTestId("error-err-1")).toHaveTextContent(
       "processing failed: boom",
     );
+  });
+
+  it("filters the table by status pill and mission select", async () => {
+    listMock.mockResolvedValue([
+      row({ id: "done-1", status: "DONE", mission_id: "m-alpha", mission_name: "Alpha" }),
+      row({
+        id: "proc-1",
+        status: "PROCESSING",
+        mission_id: "m-bravo",
+        mission_name: "Bravo",
+        inspection_sequence_order: 2,
+        has_results: false,
+      }),
+    ]);
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+
+    // both rows visible by default (every status pill active)
+    expect(screen.getByTestId("measurement-row-done-1")).toBeInTheDocument();
+    expect(screen.getByTestId("measurement-row-proc-1")).toBeInTheDocument();
+
+    // isolate DONE via the status pill -> only the done row remains
+    fireEvent.click(screen.getByTestId("status-filter-DONE"));
+    expect(screen.getByTestId("measurement-row-done-1")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("measurement-row-proc-1"),
+    ).not.toBeInTheDocument();
+
+    // reset, then narrow by the mission select
+    fireEvent.click(screen.getByTestId("filter-bar-reset"));
+    fireEvent.change(screen.getByTestId("mission-filter"), {
+      target: { value: "m-bravo" },
+    });
+    expect(
+      screen.queryByTestId("measurement-row-done-1"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("measurement-row-proc-1")).toBeInTheDocument();
+  });
+
+  it("auto-refreshes the list while a run is still processing, then stops", async () => {
+    vi.useFakeTimers();
+    try {
+      listMock
+        .mockResolvedValueOnce([
+          row({ id: "p1", status: "PROCESSING", has_results: false }),
+        ])
+        .mockResolvedValue([row({ id: "p1", status: "DONE" })]);
+
+      render(<MeasurementsListPage />);
+
+      // initial load -> processing
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(listMock).toHaveBeenCalledTimes(1);
+
+      // one poll interval later the list silently refetches and flips to done
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(MEASUREMENT_POLL_INTERVAL_MS);
+      });
+      expect(listMock).toHaveBeenCalledTimes(2);
+
+      // no active run remains -> polling stops
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(MEASUREMENT_POLL_INTERVAL_MS * 3);
+      });
+      expect(listMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("surfaces a load error with a retry", async () => {
@@ -165,7 +261,7 @@ describe("MeasurementsListPage", () => {
     listMock.mockResolvedValueOnce([row({ id: "done-1", status: "DONE" })]);
     fireEvent.click(screen.getByText(en.measurementsList.retry));
     await waitFor(() =>
-      expect(screen.getByTestId("measurements-list")).toBeInTheDocument(),
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
     );
   });
 });

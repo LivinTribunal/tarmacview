@@ -1138,7 +1138,13 @@
       "confirming": "Confirming...",
       "assignTo": "Assign to mission",
       "noCaptureTime": "No capture time",
-      "measure": "Measure"
+      "measure": "Measure",
+      "measureAll": "Measure all",
+      "measuringAll": "Starting…",
+      "measureAllStarted": "{{count}} started — review in Results",
+      "measureAllPartial": "{{started}} of {{total}} started, {{failed}} failed — review in Results",
+      "measureAllError": "Could not start any measurements.",
+      "reviewInResults": "Review in Results"
     },
     "measurementFlow": {
       "title": "Measure PAPI lights",

@@ -4,8 +4,10 @@ GPS extraction utilities for drone videos
 
 import json
 import logging
+import os
 import re
 import subprocess
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -84,41 +86,75 @@ class GPSExtractor:
         return []
 
     def _extract_from_dji_srt(self, video_path: Path) -> List[GPSData]:
-        """Extract GPS data from DJI SRT subtitle file"""
+        """Extract GPS from a DJI SRT - the sidecar file when present, otherwise the
+        subtitle track embedded in the mp4. Newer DJI drones (e.g. the Matrice 4) carry
+        the per-frame telemetry inline as a subtitle stream instead of a separate .SRT."""
         srt_path = video_path.with_suffix(".SRT")
         if not srt_path.exists():
             srt_path = video_path.with_suffix(".srt")
 
-        if not srt_path.exists():
-            return []
+        if srt_path.exists():
+            try:
+                with open(srt_path, "r") as f:
+                    return self._parse_srt_content(f.read())
+            except Exception as e:
+                logger.debug(f"DJI SRT sidecar extraction failed: {e}")
+                return []
 
+        return self._extract_from_embedded_subtitle(video_path)
+
+    def _extract_from_embedded_subtitle(self, video_path: Path) -> List[GPSData]:
+        """Demux the mp4's first subtitle track to a temp SRT and parse it - the DJI
+        telemetry stream lives inline on M4-era footage that ships no sidecar .SRT."""
         try:
-            gps_data = []
-            with open(srt_path, "r") as f:
-                content = f.read()
+            with tempfile.TemporaryDirectory() as workdir:
+                srt_path = os.path.join(workdir, "embedded.srt")
+                result = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-loglevel",
+                        "error",
+                        "-i",
+                        str(video_path),
+                        "-map",
+                        "0:s:0",
+                        srt_path,
+                    ],
+                    capture_output=True,
+                    timeout=120,
+                )
+                if result.returncode != 0 or not os.path.exists(srt_path):
+                    logger.debug("no embedded subtitle track to demux")
+                    return []
 
-            # Parse SRT entries
-            entries = content.strip().split("\n\n")
-            for entry in entries:
-                lines = entry.strip().split("\n")
-                if len(lines) < 3:
-                    continue
-
-                # Parse timestamp
-                timestamp_line = lines[1]
-                timestamp_ms = self._parse_srt_timestamp(timestamp_line)
-
-                # Parse GPS data from subtitle text
-                text = " ".join(lines[2:])
-                gps_point = self._parse_dji_srt_text(text, timestamp_ms)
-                if gps_point:
-                    gps_data.append(gps_point)
-
-            return gps_data
-
+                with open(srt_path, "r") as f:
+                    gps_data = self._parse_srt_content(f.read())
+                if gps_data:
+                    logger.info(
+                        f"Extracted {len(gps_data)} GPS points from embedded subtitle track"
+                    )
+                return gps_data
         except Exception as e:
-            logger.debug(f"DJI SRT extraction failed: {e}")
+            logger.debug(f"embedded subtitle extraction failed: {e}")
             return []
+
+    def _parse_srt_content(self, content: str) -> List[GPSData]:
+        """Parse DJI SRT text (from a sidecar or a demuxed subtitle track) into points."""
+        gps_data = []
+        entries = content.strip().split("\n\n")
+        for entry in entries:
+            lines = entry.strip().split("\n")
+            if len(lines) < 3:
+                continue
+
+            timestamp_ms = self._parse_srt_timestamp(lines[1])
+            text = " ".join(lines[2:])
+            gps_point = self._parse_dji_srt_text(text, timestamp_ms)
+            if gps_point:
+                gps_data.append(gps_point)
+
+        return gps_data
 
     def _extract_with_exiftool_frames(self, video_path: Path) -> List[GPSData]:
         """

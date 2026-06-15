@@ -201,7 +201,7 @@ def test_run_processing_reaches_done_and_writes_object_key(
     """run_processing runs the engine, writes results, scores per-light, finishes done."""
     s, created = session
     _stub_storage(monkeypatch)
-    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [object()])
     measurements_data = [{f"{name.lower()}_transition_angle_middle": 3.05 for name in _LIGHTS}]
     monkeypatch.setattr(
         measurement_service,
@@ -232,7 +232,7 @@ def test_run_processing_engine_failure_routes_to_error(session, inspection_with_
     """an engine exception leaves the measurement in ERROR with a message."""
     s, created = session
     _stub_storage(monkeypatch)
-    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [object()])
 
     def boom(**kw):
         raise RuntimeError("opencv exploded")
@@ -254,6 +254,23 @@ def test_run_processing_engine_failure_routes_to_error(session, inspection_with_
     assert "opencv exploded" in result.error_message
 
 
+def test_run_processing_no_gps_routes_to_error(session, inspection_with_media, monkeypatch):
+    """a video with no GPS telemetry fails loudly instead of a silent empty DONE."""
+    s, created = session
+    _stub_storage(monkeypatch)
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+
+    def engine_must_not_run(**kw):
+        raise AssertionError("engine should not run without gps")
+
+    monkeypatch.setattr(measurement_service, "run_two_pass_processing", engine_must_not_run)
+
+    m = _drive_to_processing(s, created, inspection_with_media)
+    result = measurement_service.run_processing(s, m.id)
+    assert result.status == MeasurementStatus.ERROR
+    assert "GPS" in result.error_message
+
+
 def test_run_processing_serializes_numpy_scalars(session, inspection_with_media, monkeypatch):
     """engine numpy scalars don't crash json.dumps - the gzipped blob still round-trips."""
     np = pytest.importorskip("numpy")
@@ -265,7 +282,7 @@ def test_run_processing_serializes_numpy_scalars(session, inspection_with_media,
         "put_object",
         lambda key, data, **kw: captured.update(data=data),
     )
-    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [object()])
     measurements_data = [
         {f"{name.lower()}_transition_angle_middle": np.float64(3.05) for name in _LIGHTS}
     ]
@@ -289,7 +306,7 @@ def test_run_processing_summaries_are_plain_floats(session, inspection_with_medi
     np = pytest.importorskip("numpy")
     s, created = session
     _stub_storage(monkeypatch)
-    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [])
+    monkeypatch.setattr(measurement_service, "extract_gps_data", lambda video: [object()])
     measurements_data = [
         {f"{name.lower()}_transition_angle_middle": np.float64(3.05) for name in _LIGHTS}
     ]

@@ -317,12 +317,19 @@ def _summary_responses(measurement: Measurement) -> list[LightSummaryResponse]:
 
 
 def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
-    """normalized (r, g) chromaticity from an [r, g, b] triple - (None, None) if unusable."""
-    if not rgb or len(rgb) < 3:
+    """normalized (r, g) chromaticity from an rgb reading - (None, None) if unusable.
+
+    the engine emits each frame's rgb as a ``{"r", "g", "b"}`` dict; older blobs used an
+    ``[r, g, b]`` list, so both shapes are accepted.
+    """
+    if not rgb:
         return None, None
     try:
-        r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
-    except (TypeError, ValueError):
+        if isinstance(rgb, dict):
+            r, g, b = float(rgb["r"]), float(rgb["g"]), float(rgb["b"])
+        else:
+            r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
+    except (TypeError, ValueError, KeyError, IndexError):
         return None, None
     total = r + g + b
     if total <= 0:
@@ -628,6 +635,13 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
             object_storage.download_file(measurement.media_object_keys[0], video_path)
 
             gps_data = extract_gps_data(video_path)
+            if not gps_data:
+                raise DomainError(
+                    "no GPS telemetry found in the video - per-frame drone position is "
+                    "required to measure PAPI transition angles. DJI footage must carry "
+                    "its .SRT sidecar or an embedded telemetry subtitle track.",
+                    status_code=422,
+                )
             measurements_data, papi_paths, enhanced_path, combined_path = run_two_pass_processing(
                 output_dir=workdir,
                 video_path=video_path,
@@ -637,6 +651,12 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
                 reference_points=ref_payload,
                 runway_heading=measurement.runway_heading or 0.0,
             )
+            if not measurements_data:
+                raise DomainError(
+                    "processing produced no measurable frames - the video has no usable "
+                    "per-frame GPS, so no transition angle could be measured.",
+                    status_code=422,
+                )
 
             object_key = f"{_MEASUREMENT_PREFIX}/{measurement.id}/results.json.gz"
             object_storage.put_object(

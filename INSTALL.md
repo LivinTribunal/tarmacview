@@ -130,8 +130,8 @@ Open the Docker Desktop app from the Start menu and wait for the green dot.
 - Make sure no other program is using port 80 (Skype, IIS, XAMPP). Close it and run `start.bat` again.
 - Open Docker Desktop → **Containers** — all three containers (`tarmacview-db`, `tarmacview-backend`, `tarmacview-frontend`) should be green / healthy.
 
-### "Port 5432 is already allocated"
-Another PostgreSQL is running on your machine. Stop it, or open `docker-compose.yml` and change `"127.0.0.1:5432:5432"` to `"127.0.0.1:5433:5432"`.
+### "Port 55432 is already allocated"
+Rare now: the host db port is deliberately off the default (`55432`, not `5432`) so it won't collide with a PostgreSQL already running on your machine. If even `55432` is taken, pick a free port: add `POSTGRES_HOST_PORT=55433` to `.env.docker` (or your shell) and start again. Redis is the same story via `REDIS_HOST_PORT` (default `56379`). The container-internal ports are unchanged, so nothing else needs editing.
 
 ### After an update I see old data / missing missions
 
@@ -190,7 +190,7 @@ To get back to the committed version, run `git checkout db/initdb/01-seed.sql`.
   - `tarmacview-db` — the PostgreSQL database (with the seed data already loaded).
   - `tarmacview-backend` — the Python API.
   - `tarmacview-frontend` — the React web UI served by nginx.
-- They talk to each other over a private Docker network. Only the web UI (port 80) and the database (port 5432, localhost only) are exposed to your machine.
+- They talk to each other over a private Docker network. Only the web UI (port 80) and the database (port 55432, localhost only) are exposed to your machine.
 
 You don't need to understand any of this to use the app — but if anything breaks, this gives Štefan a hint of where to look.
 
@@ -203,8 +203,9 @@ You don't need to understand any of this to use the app — but if anything brea
 For iterative work with hot reload, run the database in Docker and the backend / frontend natively:
 
 ```bash
-# 1. just the database
-docker compose up -d postgres
+# 1. just the database (compose now publishes it on host port 55432; pin it back
+#    to 5432 so the backend's default DATABASE_URL reaches it)
+POSTGRES_HOST_PORT=5432 docker compose up -d postgres
 
 # 2. backend (terminal 1)
 cd backend

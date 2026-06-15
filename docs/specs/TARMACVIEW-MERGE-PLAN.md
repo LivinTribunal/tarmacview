@@ -37,8 +37,10 @@ Done:
 Next: **Phase 1 - the upload-drone-media form** (Section 8).
 
 Known caveats:
-- `tarmacview` and the old repo share hardcoded compose `container_name`s + port
-  5432, so they cannot run at the same time. De-hardcode if both must coexist.
+- `tarmacview` and the old repo share hardcoded compose `container_name`s, so they
+  cannot run at the same time. (The host db port is now `55432`, env-overridable via
+  `POSTGRES_HOST_PORT`, so the port itself no longer collides.) De-hardcode the names
+  if both must coexist.
 - Engine deps live in `backend/requirements-video.txt` (the worker image installs
   them); the protected `requirements.txt` is untouched. `opencv-python-headless` is
   pinned to `4.13.0.92` (4.12 capped `numpy<2.3`, which conflicts with the pinned

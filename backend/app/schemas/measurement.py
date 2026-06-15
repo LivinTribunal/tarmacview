@@ -68,6 +68,25 @@ class MeasurementStatusResponse(BaseModel):
     error_message: str | None = None
 
 
+class MeasurementListItemResponse(BaseModel):
+    """one row of the mission measurements list - status + inspection context + rollup.
+
+    ``has_results`` and the PASS/FAIL counts derive from the aggregate's summaries +
+    object_key, so the list page can route each row without a per-row results fetch.
+    """
+
+    id: UUID
+    inspection_id: UUID
+    inspection_method: str
+    inspection_sequence_order: int
+    status: MeasurementStatusStr
+    created_at: datetime | None = None
+    has_results: bool = False
+    pass_count: int = 0
+    fail_count: int = 0
+    error_message: str | None = None
+
+
 class ConfirmLightsRequest(BaseModel):
     """operator-confirmed/adjusted first-frame light boxes that start full processing."""
 

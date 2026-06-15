@@ -2110,6 +2110,27 @@
     "webglUnsupported": "WebGL is not supported",
     "webglUnsupportedHint": "This application requires WebGL to render maps and 3D views. Please use a modern browser with hardware acceleration enabled."
   },
+  "measurementsList": {
+    "title": "Measurements",
+    "subtitle": "Runs for {{mission}}",
+    "noMissionOpen": "Open a mission to see its measurement results.",
+    "empty": "No measurements yet for this mission. Start one from the drone media upload.",
+    "loadError": "Could not load measurements.",
+    "retry": "Retry",
+    "inspectionLabel": "Inspection {{order}} · {{method}}",
+    "viewResults": "View results",
+    "review": "Review",
+    "watch": "View progress",
+    "passFail": "{{pass}} PASS / {{fail}} FAIL",
+    "status": {
+      "QUEUED": "Queued",
+      "FIRST_FRAME": "Extracting first frame",
+      "AWAITING_CONFIRM": "Needs review",
+      "PROCESSING": "Processing",
+      "DONE": "Done",
+      "ERROR": "Failed"
+    }
+  },
   "results": {
     "title": "Measurement Results",
     "status": "Status: {{status}}",

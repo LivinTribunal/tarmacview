@@ -35,6 +35,7 @@ from app.schemas.measurement import (
     LightSeries,
     LightSeriesPoint,
     LightSummaryResponse,
+    MeasurementListItemResponse,
     MeasurementResponse,
     MeasurementResultsResponse,
     ReferencePointResponse,
@@ -206,6 +207,44 @@ def get_measurement(db: Session, measurement_id: UUID) -> Measurement:
     if measurement is None:
         raise NotFoundError("measurement not found")
     return measurement
+
+
+def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementListItemResponse:
+    """map an aggregate + its inspection context to one list row.
+
+    PASS/FAIL counts and has_results derive from the aggregate's summaries +
+    object_key so the row carries everything the list page routes on.
+    """
+    pass_count = sum(1 for s in measurement.summaries if s.passed is True)
+    fail_count = sum(1 for s in measurement.summaries if s.passed is False)
+    has_results = (
+        measurement.status == MeasurementStatus.DONE and measurement.object_key is not None
+    )
+    return MeasurementListItemResponse(
+        id=measurement.id,
+        inspection_id=measurement.inspection_id,
+        inspection_method=inspection.method,
+        inspection_sequence_order=inspection.sequence_order,
+        status=measurement.status.value,
+        created_at=measurement.created_at,
+        has_results=has_results,
+        pass_count=pass_count,
+        fail_count=fail_count,
+        error_message=measurement.error_message,
+    )
+
+
+def list_mission_measurements(db: Session, mission_id: UUID) -> list[MeasurementListItemResponse]:
+    """every measurement across a mission's inspections, newest first.
+
+    the inspection set is fetched once and the measurements in one batched read off
+    those ids - no per-row inspection lookup. the caller (route) has already verified
+    the mission exists and the user may access it.
+    """
+    inspections = db.query(Inspection).filter(Inspection.mission_id == mission_id).all()
+    by_id = {insp.id: insp for insp in inspections}
+    measurements = _repo(db).list_by_inspections(list(by_id.keys()))
+    return [_list_item(m, by_id[m.inspection_id]) for m in measurements]
 
 
 def airport_id_for_inspection(db: Session, inspection_id: UUID):

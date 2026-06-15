@@ -140,6 +140,18 @@ class SqlAlchemyMeasurementRepository(MeasurementRepository):
         )
         return [_to_domain(r) for r in rows]
 
+    def list_by_inspections(self, inspection_ids: list[UUID]) -> list[Measurement]:
+        """all measurements across many inspections, newest first (one batched read)."""
+        if not inspection_ids:
+            return []
+        rows = (
+            self.db.query(MeasurementORM)
+            .filter(MeasurementORM.inspection_id.in_(inspection_ids))
+            .order_by(MeasurementORM.created_at.desc(), MeasurementORM.id)
+            .all()
+        )
+        return [_to_domain(r) for r in rows]
+
     def save(self, measurement: Measurement) -> Measurement:
         """upsert one aggregate, flush, and return the persisted form."""
         row = self.db.query(MeasurementORM).filter(MeasurementORM.id == measurement.id).first()

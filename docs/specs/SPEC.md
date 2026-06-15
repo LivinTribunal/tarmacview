@@ -150,6 +150,7 @@ QUEUED → FIRST_FRAME → AWAITING_CONFIRM → PROCESSING → DONE
 - FIRST_FRAME → PROCESSING: a confident detection (a coherent line of all four PAPI lights) auto-confirms, skips the manual gate, and the worker chains full processing
 - AWAITING_CONFIRM → PROCESSING: operator confirms/adjusts boxes (`POST /measurements/{id}/confirm-lights`)
 - PROCESSING → DONE: the worker runs the two-pass engine, writes the gzipped results + annotated videos to object storage, and rolls up per-light PASS/FAIL
+- PROCESSING → ERROR (fail-loud guard): a video with no per-frame GPS telemetry, or one that yields zero measurable frames, routes to ERROR instead of finishing DONE with empty results - the per-frame drone position is required to measure transition angles. DJI footage carries that telemetry either as a `.SRT` sidecar or, on M4-era drones, an embedded subtitle track inside the mp4
 - any non-terminal state → ERROR on engine/worker failure, recording `error_message`
 - DONE and ERROR are terminal
 

@@ -34,7 +34,7 @@ def _frame(i: int) -> dict:
         "drone_longitude": 17.2 + i * 1e-5,
         "drone_elevation_wgs84": 150.0 + i,
         "papi_a_status": "white" if i > 1 else "red",
-        "papi_a_rgb": [200, 200, 200] if i > 1 else [200, 50, 50],
+        "papi_a_rgb": {"r": 200, "g": 200, "b": 200} if i > 1 else {"r": 200, "g": 50, "b": 50},
         "papi_a_intensity": 0.5 + i * 0.1,
         "papi_a_angle": 3.0 + i * 0.1,
         "papi_a_horizontal_angle": 0.2,

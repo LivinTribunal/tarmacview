@@ -317,12 +317,19 @@ def _summary_responses(measurement: Measurement) -> list[LightSummaryResponse]:
 
 
 def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
-    """normalized (r, g) chromaticity from an [r, g, b] triple - (None, None) if unusable."""
-    if not rgb or len(rgb) < 3:
+    """normalized (r, g) chromaticity from an rgb reading - (None, None) if unusable.
+
+    the engine emits each frame's rgb as a ``{"r", "g", "b"}`` dict; older blobs used an
+    ``[r, g, b]`` list, so both shapes are accepted.
+    """
+    if not rgb:
         return None, None
     try:
-        r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
-    except (TypeError, ValueError):
+        if isinstance(rgb, dict):
+            r, g, b = float(rgb["r"]), float(rgb["g"]), float(rgb["b"])
+        else:
+            r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
+    except (TypeError, ValueError, KeyError, IndexError):
         return None, None
     total = r + g + b
     if total <= 0:

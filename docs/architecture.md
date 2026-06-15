@@ -9,6 +9,7 @@ tarmacview/
 ├── frontend/              # React 18 + TypeScript + Vite SPA
 ├── backend/               # Python 3.12 + FastAPI REST API
 ├── fieldhub/              # Field Hub — local DJI Cloud API gateway (compose profile "field")
+├── emulator/              # Cert-free HTTP run-kit for validating DJI Pilot 2 in BlueStacks
 ├── docs/                  # Architecture docs, wireframes, diagrams
 ├── .github/               # Issue/PR templates, CI workflows
 ├── docker-compose.yml     # Default stack (postgres + backend + frontend) + "field" profile

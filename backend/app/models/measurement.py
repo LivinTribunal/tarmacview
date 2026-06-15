@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -37,19 +38,19 @@ class Measurement(Base):
     status = Column(String(20), nullable=False, default=MeasurementStatus.QUEUED.value)
     runway_heading = Column(Float, nullable=True)
     # snapshotted LHA ground truth - an audit record, not a live join
-    reference_points = Column(JSONB, nullable=False, server_default="[]")
+    reference_points = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # operator-confirmed first-frame light boxes (percentage coords)
-    light_boxes = Column(JSONB, nullable=False, server_default="[]")
+    light_boxes = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # per-light PASS/FAIL rollup vs setting_angle +/- tolerance
-    summaries = Column(JSONB, nullable=False, server_default="[]")
+    summaries = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # ordered input video object keys pulled from the inspection's media
-    media_object_keys = Column(JSONB, nullable=False, server_default="[]")
+    media_object_keys = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # pointer to the extracted first-frame image in object storage
     first_frame_object_key = Column(String, nullable=True)
     # pointer to the gzipped results json in object storage
     object_key = Column(String, nullable=True)
     # annotated video object keys keyed by light name + enhanced/combined
-    annotated_video_keys = Column(JSONB, nullable=False, server_default="{}")
+    annotated_video_keys = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(

@@ -11,10 +11,12 @@ import {
   requestUploadUrl,
   uploadToPresignedUrl,
 } from "@/api/droneMedia";
+import { createMeasurement } from "@/api/measurements";
 import type {
   DroneMediaFileResponse,
   MissionInspectionMediaResponse,
 } from "@/types/droneMedia";
+import type { Measurement } from "@/types/measurement";
 
 /** resolve a dotted i18n key against the real en.json bundle. */
 function resolveKey(key: string): string {
@@ -105,6 +107,11 @@ vi.mock("@/api/droneMedia", () => ({
   deleteDroneMedia: vi.fn(),
 }));
 
+vi.mock("@/api/measurements", () => ({ createMeasurement: vi.fn() }));
+
+const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
+vi.mock("react-router", () => ({ useNavigate: () => navigateMock }));
+
 function makeFile(
   overrides: Partial<DroneMediaFileResponse> = {},
 ): DroneMediaFileResponse {
@@ -126,6 +133,10 @@ function makeFile(
     updated_at: "2026-06-14T15:00:00+00:00",
     ...overrides,
   };
+}
+
+function measurement(id: string): Measurement {
+  return { id, inspection_id: "insp-1", status: "QUEUED", error_message: null };
 }
 
 const MEDIA: MissionInspectionMediaResponse = {
@@ -296,5 +307,77 @@ describe("UploadDroneMediaDialog", () => {
     expect(
       await screen.findByText("Failed to load drone media"),
     ).toBeInTheDocument();
+  });
+
+  it("fires one measurement per inspection with media on 'Measure all'", async () => {
+    vi.mocked(createMeasurement).mockResolvedValue(measurement("m1"));
+    renderDialog();
+    const button = await screen.findByTestId("measure-all");
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    // insp-1 and insp-2 hold media; the unassigned bucket is skipped
+    await waitFor(() => expect(createMeasurement).toHaveBeenCalledTimes(2));
+    expect(createMeasurement).toHaveBeenCalledWith("insp-1");
+    expect(createMeasurement).toHaveBeenCalledWith("insp-2");
+    expect(
+      await screen.findByText("2 started — review in Results"),
+    ).toBeInTheDocument();
+  });
+
+  it("disables 'Measure all' when no inspection has media", async () => {
+    vi.mocked(listMissionDroneMedia).mockResolvedValue({
+      ...MEDIA,
+      inspections: [
+        {
+          inspection_id: "insp-1",
+          method: "HORIZONTAL_RANGE",
+          sequence_order: 1,
+          files: [],
+        },
+      ],
+      unassigned: [makeFile({ id: "u1", inspection_id: null, order_index: null })],
+    });
+    renderDialog();
+
+    const button = await screen.findByTestId("measure-all");
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(createMeasurement).not.toHaveBeenCalled();
+  });
+
+  it("surfaces partial failure without aborting the batch", async () => {
+    vi.mocked(createMeasurement).mockImplementation((id) =>
+      id === "insp-2"
+        ? Promise.reject(new Error("worker down"))
+        : Promise.resolve(measurement("m1")),
+    );
+    renderDialog();
+    const button = await screen.findByTestId("measure-all");
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    // one bad inspection must not block the other - both are attempted
+    await waitFor(() => expect(createMeasurement).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByText("1 of 2 started, 1 failed — review in Results"),
+    ).toBeInTheDocument();
+  });
+
+  it("navigates to the measurements list from 'review in Results'", async () => {
+    vi.mocked(createMeasurement).mockResolvedValue(measurement("m1"));
+    renderDialog();
+    const button = await screen.findByTestId("measure-all");
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    fireEvent.click(await screen.findByTestId("review-in-results"));
+    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements");
   });
 });

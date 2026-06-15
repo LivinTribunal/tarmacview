@@ -388,18 +388,19 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
 
 def extract_first_frame_and_detect(
     video_path: str, image_path: str, reference_points: list[dict]
-) -> tuple[dict, dict]:
+) -> tuple[dict, dict, bool]:
     """extract the first frame to image_path and detect PAPI candidates on it.
 
-    returns (metadata, detected_positions). isolated so the heavy cv2 import only
-    fires inside the worker and tests can stub it.
+    returns (metadata, detected_positions, confident). confident is true only when the
+    engine found a coherent line of all four PAPI lights - the auto-confirm signal.
+    isolated so the heavy cv2 import only fires inside the worker and tests can stub it.
     """
-    from app.services.video_processing.processor.detection import detect_lights
+    from app.services.video_processing.processor.detection import detect_lights_with_confidence
     from app.services.video_processing.processor.metadata import extract_first_frame
 
     metadata = extract_first_frame(video_path, image_path)
-    detected = detect_lights(image_path, reference_points)
-    return metadata, detected
+    detected, confident = detect_lights_with_confidence(image_path, reference_points)
+    return metadata, detected, confident
 
 
 def extract_gps_data(video_path: str) -> list:
@@ -471,11 +472,13 @@ def _boxes_from_detection(detected: dict) -> list[LightBox]:
 
 
 def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
-    """worker step: extract the first frame, detect lights, await operator confirm.
+    """worker step: extract the first frame, detect lights, confirm or await operator.
 
-    drives QUEUED -> FIRST_FRAME -> AWAITING_CONFIRM, writing the first-frame image to
-    object storage and pre-placing boxes from detection. any failure routes to ERROR.
-    commits its own transitions so the polling endpoint sees progress.
+    drives QUEUED -> FIRST_FRAME, writing the first-frame image to object storage and
+    pre-placing boxes from detection. a confident detection (coherent line of all four
+    PAPI lights) auto-confirms straight to PROCESSING; an uncertain one parks at
+    AWAITING_CONFIRM for manual review. any failure routes to ERROR. commits its own
+    transitions so the polling endpoint sees progress.
     """
     repo = _repo(db)
     measurement = repo.get_by_id(measurement_id)
@@ -496,7 +499,7 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
 
             image_path = os.path.join(workdir, "first_frame.jpg")
             ref_payload = list(measurement.reference_point_payload().values())
-            _metadata, detected = extract_first_frame_and_detect(
+            _metadata, detected, confident = extract_first_frame_and_detect(
                 video_path, image_path, ref_payload
             )
 
@@ -505,7 +508,10 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
 
         measurement.first_frame_object_key = frame_key
         measurement.confirm_boxes(_boxes_from_detection(detected))
-        measurement.transition_to(MeasurementStatus.AWAITING_CONFIRM)
+        next_status = (
+            MeasurementStatus.PROCESSING if confident else MeasurementStatus.AWAITING_CONFIRM
+        )
+        measurement.transition_to(next_status)
         repo.save(measurement)
         db.commit()
         return measurement

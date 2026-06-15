@@ -15,7 +15,11 @@ from app.core.enums import MeasurementStatus
 # legal forward transitions; ERROR is reachable from any non-terminal state.
 _TRANSITIONS: dict[MeasurementStatus, set[MeasurementStatus]] = {
     MeasurementStatus.QUEUED: {MeasurementStatus.FIRST_FRAME, MeasurementStatus.ERROR},
-    MeasurementStatus.FIRST_FRAME: {MeasurementStatus.AWAITING_CONFIRM, MeasurementStatus.ERROR},
+    MeasurementStatus.FIRST_FRAME: {
+        MeasurementStatus.AWAITING_CONFIRM,
+        MeasurementStatus.PROCESSING,
+        MeasurementStatus.ERROR,
+    },
     MeasurementStatus.AWAITING_CONFIRM: {MeasurementStatus.PROCESSING, MeasurementStatus.ERROR},
     MeasurementStatus.PROCESSING: {MeasurementStatus.DONE, MeasurementStatus.ERROR},
     MeasurementStatus.DONE: set(),

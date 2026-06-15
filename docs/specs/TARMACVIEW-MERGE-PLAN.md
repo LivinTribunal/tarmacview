@@ -221,7 +221,9 @@ migration. Manual rows are created by a new media service path, not only by
 ### 7.2 `Measurement` aggregate (new context)
 
 A measurement per inspection's media set. Status machine
-`queued -> first_frame -> awaiting_confirm -> processing -> done | error`.
+`queued -> first_frame -> awaiting_confirm -> processing -> done | error`
+(a confident first-frame detection auto-confirms, skipping `awaiting_confirm`
+straight to `processing`).
 Holds: `inspection_id`, snapshotted reference points, per-light summary columns,
 and a pointer (`object_key`) to the gzipped results JSON in object storage.
 Persisted via the repository port.

@@ -28,9 +28,11 @@ Done:
 - The operator's real working data was restored into the tarmacview DB (copied from
   the old repo's volume; the original volume is untouched).
 - Harnext pipeline verified live (tagger -> triage -> plan ran; Claude auth OK).
-  State-machine labels cloned from the old repo. `harnext-verify` is disabled here
-  (self-hosted runner still bound to the old repo; not needed - the other stages run
-  GitHub-hosted).
+  State-machine labels cloned from the old repo. `harnext-verify` is active: the
+  self-hosted runner was re-pointed from the old repo to tarmacview (relabeled
+  `harnext-tarmacview`) and the stage uploads its browser-verify proof video to
+  Dropbox, citing the public link in the PR comment. Every other stage runs
+  GitHub-hosted.
 - CI lint is green. Docs (`README`, `CLAUDE.md`, `architecture.md`) acknowledge the
   new service; `harness.config.json` repointed to tarmacview.
 
@@ -289,8 +291,10 @@ area), drone path, reference points, runway, video URLs, transition angles.
   verify runner against the new repo (`harnext setup`). Extend
   `harness.config.json` risk tiers for the new paths.
 - **Secrets** (set via `gh secret set`): `CLAUDE_CODE_OAUTH_TOKEN` (pipeline),
-  plus runtime `JWT_SECRET`, `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` (or `S3_*`),
-  `REDIS_URL`. AWS credentials only when the cloud phase starts.
+  `DROPBOX_APP_KEY` / `DROPBOX_APP_SECRET` / `DROPBOX_REFRESH_TOKEN` (verify-stage
+  proof-video upload; optional - the stage falls back to a runner-local path if
+  absent), plus runtime `JWT_SECRET`, `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`
+  (or `S3_*`), `REDIS_URL`. AWS credentials only when the cloud phase starts.
 - **Docs**: update `CLAUDE.md` (new `domain/measurement` + `infra/` layout,
   worker/redis/minio services, the repository-port pattern), `INSTALL.md` /
   `README` (new local stack and services), add an architecture note acknowledging

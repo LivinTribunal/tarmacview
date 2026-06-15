@@ -144,7 +144,7 @@ def test_get_by_id_missing_returns_none(session):
 @pytest.fixture
 def two_inspections(client):
     """a fresh mission with two inspections - FK targets for the batched-list test."""
-    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": "LZTT"}).json()
+    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": "LZMB"}).json()
     template = client.post(
         "/api/v1/inspection-templates",
         json={"name": "Batch Test Template", "methods": ["HORIZONTAL_RANGE"]},

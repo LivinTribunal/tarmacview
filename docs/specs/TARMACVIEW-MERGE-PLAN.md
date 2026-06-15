@@ -40,8 +40,10 @@ Known caveats:
 - `tarmacview` and the old repo share hardcoded compose `container_name`s + port
   5432, so they cannot run at the same time. De-hardcode if both must coexist.
 - Engine deps live in `backend/requirements-video.txt` (the worker image installs
-  them); the protected `requirements.txt` is untouched. `opencv-python-headless` is
-  pinned to `4.13.0.92` (4.12 capped `numpy<2.3`, which conflicts with the pinned
+  them); the protected `requirements.txt` is untouched. The backend image installs
+  only the `celery`/`redis` broker client (pinned in its `Dockerfile`) so the API can
+  enqueue worker tasks - the OpenCV engine stays worker-only. `opencv-python-headless`
+  is pinned to `4.13.0.92` (4.12 capped `numpy<2.3`, which conflicts with the pinned
   `numpy==2.4.4`).
 - field-hub stays in tarmacview; the separate `tarmacview-field-hub` repo is
   superseded.

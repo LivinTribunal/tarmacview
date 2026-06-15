@@ -133,10 +133,11 @@ def test_confirm_lights_starts_processing(
         lambda key, dest: open(dest, "wb").close(),
     )
     monkeypatch.setattr(measurement_service.object_storage, "upload_file", lambda *a, **k: None)
+    # confident=False keeps the run at AWAITING_CONFIRM so confirm-lights drives it on
     monkeypatch.setattr(
         measurement_service,
         "extract_first_frame_and_detect",
-        lambda video, image, refs: ({"fps": 30}, {"PAPI_A": {"x": 10, "y": 50, "size": 8}}),
+        lambda video, image, refs: ({"fps": 30}, {"PAPI_A": {"x": 10, "y": 50, "size": 8}}, False),
     )
     s = sessionmaker(bind=db_engine)()
     try:

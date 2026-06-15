@@ -150,18 +150,24 @@ def test_create_without_media_is_422(session, client):
     assert exc.value.status_code == 422
 
 
-def test_run_first_frame_reaches_awaiting_confirm(session, inspection_with_media, monkeypatch):
-    """run_first_frame extracts, detects, pre-places boxes, and awaits confirm."""
-    s, created = session
-    _stub_storage(monkeypatch)
+def _stub_detect(monkeypatch, confident):
+    """stub the first-frame engine seam with a fixed confidence flag (3-tuple)."""
     monkeypatch.setattr(
         measurement_service,
         "extract_first_frame_and_detect",
         lambda video, image, refs: (
             {"fps": 30, "total_frames": 10},
             {name: {"x": 10.0 + i, "y": 50.0, "size": 8.0} for i, name in enumerate(_LIGHTS)},
+            confident,
         ),
     )
+
+
+def test_run_first_frame_reaches_awaiting_confirm(session, inspection_with_media, monkeypatch):
+    """an uncertain detection pre-places boxes and parks for manual confirm."""
+    s, created = session
+    _stub_storage(monkeypatch)
+    _stub_detect(monkeypatch, confident=False)
 
     m = measurement_service.create_measurement(s, inspection_with_media)
     s.commit()
@@ -169,6 +175,22 @@ def test_run_first_frame_reaches_awaiting_confirm(session, inspection_with_media
 
     result = measurement_service.run_first_frame(s, m.id)
     assert result.status == MeasurementStatus.AWAITING_CONFIRM
+    assert result.first_frame_object_key.endswith("first_frame.jpg")
+    assert {b.light_name for b in result.light_boxes} == set(_LIGHTS)
+
+
+def test_run_first_frame_confident_reaches_processing(session, inspection_with_media, monkeypatch):
+    """a confident detection auto-confirms straight to PROCESSING with boxes persisted."""
+    s, created = session
+    _stub_storage(monkeypatch)
+    _stub_detect(monkeypatch, confident=True)
+
+    m = measurement_service.create_measurement(s, inspection_with_media)
+    s.commit()
+    created.append(m.id)
+
+    result = measurement_service.run_first_frame(s, m.id)
+    assert result.status == MeasurementStatus.PROCESSING
     assert result.first_frame_object_key.endswith("first_frame.jpg")
     assert {b.light_name for b in result.light_boxes} == set(_LIGHTS)
 
@@ -313,12 +335,15 @@ def test_real_engine_first_frame_on_synthetic_clip(tmp_path):
     writer.release()
 
     image_path = str(tmp_path / "frame.jpg")
-    metadata, detected = measurement_service.extract_first_frame_and_detect(
+    metadata, detected, confident = measurement_service.extract_first_frame_and_detect(
         video_path, image_path, []
     )
     assert metadata.get("frame_width") == width
     # detection always returns the four PAPI slots (real detection or default fallback)
     assert set(detected.keys()) == set(_LIGHTS)
+    # the real engine treats this crude clip as uncertain (falls to default positions),
+    # so it is never auto-confirmed - the conservative default
+    assert confident is False
 
 
 def test_default_positions_project_reference_points():
@@ -344,3 +369,99 @@ def test_default_positions_project_reference_points():
     assert _generate_default_positions(320, 240, refs) == projected
     grid = _generate_default_positions(320, 240, [])
     assert [grid[name]["x"] for name in _LIGHTS] != xs
+
+
+def test_detect_lights_with_confidence_clean_line_is_confident(tmp_path, monkeypatch):
+    """a coherent line of all four PAPI lights is a confident detection.
+
+    the detector is stubbed with four bright colinear lights so the confidence wiring is
+    exercised deterministically, independent of the vendored engine's pixel heuristics.
+    """
+    cv2 = pytest.importorskip("cv2")
+    import numpy as np
+
+    from app.services.video_processing import detection as engine
+    from app.services.video_processing.models import DetectedLight
+    from app.services.video_processing.processor.detection import detect_lights_with_confidence
+
+    class _LineDetector:
+        """returns four bright, evenly-spaced colinear lights - a clean PAPI bar."""
+
+        def __init__(self, *a, **k):
+            pass
+
+        def detect_lights(self, frame):
+            """stand in for the real CV detector with a coherent four-light line."""
+            return [
+                DetectedLight(
+                    x=60.0 + i * 60,
+                    y=120.0,
+                    width=12.0,
+                    height=12.0,
+                    confidence=1.0,
+                    class_name="high_intensity_light",
+                    brightness=255.0,
+                    r=255,
+                    g=255,
+                    b=255,
+                    intensity=255.0,
+                )
+                for i in range(4)
+            ]
+
+    monkeypatch.setattr(engine, "RunwayLightDetector", _LineDetector)
+
+    image_path = str(tmp_path / "line.png")
+    cv2.imwrite(image_path, np.zeros((240, 320, 3), dtype=np.uint8))
+
+    detected, confident = detect_lights_with_confidence(image_path, [])
+    assert set(detected.keys()) == set(_LIGHTS)
+    assert confident is True
+
+
+def test_detect_lights_with_confidence_blank_frame_not_confident(tmp_path):
+    """a blank frame falls back to default positions and is never confident."""
+    cv2 = pytest.importorskip("cv2")
+    import numpy as np
+
+    from app.services.video_processing.processor.detection import detect_lights_with_confidence
+
+    width, height = 320, 240
+    frame = np.zeros((height, width, 3), dtype=np.uint8)
+    image_path = str(tmp_path / "blank.png")
+    cv2.imwrite(image_path, frame)
+
+    detected, confident = detect_lights_with_confidence(image_path, [])
+    assert set(detected.keys()) == set(_LIGHTS)
+    assert confident is False
+
+
+def test_extract_first_frame_task_enqueues_processing_only_when_confident(monkeypatch):
+    """the task chains processing on a PROCESSING runner result, not on AWAITING_CONFIRM."""
+    pytest.importorskip("celery")
+    from app.workers import measurement_tasks
+
+    enqueued: list = []
+    monkeypatch.setattr(
+        measurement_tasks.process_measurement_task,
+        "delay",
+        lambda mid: enqueued.append(mid),
+    )
+
+    # confident auto-confirm: runner returns PROCESSING -> processing enqueued
+    monkeypatch.setattr(
+        measurement_tasks, "_run", lambda runner, mid: MeasurementStatus.PROCESSING.value
+    )
+    assert measurement_tasks.extract_first_frame_task("abc") == MeasurementStatus.PROCESSING.value
+    assert enqueued == ["abc"]
+
+    # uncertain detection: runner parks at AWAITING_CONFIRM -> nothing enqueued
+    enqueued.clear()
+    monkeypatch.setattr(
+        measurement_tasks, "_run", lambda runner, mid: MeasurementStatus.AWAITING_CONFIRM.value
+    )
+    assert (
+        measurement_tasks.extract_first_frame_task("xyz")
+        == MeasurementStatus.AWAITING_CONFIRM.value
+    )
+    assert enqueued == []

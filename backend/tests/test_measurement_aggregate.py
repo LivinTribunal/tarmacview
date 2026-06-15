@@ -34,6 +34,13 @@ def test_legal_happy_path_transitions():
         assert m.status == target
 
 
+def test_first_frame_can_auto_confirm_to_processing():
+    """a confident detection skips the manual gate: first_frame -> processing is legal."""
+    m = _measurement(status=MeasurementStatus.FIRST_FRAME)
+    m.transition_to(MeasurementStatus.PROCESSING)
+    assert m.status == MeasurementStatus.PROCESSING
+
+
 def test_illegal_skip_raises():
     """queued cannot jump straight to processing."""
     m = _measurement()

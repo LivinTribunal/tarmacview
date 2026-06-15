@@ -68,6 +68,7 @@ frontend/
     i18n/                i18next config + locale JSON
     types/               TypeScript interfaces matching Pydantic schemas
 fieldhub/                Field Hub — local DJI Cloud API gateway (compose profile "field")
+emulator/                Cert-free HTTP run-kit for validating DJI Pilot 2 in BlueStacks
 db/initdb/01-seed.sql    Bundled DB seed (3 demo airports + reference data + 3 default users)
 docker-compose.yml       Default stack (postgres + backend + frontend) + opt-in "field" profile
 scripts/                 dev / ops helper scripts

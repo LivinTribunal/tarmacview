@@ -5,6 +5,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev gcc \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# the backend enqueues celery tasks to the worker, so it needs the celery client
+# + redis broker at runtime (lazy-imported in measurement_service's enqueue seam).
+# the opencv engine stays worker-only (Dockerfile.worker installs requirements-video.txt).
+# pins mirror requirements-video.txt; fold into requirements.txt when that absorbs the worker deps.
+RUN pip install --no-cache-dir celery==5.4.0 redis==5.2.1
 
 # stage 2: runtime
 FROM python:3.12-slim

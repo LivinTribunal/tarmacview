@@ -171,7 +171,7 @@ async function readClampWarningFromError(
 /** extract filename from a Content-Disposition response header.
  * prefers the rfc 5987 filename* (utf-8) variant when present.
  */
-function parseContentDispositionFilename(
+export function parseContentDispositionFilename(
   headers: unknown,
 ): string | null {
   const raw =

@@ -30,6 +30,19 @@ from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRep
 from app.models.agl import LHA
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
+from app.schemas.measurement import (
+    DronePathPoint,
+    LightSeries,
+    LightSeriesPoint,
+    LightSummaryResponse,
+    MeasurementListItemResponse,
+    MeasurementResponse,
+    MeasurementResultsResponse,
+    ReferencePointResponse,
+)
+from app.schemas.measurement import (
+    LightBox as LightBoxSchema,
+)
 from app.services import object_storage
 
 logger = logging.getLogger(__name__)
@@ -107,6 +120,58 @@ def _inspection_media_keys(db: Session, inspection_id: UUID) -> list[str]:
     return [row.object_key for row in rows]
 
 
+# domain <-> wire mapping (keeps the route purely HTTP - no app.domain import)
+
+
+def light_boxes_to_schema(boxes: list[LightBox]) -> list[LightBoxSchema]:
+    """map domain light boxes to their wire form (response + preview share this)."""
+    return [LightBoxSchema(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in boxes]
+
+
+def to_response(m: Measurement) -> MeasurementResponse:
+    """map the domain aggregate to the wire response."""
+    return MeasurementResponse(
+        id=m.id,
+        inspection_id=m.inspection_id,
+        status=m.status.value,
+        runway_heading=m.runway_heading,
+        reference_points=[
+            ReferencePointResponse(
+                light_name=rp.light_name,
+                latitude=rp.latitude,
+                longitude=rp.longitude,
+                elevation=rp.elevation,
+                lha_id=rp.lha_id,
+                unit_designator=rp.unit_designator,
+                setting_angle=rp.setting_angle,
+                tolerance=rp.tolerance,
+            )
+            for rp in m.reference_points
+        ],
+        light_boxes=light_boxes_to_schema(m.light_boxes),
+        summaries=[
+            LightSummaryResponse(
+                light_name=s.light_name,
+                setting_angle=s.setting_angle,
+                tolerance=s.tolerance,
+                measured_transition_angle=s.measured_transition_angle,
+                passed=s.passed,
+            )
+            for s in m.summaries
+        ],
+        object_key=m.object_key,
+        first_frame_object_key=m.first_frame_object_key,
+        error_message=m.error_message,
+        created_at=m.created_at,
+        updated_at=m.updated_at,
+    )
+
+
+def _boxes_from_request(boxes: list[LightBoxSchema]) -> list[LightBox]:
+    """build domain light boxes from the operator's confirm-lights request."""
+    return [LightBox(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in boxes]
+
+
 # route-facing entrypoints (flush only; the route commits)
 
 
@@ -144,6 +209,44 @@ def get_measurement(db: Session, measurement_id: UUID) -> Measurement:
     return measurement
 
 
+def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementListItemResponse:
+    """map an aggregate + its inspection context to one list row.
+
+    PASS/FAIL counts and has_results derive from the aggregate's summaries +
+    object_key so the row carries everything the list page routes on.
+    """
+    pass_count = sum(1 for s in measurement.summaries if s.passed is True)
+    fail_count = sum(1 for s in measurement.summaries if s.passed is False)
+    has_results = (
+        measurement.status == MeasurementStatus.DONE and measurement.object_key is not None
+    )
+    return MeasurementListItemResponse(
+        id=measurement.id,
+        inspection_id=measurement.inspection_id,
+        inspection_method=inspection.method,
+        inspection_sequence_order=inspection.sequence_order,
+        status=measurement.status.value,
+        created_at=measurement.created_at,
+        has_results=has_results,
+        pass_count=pass_count,
+        fail_count=fail_count,
+        error_message=measurement.error_message,
+    )
+
+
+def list_mission_measurements(db: Session, mission_id: UUID) -> list[MeasurementListItemResponse]:
+    """every measurement across a mission's inspections, newest first.
+
+    the inspection set is fetched once and the measurements in one batched read off
+    those ids - no per-row inspection lookup. the caller (route) has already verified
+    the mission exists and the user may access it.
+    """
+    inspections = db.query(Inspection).filter(Inspection.mission_id == mission_id).all()
+    by_id = {insp.id: insp for insp in inspections}
+    measurements = _repo(db).list_by_inspections(list(by_id.keys()))
+    return [_list_item(m, by_id[m.inspection_id]) for m in measurements]
+
+
 def airport_id_for_inspection(db: Session, inspection_id: UUID):
     """resolve an inspection's airport for audit scoping (None when unresolvable)."""
     inspection = db.query(Inspection).filter(Inspection.id == inspection_id).first()
@@ -161,11 +264,12 @@ def get_preview(db: Session, measurement_id: UUID) -> tuple[Measurement, str | N
     return measurement, url
 
 
-def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBox]) -> Measurement:
+def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBoxSchema]) -> Measurement:
     """persist confirmed boxes and move to PROCESSING ahead of the full engine run.
 
-    409 unless the run is AWAITING_CONFIRM. the route enqueues the processing task
-    and commits.
+    takes the wire boxes off the request and builds the domain boxes here so the route
+    never touches app.domain. 409 unless the run is AWAITING_CONFIRM. the route enqueues
+    the processing task and commits.
     """
     measurement = get_measurement(db, measurement_id)
     if measurement.status != MeasurementStatus.AWAITING_CONFIRM:
@@ -173,9 +277,149 @@ def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBox]) -> 
             f"measurement is not awaiting confirmation (status {measurement.status.value})",
             status_code=409,
         )
-    measurement.confirm_boxes(boxes)
+    measurement.confirm_boxes(_boxes_from_request(boxes))
     measurement.transition_to(MeasurementStatus.PROCESSING)
     return _repo(db).save(measurement)
+
+
+# results assembly (read-only pivot of the gzipped per-frame blob)
+
+
+def _reference_point_responses(measurement: Measurement) -> list[ReferencePointResponse]:
+    """map the aggregate's snapshotted reference points onto the wire shape."""
+    return [
+        ReferencePointResponse(
+            light_name=rp.light_name,
+            latitude=rp.latitude,
+            longitude=rp.longitude,
+            elevation=rp.elevation,
+            lha_id=rp.lha_id,
+            unit_designator=rp.unit_designator,
+            setting_angle=rp.setting_angle,
+            tolerance=rp.tolerance,
+        )
+        for rp in measurement.reference_points
+    ]
+
+
+def _summary_responses(measurement: Measurement) -> list[LightSummaryResponse]:
+    """map the aggregate's per-light PASS/FAIL rollups onto the wire shape."""
+    return [
+        LightSummaryResponse(
+            light_name=s.light_name,
+            setting_angle=s.setting_angle,
+            tolerance=s.tolerance,
+            measured_transition_angle=s.measured_transition_angle,
+            passed=s.passed,
+        )
+        for s in measurement.summaries
+    ]
+
+
+def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
+    """normalized (r, g) chromaticity from an [r, g, b] triple - (None, None) if unusable."""
+    if not rgb or len(rgb) < 3:
+        return None, None
+    try:
+        r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
+    except (TypeError, ValueError):
+        return None, None
+    total = r + g + b
+    if total <= 0:
+        return None, None
+    return r / total, g / total
+
+
+def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
+    """roll one light's per-frame readings out of the blob into an ordered series."""
+    key = name.lower()
+    points: list[LightSeriesPoint] = []
+    for frame in frames:
+        if f"{key}_angle" not in frame and f"{key}_status" not in frame:
+            continue
+        cx, cy = _chromaticity_from_rgb(frame.get(f"{key}_rgb"))
+        points.append(
+            LightSeriesPoint(
+                frame_number=int(frame.get("frame_number", 0)),
+                timestamp=float(frame.get("timestamp", 0.0)),
+                status=frame.get(f"{key}_status"),
+                angle=frame.get(f"{key}_angle"),
+                horizontal_angle=frame.get(f"{key}_horizontal_angle"),
+                intensity=frame.get(f"{key}_intensity"),
+                area_pixels=frame.get(f"{key}_area_pixels"),
+                chromaticity_x=cx,
+                chromaticity_y=cy,
+            )
+        )
+    # transition angles are injected identically onto every frame - read the first
+    sample = next((f for f in frames if f.get(f"{key}_transition_angle_middle") is not None), None)
+    return LightSeries(
+        light_name=name,
+        setting_angle=summary.setting_angle if summary else None,
+        tolerance=summary.tolerance if summary else None,
+        transition_angle_min=sample.get(f"{key}_transition_angle_min") if sample else None,
+        transition_angle_middle=sample.get(f"{key}_transition_angle_middle") if sample else None,
+        transition_angle_max=sample.get(f"{key}_transition_angle_max") if sample else None,
+        passed=summary.passed if summary else None,
+        points=points,
+    )
+
+
+def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
+    """ordered drone positions pulled from each frame's gps telemetry."""
+    path: list[DronePathPoint] = []
+    for frame in frames:
+        lat = frame.get("drone_latitude")
+        lon = frame.get("drone_longitude")
+        if lat is None or lon is None:
+            continue
+        path.append(
+            DronePathPoint(
+                frame_number=int(frame.get("frame_number", 0)),
+                timestamp=float(frame.get("timestamp", 0.0)),
+                latitude=float(lat),
+                longitude=float(lon),
+                elevation=frame.get("drone_elevation_wgs84"),
+            )
+        )
+    return path
+
+
+def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsResponse:
+    """assemble the full results payload for the operator results page.
+
+    reads the gzipped per-frame blob from object storage and pivots it into per-light
+    timeseries + drone path, mints a presigned GET url per annotated video, and carries
+    the snapshotted reference points + PASS/FAIL summaries. a run that is not DONE (no
+    results blob yet) returns the metadata with ``has_results=False`` and empty series.
+    """
+    measurement = get_measurement(db, measurement_id)
+    response = MeasurementResultsResponse(
+        id=measurement.id,
+        inspection_id=measurement.inspection_id,
+        status=measurement.status.value,
+        has_results=False,
+        runway_heading=measurement.runway_heading,
+        reference_points=_reference_point_responses(measurement),
+        summaries=_summary_responses(measurement),
+    )
+    if measurement.status != MeasurementStatus.DONE or not measurement.object_key:
+        return response
+
+    raw = object_storage.get_object(measurement.object_key)
+    frames = json.loads(gzip.decompress(raw).decode("utf-8"))
+    summaries_by_name = {s.light_name: s for s in measurement.summaries}
+
+    response.lights = [
+        _light_series(name, frames, summaries_by_name.get(name)) for name in PAPI_LIGHT_NAMES
+    ]
+    response.drone_path = _drone_path(frames)
+    response.video_urls = {
+        name: object_storage.presigned_get(key)
+        for name, key in (measurement.annotated_video_keys or {}).items()
+    }
+    response.has_results = True
+    return response
 
 
 # engine seams (lazy-import the opencv engine; monkeypatched in tests)
@@ -183,18 +427,19 @@ def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBox]) -> 
 
 def extract_first_frame_and_detect(
     video_path: str, image_path: str, reference_points: list[dict]
-) -> tuple[dict, dict]:
+) -> tuple[dict, dict, bool]:
     """extract the first frame to image_path and detect PAPI candidates on it.
 
-    returns (metadata, detected_positions). isolated so the heavy cv2 import only
-    fires inside the worker and tests can stub it.
+    returns (metadata, detected_positions, confident). confident is true only when the
+    engine found a coherent line of all four PAPI lights - the auto-confirm signal.
+    isolated so the heavy cv2 import only fires inside the worker and tests can stub it.
     """
-    from app.services.video_processing.processor.detection import detect_lights
+    from app.services.video_processing.processor.detection import detect_lights_with_confidence
     from app.services.video_processing.processor.metadata import extract_first_frame
 
     metadata = extract_first_frame(video_path, image_path)
-    detected = detect_lights(image_path, reference_points)
-    return metadata, detected
+    detected, confident = detect_lights_with_confidence(image_path, reference_points)
+    return metadata, detected, confident
 
 
 def extract_gps_data(video_path: str) -> list:
@@ -266,11 +511,13 @@ def _boxes_from_detection(detected: dict) -> list[LightBox]:
 
 
 def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
-    """worker step: extract the first frame, detect lights, await operator confirm.
+    """worker step: extract the first frame, detect lights, confirm or await operator.
 
-    drives QUEUED -> FIRST_FRAME -> AWAITING_CONFIRM, writing the first-frame image to
-    object storage and pre-placing boxes from detection. any failure routes to ERROR.
-    commits its own transitions so the polling endpoint sees progress.
+    drives QUEUED -> FIRST_FRAME, writing the first-frame image to object storage and
+    pre-placing boxes from detection. a confident detection (coherent line of all four
+    PAPI lights) auto-confirms straight to PROCESSING; an uncertain one parks at
+    AWAITING_CONFIRM for manual review. any failure routes to ERROR. commits its own
+    transitions so the polling endpoint sees progress.
     """
     repo = _repo(db)
     measurement = repo.get_by_id(measurement_id)
@@ -291,7 +538,7 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
 
             image_path = os.path.join(workdir, "first_frame.jpg")
             ref_payload = list(measurement.reference_point_payload().values())
-            _metadata, detected = extract_first_frame_and_detect(
+            _metadata, detected, confident = extract_first_frame_and_detect(
                 video_path, image_path, ref_payload
             )
 
@@ -300,7 +547,10 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
 
         measurement.first_frame_object_key = frame_key
         measurement.confirm_boxes(_boxes_from_detection(detected))
-        measurement.transition_to(MeasurementStatus.AWAITING_CONFIRM)
+        next_status = (
+            MeasurementStatus.PROCESSING if confident else MeasurementStatus.AWAITING_CONFIRM
+        )
+        measurement.transition_to(next_status)
         repo.save(measurement)
         db.commit()
         return measurement
@@ -309,15 +559,32 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
         return _mark_failed(db, measurement_id, f"first-frame extraction failed: {exc}")
 
 
+def _json_default(obj):
+    """json encoder hook: coerce the engine's numpy scalars/arrays to native types.
+
+    duck-typed on ``.tolist()`` so the service stays numpy-import-free; a numpy scalar
+    in measurements_data would otherwise crash json.dumps and route the run to ERROR.
+    anything without a numpy-style coercion re-raises so a real serialization bug surfaces.
+    """
+    to_list = getattr(obj, "tolist", None)
+    if callable(to_list):
+        return to_list()
+    raise TypeError(f"object of type {type(obj).__name__} is not json serializable")
+
+
 def _measured_transition_angles(measurements_data: list[dict]) -> dict[str, float | None]:
-    """pull the last non-null per-light transition middle angle out of pass-1 data."""
+    """pull the last non-null per-light transition middle angle out of pass-1 data.
+
+    coerces to plain float at this boundary: the engine may emit numpy scalars, which
+    psycopg can't write to the summaries jsonb column.
+    """
     measured: dict[str, float | None] = {}
     for name in PAPI_LIGHT_NAMES:
         key = f"{name.lower()}_transition_angle_middle"
         value: float | None = None
         for frame in measurements_data:
             if frame.get(key) is not None:
-                value = frame[key]
+                value = float(frame[key])
         measured[name] = value
     return measured
 
@@ -374,7 +641,7 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
             object_key = f"{_MEASUREMENT_PREFIX}/{measurement.id}/results.json.gz"
             object_storage.put_object(
                 object_key,
-                gzip.compress(json.dumps(measurements_data).encode("utf-8")),
+                gzip.compress(json.dumps(measurements_data, default=_json_default).encode("utf-8")),
                 content_type="application/gzip",
             )
 

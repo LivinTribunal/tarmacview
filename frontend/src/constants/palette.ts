@@ -54,6 +54,25 @@ export const WAYPOINT_HIGHLIGHT_COLORS = {
 
 export const INSPECTION_HIGHLIGHT_COLOR = "#3b82f6";
 
+// per-light line colors for the recharts results charts. mirror the
+// --tv-inspection-1..4 tokens in index.css; recharts applies stroke/fill as
+// svg presentation attributes which do not resolve css var(), so the raw hex
+// must live here alongside the maplibre palette.
+export const INSPECTION_LIGHT_COLORS: Record<string, string> = {
+  PAPI_A: "#4595e5",
+  PAPI_B: "#3bbb3b",
+  PAPI_C: "#e5a545",
+  PAPI_D: "#9b59b6",
+};
+
+export const INSPECTION_LIGHT_FALLBACK_COLOR = "#6b6b6b";
+
+// results chart chrome (axis, grid) - mirrors --tv-text-muted / --tv-border
+export const CHART_COLORS = {
+  AXIS: "#757575",
+  GRID: "#e9e9e9",
+};
+
 // qr modules must stay true black regardless of theme so scanners read them
 // reliably, so this is a fixed hex rather than a --tv-* variable.
 export const QR_DARK = "#000000";

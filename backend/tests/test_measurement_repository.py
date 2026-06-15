@@ -139,3 +139,52 @@ def test_get_by_id_missing_returns_none(session):
     s, _ = session
     repo = SqlAlchemyMeasurementRepository(s)
     assert repo.get_by_id(uuid4()) is None
+
+
+@pytest.fixture
+def two_inspections(client):
+    """a fresh mission with two inspections - FK targets for the batched-list test."""
+    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": "LZMB"}).json()
+    template = client.post(
+        "/api/v1/inspection-templates",
+        json={"name": "Batch Test Template", "methods": ["HORIZONTAL_RANGE"]},
+    ).json()
+    mission = client.post(
+        "/api/v1/missions", json={"name": "Batch Mission", "airport_id": apt["id"]}
+    ).json()
+    a = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={"template_id": template["id"], "method": "HORIZONTAL_RANGE"},
+    ).json()
+    b = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={"template_id": template["id"], "method": "HORIZONTAL_RANGE"},
+    ).json()
+    return a["id"], b["id"]
+
+
+def test_list_by_inspections_batches_across_inspections(session, two_inspections):
+    """one batched read returns rows from several inspections, newest first."""
+    s, created = session
+    repo = SqlAlchemyMeasurementRepository(s)
+    insp_a, insp_b = two_inspections
+
+    first = repo.save(Measurement(inspection_id=insp_a))
+    s.commit()
+    created.append(first.id)
+    second = repo.save(Measurement(inspection_id=insp_b))
+    s.commit()
+    created.append(second.id)
+
+    ids = [m.id for m in repo.list_by_inspections([insp_a, insp_b])]
+    assert first.id in ids
+    assert second.id in ids
+    # newest first across inspections
+    assert ids.index(second.id) < ids.index(first.id)
+
+
+def test_list_by_inspections_empty_returns_empty(session):
+    """no inspection ids short-circuits to an empty list (no query)."""
+    s, _ = session
+    repo = SqlAlchemyMeasurementRepository(s)
+    assert repo.list_by_inspections([]) == []

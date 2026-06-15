@@ -142,6 +142,7 @@ class RunwayLightDetector:
                     confidence=min(1.0, intensity / 255.0),
                     class_name=class_name,
                     brightness=brightness,
+                    intensity=intensity,
                     r=int(r),
                     g=int(g),
                     b=int(b),

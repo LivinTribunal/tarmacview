@@ -4,7 +4,7 @@
 
 ---
 
-## Domain Model (21 tables)
+## Domain Model (22 tables)
 
 ### Airport Infrastructure
 
@@ -66,6 +66,12 @@ When two RUNWAY surfaces are paired, the service layer enforces reciprocal geome
 
 **wayline_dispatch** — one mission's wayline in the field hub's route library (`POST /api/v1/missions/{mission_id}/dispatch` — see `docs/specs/FIELD-HUB.md` §4.2). mission_id (FK → mission, ON DELETE CASCADE, unique — a re-dispatch updates the existing row in place), wayline_id (UUID, the wayline uuid presented to DJI Pilot 2's route list; stable across re-dispatches so Pilot sees an updated route instead of a duplicate), device_sn (VARCHAR, nullable — null until a flight execution binds one; flight-task progress events aren't persisted yet, so media matching treats it as optional), status (VARCHAR 20, `DISPATCHED` today; flight-task tracking values land when progress events are persisted), dispatched_at (server default now(), bumped on re-dispatch). Migration `0012_wayline_dispatch`.
 
+### Measurement (video processing)
+
+The verification half of the plan→fly→measure loop: scores an inspection's flown PAPI footage against the snapshotted `LHA` ground truth, run by the Celery video-processing engine. Design: `docs/specs/TARMACVIEW-MERGE-PLAN.md` §6/§7.2/§8. The persistence-agnostic domain aggregate lives in `app/domain/measurement/` behind a `MeasurementRepository` port; the SQLAlchemy adapter in `app/infra/measurement/` is the only place ORM meets domain.
+
+**measurement** — one inspection's measurement run. inspection_id (FK → inspection, ON DELETE CASCADE, indexed), status (MeasurementStatus enum, CHECK generated from the enum via `enum_check_values`), runway_heading (Float, nullable — parent runway heading for the horizontal-angle calc), reference_points (JSONB, default `[]` — the snapshotted LHA ground truth: light name, position, setting_angle, tolerance captured at create time; an audit record, NOT a live join, so a later LHA edit can't change a finished run's pass/fail), light_boxes (JSONB, default `[]` — confirmed first-frame light boxes in percentage coords; operator-confirmed on the manual `AWAITING_CONFIRM` path, detector-confirmed when a confident detection auto-confirms), summaries (JSONB, default `[]` — per-light PASS/FAIL rollup vs `setting_angle ± tolerance`), media_object_keys (JSONB, default `[]` — ordered input video object keys pulled from the inspection's media), first_frame_object_key (String, nullable — pointer to the extracted first-frame image in object storage), object_key (String, nullable — pointer to the gzipped per-frame results json; the heavy blob never lands in Postgres), annotated_video_keys (JSONB, default `{}` — annotated output videos keyed by light name + enhanced/combined), error_message (Text, nullable — set only on ERROR), created_at / updated_at (onupdate now()). Migration `0018_measurement` (**T3**). The PAPI light slots are `PAPI_A`..`PAPI_D` left-to-right.
+
 ---
 
 ## Enum Values
@@ -89,6 +95,7 @@ When two RUNWAY surfaces are paired, the service layer enforces reciprocal geome
 | ThresholdAnchor | START, END |
 | MediaFileStatus | RECEIVED, MATCHED, UNASSIGNED, INGESTED |
 | MediaOrigin | HUB, MANUAL |
+| MeasurementStatus | QUEUED, FIRST_FRAME, AWAITING_CONFIRM, PROCESSING, DONE, ERROR |
 
 ---
 
@@ -124,6 +131,29 @@ DRAFT → PLANNED → VALIDATED → EXPORTED → COMPLETED
 - Export button: disabled until VALIDATED
 - Complete/Cancel buttons: disabled until EXPORTED
 - COMPLETED and CANCELLED are terminal states — no further actions
+
+---
+
+## Measurement Status State Machine
+
+A measurement run (the video-processing aggregate, separate from the mission) drives the two-step operator flow:
+
+```
+QUEUED → FIRST_FRAME → AWAITING_CONFIRM → PROCESSING → DONE
+                   └──── confident auto-confirm ────┘
+   ↘          ↘              ↘                ↘
+                          ERROR  (reachable from any non-terminal state)
+```
+
+- QUEUED → FIRST_FRAME: the worker extracts the first frame and detects/pre-places PAPI boxes
+- FIRST_FRAME → AWAITING_CONFIRM: an uncertain detection (fallback / default positions) parks for operator confirmation
+- FIRST_FRAME → PROCESSING: a confident detection (a coherent line of all four PAPI lights) auto-confirms, skips the manual gate, and the worker chains full processing
+- AWAITING_CONFIRM → PROCESSING: operator confirms/adjusts boxes (`POST /measurements/{id}/confirm-lights`)
+- PROCESSING → DONE: the worker runs the two-pass engine, writes the gzipped results + annotated videos to object storage, and rolls up per-light PASS/FAIL
+- any non-terminal state → ERROR on engine/worker failure, recording `error_message`
+- DONE and ERROR are terminal
+
+`status` doubles as the progress phase the polling endpoint reports. The aggregate's `transition_to()` is the only legal way to advance — direct assignment bypasses validation. See `docs/specs/TARMACVIEW-MERGE-PLAN.md` §6.
 
 ---
 
@@ -361,6 +391,7 @@ Airport list, inspection template editor (AGL selector, per-AGL helper-mode togg
 
 - **Mission** — owns inspections, controls status transitions via `transition_to()`. Inspection add/remove/reorder works from any non-terminal status (auto-regresses to DRAFT). Max 10 inspections. Trajectory-affecting field changes (drone, speed, coordinates, transit_agl, direction) regress the mission to DRAFT and set `has_unsaved_map_changes = True`. The existing flight plan row is intentionally kept so the frontend can render it as a stale reference until the operator triggers a fresh recompute. Terminal statuses are `COMPLETED` and `CANCELLED` only — `EXPORTED` is non-terminal and can still be deleted, transitioned to COMPLETED/CANCELLED, or duplicated.
 - **Airport** — owns surfaces, obstacles, safety zones via `add_surface()`, `add_obstacle()`, `add_safety_zone()`. Sets `airport_id` on child entities.
+- **Measurement** (`backend/app/domain/measurement/entities.py`, NOT the ORM model) — persistence-agnostic aggregate for one measurement run. Owns the status machine via `transition_to()` / `fail(msg)`, snapshots reference points off the inspection's LHAs at create, confirms operator light boxes (`confirm_boxes()`), and rolls measured transition angles up to PASS/FAIL (`score_light()` / `with_summaries_from()`). Persisted behind the `MeasurementRepository` port; the heavy per-frame results blob lives in object storage, referenced only by `object_key`.
 
 ### Value Objects (`backend/app/models/value_objects.py`)
 

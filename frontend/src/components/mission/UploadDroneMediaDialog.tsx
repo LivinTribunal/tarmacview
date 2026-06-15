@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import {
   closestCenter,
   DndContext,
@@ -19,8 +20,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Film, GripVertical, Loader2, Trash2, Upload } from "lucide-react";
+import { Film, GripVertical, Loader2, Play, Trash2, Upload } from "lucide-react";
 import Modal from "@/components/common/Modal";
+import MeasurementFlowDialog from "./MeasurementFlowDialog";
 import {
   completeDroneMediaUpload,
   deleteDroneMedia,
@@ -30,6 +32,7 @@ import {
   requestUploadUrl,
   uploadToPresignedUrl,
 } from "@/api/droneMedia";
+import { createMeasurement } from "@/api/measurements";
 import type {
   DroneMediaFileResponse,
   MissionInspectionMediaResponse,
@@ -326,11 +329,22 @@ export default function UploadDroneMediaDialog({
   missionId,
 }: UploadDroneMediaDialogProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [media, setMedia] = useState<MissionInspectionMediaResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyContainer, setBusyContainer] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [measureTarget, setMeasureTarget] = useState<{
+    inspectionId: string;
+    label: string;
+  } | null>(null);
+  // fire-all batch: started/failed tally surfaced after "Measure all"
+  const [batchStarting, setBatchStarting] = useState(false);
+  const [batchResult, setBatchResult] = useState<{
+    started: number;
+    failed: number;
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -355,7 +369,10 @@ export default function UploadDroneMediaDialog({
   );
 
   useEffect(() => {
-    if (isOpen) void fetchData({ spinner: true });
+    if (isOpen) {
+      setBatchResult(null);
+      void fetchData({ spinner: true });
+    }
   }, [isOpen, fetchData]);
 
   const containers: Container[] = useMemo(() => {
@@ -390,6 +407,12 @@ export default function UploadDroneMediaDialog({
     (id: string): Container | null =>
       containers.find((c) => c.id === id) ?? itemContainer.get(id) ?? null,
     [containers, itemContainer],
+  );
+
+  // inspections holding at least one uploaded clip - the fire-all batch targets these
+  const inspectionsWithMedia = useMemo(
+    () => media?.inspections.filter((group) => group.files.length > 0) ?? [],
+    [media],
   );
 
   async function handleUpload(inspectionId: string, files: File[]) {
@@ -429,6 +452,21 @@ export default function UploadDroneMediaDialog({
       setError(t("mission.uploadDroneMediaDialog.deleteError"));
     }
     await fetchData();
+  }
+
+  // fire one run per inspection-with-media at once - a single bad inspection must
+  // not abort the rest, so settle every call and tally started vs failed. the
+  // operator triages any AWAITING_CONFIRM runs from the measurements list.
+  async function handleMeasureAll() {
+    if (inspectionsWithMedia.length === 0 || batchStarting) return;
+    setBatchStarting(true);
+    setBatchResult(null);
+    const results = await Promise.allSettled(
+      inspectionsWithMedia.map((group) => createMeasurement(group.inspection_id)),
+    );
+    const started = results.filter((r) => r.status === "fulfilled").length;
+    setBatchResult({ started, failed: results.length - started });
+    setBatchStarting(false);
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -488,6 +526,7 @@ export default function UploadDroneMediaDialog({
     : null;
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -504,6 +543,59 @@ export default function UploadDroneMediaDialog({
         )}
 
         {error && <p className="text-xs text-tv-error">{error}</p>}
+
+        {!isLoading && hasInspections && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                disabled={inspectionsWithMedia.length === 0 || batchStarting}
+                onClick={handleMeasureAll}
+                data-testid="measure-all"
+                className="flex items-center gap-1.5 rounded-lg bg-tv-accent px-3 py-1.5 text-xs font-semibold text-tv-accent-text hover:opacity-90 disabled:opacity-50"
+              >
+                {batchStarting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+                {batchStarting
+                  ? t("mission.uploadDroneMediaDialog.measuringAll")
+                  : t("mission.uploadDroneMediaDialog.measureAll")}
+              </button>
+              {batchResult !== null && batchResult.started > 0 && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/operator-center/measurements")}
+                  data-testid="review-in-results"
+                  className="text-xs font-semibold text-tv-accent hover:underline"
+                >
+                  {t("mission.uploadDroneMediaDialog.reviewInResults")}
+                </button>
+              )}
+            </div>
+            {batchResult !== null && (
+              <p
+                className={`text-xs ${
+                  batchResult.started === 0 ? "text-tv-error" : "text-tv-text-secondary"
+                }`}
+                data-testid="measure-all-result"
+              >
+                {batchResult.started === 0
+                  ? t("mission.uploadDroneMediaDialog.measureAllError")
+                  : batchResult.failed > 0
+                    ? t("mission.uploadDroneMediaDialog.measureAllPartial", {
+                        started: batchResult.started,
+                        total: batchResult.started + batchResult.failed,
+                        failed: batchResult.failed,
+                      })
+                    : t("mission.uploadDroneMediaDialog.measureAllStarted", {
+                        count: batchResult.started,
+                      })}
+              </p>
+            )}
+          </div>
+        )}
 
         {!isLoading && media !== null && !hasInspections && (
           <p className="text-sm text-tv-text-secondary py-4">
@@ -537,6 +629,22 @@ export default function UploadDroneMediaDialog({
                       })}
                     </span>
                   </h3>
+                  {container.inspectionId !== null && container.files.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMeasureTarget({
+                          inspectionId: container.inspectionId!,
+                          label: container.label,
+                        })
+                      }
+                      data-testid={`measure-${container.inspectionId}`}
+                      className="flex items-center gap-1 rounded-lg bg-tv-accent px-2.5 py-1 text-xs font-semibold text-tv-accent-text hover:opacity-90"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                      {t("mission.uploadDroneMediaDialog.measure")}
+                    </button>
+                  )}
                 </div>
                 <DroppableContainer id={container.id}>
                   <SortableContext
@@ -580,5 +688,14 @@ export default function UploadDroneMediaDialog({
         )}
       </div>
     </Modal>
+    {measureTarget && (
+      <MeasurementFlowDialog
+        key={measureTarget.inspectionId}
+        inspectionId={measureTarget.inspectionId}
+        inspectionLabel={measureTarget.label}
+        onClose={() => setMeasureTarget(null)}
+      />
+    )}
+    </>
   );
 }

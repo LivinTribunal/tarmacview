@@ -7,8 +7,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-tarmacview}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tarmacview}
     restart: unless-stopped
+    # host port moved off the default 5432 to avoid colliding with a local
+    # postgres; container-internal port stays 5432 (DATABASE_URL uses postgres:5432).
+    # override with POSTGRES_HOST_PORT if even this collides.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-55432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/initdb:/docker-entrypoint-initdb.d:ro
@@ -214,8 +217,11 @@ services:
     image: redis:7-alpine
     container_name: tarmacview-redis
     restart: unless-stopped
+    # host port moved off the default 6379 to avoid colliding with a local redis;
+    # container-internal port stays 6379 (REDIS_URL uses redis:6379).
+    # override with REDIS_HOST_PORT if even this collides.
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-56379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:

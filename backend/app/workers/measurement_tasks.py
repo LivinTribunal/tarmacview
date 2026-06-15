@@ -8,6 +8,7 @@ celery (which only ships in the worker image). each task owns its own db session
 import logging
 from uuid import UUID
 
+from app.core.enums import MeasurementStatus
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -29,8 +30,16 @@ def _run(runner_name: str, measurement_id: str) -> str:
 
 @celery_app.task(name="workers.measurement.extract_first_frame")
 def extract_first_frame_task(measurement_id: str) -> str:
-    """extract the first frame and detect lights, then await operator confirmation."""
-    return _run("run_first_frame", measurement_id)
+    """extract the first frame and detect lights; chain processing when auto-confirmed.
+
+    a confident detection auto-confirms straight to PROCESSING, so the task enqueues full
+    processing itself (enqueue stays at the task boundary, mirroring how routes own it). an
+    uncertain detection parks at AWAITING_CONFIRM for the operator's confirm-lights call.
+    """
+    status = _run("run_first_frame", measurement_id)
+    if status == MeasurementStatus.PROCESSING.value:
+        process_measurement_task.delay(measurement_id)
+    return status
 
 
 @celery_app.task(name="workers.measurement.process")

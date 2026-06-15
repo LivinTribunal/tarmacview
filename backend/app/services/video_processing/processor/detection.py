@@ -20,6 +20,24 @@ logger = logging.getLogger(__name__)
 
 def detect_lights(image_path: str, reference_points: List[Dict]) -> Dict[str, Dict]:
     """Detect PAPI lights in image using advanced computer vision with line detection"""
+    positions, _confident = _detect_lights(image_path, reference_points)
+    return positions
+
+
+def detect_lights_with_confidence(
+    image_path: str, reference_points: List[Dict]
+) -> tuple[Dict[str, Dict], bool]:
+    """detect PAPI lights and report whether the detection is confident.
+
+    confident is true only when a coherent line of all four PAPI lights is found; every
+    fallback / default-positions / error path is not confident. callers use the flag to
+    auto-confirm a clean detection and keep the manual gate for everything uncertain.
+    """
+    return _detect_lights(image_path, reference_points)
+
+
+def _detect_lights(image_path: str, reference_points: List[Dict]) -> tuple[Dict[str, Dict], bool]:
+    """shared core for both detect_lights variants - returns (positions, confident)."""
     # Lazy import to avoid loading GPU dependencies at module level
     from ..detection import RunwayLightDetector
 
@@ -27,7 +45,7 @@ def detect_lights(image_path: str, reference_points: List[Dict]) -> Dict[str, Di
         img = cv2.imread(image_path)
         if img is None:
             logger.error(f"Could not load image: {image_path}")
-            return {}
+            return {}, False
 
         height, width = img.shape[:2]
         detector = RunwayLightDetector()
@@ -37,14 +55,14 @@ def detect_lights(image_path: str, reference_points: List[Dict]) -> Dict[str, Di
 
         if not detected_lights_list:
             logger.warning("No lights detected, using default positions")
-            return _generate_default_positions(width, height, reference_points)
+            return _generate_default_positions(width, height, reference_points), False
 
         # Enhanced PAPI detection with line-based approach
         papi_candidates = _filter_papi_candidates(detected_lights_list)
 
         if not papi_candidates:
             logger.warning("No high-intensity PAPI candidates found, using default positions")
-            return _generate_default_positions(width, height, reference_points)
+            return _generate_default_positions(width, height, reference_points), False
 
         # Find the best line of 4 PAPI lights
         best_papi_line = _find_best_papi_line(papi_candidates)
@@ -54,14 +72,15 @@ def detect_lights(image_path: str, reference_points: List[Dict]) -> Dict[str, Di
                 f"Found PAPI line with {len(best_papi_line)} lights, avg intensity:"
                 f" {np.mean([light.intensity for light in best_papi_line]):.1f}"
             )
-            return _convert_to_papi_positions(best_papi_line, width, height)
+            # a coherent line of all four lights is the one confident path
+            return _convert_to_papi_positions(best_papi_line, width, height), True
         else:
             logger.warning("No coherent PAPI light line found, using fallback method")
-            return _fallback_papi_detection(papi_candidates, width, height)
+            return _fallback_papi_detection(papi_candidates, width, height), False
 
     except Exception as e:
         logger.error(f"Error in light detection: {e}")
-        return _generate_default_positions(width, height, reference_points)
+        return _generate_default_positions(width, height, reference_points), False
 
 
 def _filter_papi_candidates(detected_lights_list: List[DetectedLight]) -> List[DetectedLight]:

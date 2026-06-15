@@ -140,11 +140,14 @@ A measurement run (the video-processing aggregate, separate from the mission) dr
 
 ```
 QUEUED → FIRST_FRAME → AWAITING_CONFIRM → PROCESSING → DONE
+                   └──── confident auto-confirm ────┘
    ↘          ↘              ↘                ↘
                           ERROR  (reachable from any non-terminal state)
 ```
 
-- QUEUED → FIRST_FRAME → AWAITING_CONFIRM: the worker extracts the first frame, detects/pre-places PAPI boxes, and parks for operator confirmation
+- QUEUED → FIRST_FRAME: the worker extracts the first frame and detects/pre-places PAPI boxes
+- FIRST_FRAME → AWAITING_CONFIRM: an uncertain detection (fallback / default positions) parks for operator confirmation
+- FIRST_FRAME → PROCESSING: a confident detection (a coherent line of all four PAPI lights) auto-confirms, skips the manual gate, and the worker chains full processing
 - AWAITING_CONFIRM → PROCESSING: operator confirms/adjusts boxes (`POST /measurements/{id}/confirm-lights`)
 - PROCESSING → DONE: the worker runs the two-pass engine, writes the gzipped results + annotated videos to object storage, and rolls up per-light PASS/FAIL
 - any non-terminal state → ERROR on engine/worker failure, recording `error_message`

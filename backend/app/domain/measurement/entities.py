@@ -93,6 +93,8 @@ class Measurement:
     inspection_id: UUID
     id: UUID = field(default_factory=uuid4)
     status: MeasurementStatus = MeasurementStatus.QUEUED
+    # operator-supplied free-text run name; blank falls back to the inspection label
+    label: str | None = None
     runway_heading: float | None = None
     reference_points: list[ReferencePoint] = field(default_factory=list)
     light_boxes: list[LightBox] = field(default_factory=list)

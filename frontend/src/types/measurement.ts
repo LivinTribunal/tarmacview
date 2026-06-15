@@ -19,11 +19,18 @@ export interface MeasurementListItem {
   inspection_method: InspectionMethod;
   inspection_sequence_order: number;
   status: MeasurementStatus;
+  // operator-supplied run name; blank falls back to the inspection label
+  label: string | null;
   created_at: string | null;
   has_results: boolean;
   pass_count: number;
   fail_count: number;
   error_message: string | null;
+}
+
+// partial update for a measurement - sets/clears its free-text label
+export interface MeasurementUpdate {
+  label: string | null;
 }
 
 export interface ReferencePoint {
@@ -65,6 +72,7 @@ export interface Measurement {
   id: string;
   inspection_id: string;
   status: MeasurementStatus;
+  label: string | null;
   error_message: string | null;
 }
 
@@ -113,6 +121,10 @@ export interface MeasurementResults {
   inspection_id: string;
   status: MeasurementStatus;
   has_results: boolean;
+  // run name + inspection context for the results-header blank-label fallback
+  label: string | null;
+  inspection_method: InspectionMethod | null;
+  inspection_sequence_order: number | null;
   runway_heading: number | null;
   reference_points: ReferencePoint[];
   summaries: LightSummary[];

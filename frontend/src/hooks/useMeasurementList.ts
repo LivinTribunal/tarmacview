@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listAirportMeasurements } from "@/api/measurements";
+import {
+  deleteMeasurement,
+  listAirportMeasurements,
+  updateMeasurement,
+} from "@/api/measurements";
 import useListFilters from "@/components/common/useListFilters";
 import useListSort, { type SortDir } from "@/components/common/useListSort";
 import type { BadgeStyle, FilterSpec } from "@/components/common/filterSpec";
@@ -52,6 +56,9 @@ export interface UseMeasurementListResult {
   loading: boolean;
   error: boolean;
   fetchRows: () => void;
+
+  handleDelete: (row: MeasurementListItem) => Promise<void>;
+  handleRename: (row: MeasurementListItem, label: string) => Promise<void>;
 
   search: string;
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -210,6 +217,32 @@ export default function useMeasurementList({
 
   const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
 
+  const handleDelete = useCallback(
+    async (row: MeasurementListItem) => {
+      /** delete a measurement run and refresh the list. */
+      try {
+        await deleteMeasurement(row.id);
+        fetchRows();
+      } catch {
+        // ignore
+      }
+    },
+    [fetchRows],
+  );
+
+  const handleRename = useCallback(
+    async (row: MeasurementListItem, label: string) => {
+      /** set/clear a run's label (blank clears to the inspection fallback). */
+      try {
+        await updateMeasurement(row.id, label.trim() || null);
+        fetchRows();
+      } catch {
+        // ignore
+      }
+    },
+    [fetchRows],
+  );
+
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearch(e.target.value);
@@ -228,6 +261,8 @@ export default function useMeasurementList({
     loading,
     error,
     fetchRows,
+    handleDelete,
+    handleRename,
     search,
     handleSearchChange,
     filterBar: bar,

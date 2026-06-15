@@ -95,12 +95,14 @@ describe("MeasurementFlowDialog", () => {
       id: "m1",
       inspection_id: "insp-1",
       status: "QUEUED",
+      label: null,
       error_message: null,
     });
     confirmMock.mockResolvedValueOnce({
       id: "m1",
       inspection_id: "insp-1",
       status: "PROCESSING",
+      label: null,
       error_message: null,
     });
     previewMock.mockResolvedValueOnce({

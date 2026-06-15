@@ -2,13 +2,18 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useAirport } from "@/contexts/AirportContext";
+import Button from "@/components/common/Button";
+import Input from "@/components/common/Input";
+import Modal from "@/components/common/Modal";
 import {
   ListPageContainer,
   ListPageContent,
   Pagination,
   SearchBar,
 } from "@/components/common/ListPageLayout";
-import MeasurementListTable from "@/components/results/MeasurementListTable";
+import MeasurementListTable, {
+  measurementDisplayName,
+} from "@/components/results/MeasurementListTable";
 import MeasurementFlowDialog from "@/components/mission/MeasurementFlowDialog";
 import useMeasurementList from "@/hooks/useMeasurementList";
 import type { MeasurementListItem } from "@/types/measurement";
@@ -34,6 +39,9 @@ export default function MeasurementsListPage() {
 
   const list = useMeasurementList({ airportId: selectedAirport?.id });
   const [resumeTarget, setResumeTarget] = useState<ResumeTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MeasurementListItem | null>(null);
+  const [renameTarget, setRenameTarget] = useState<MeasurementListItem | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   if (!selectedAirport) {
     return (
@@ -75,6 +83,19 @@ export default function MeasurementsListPage() {
     list.fetchRows();
   }
 
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    await list.handleDelete(deleteTarget);
+    setDeleteTarget(null);
+  }
+
+  // a blank label is valid - it clears the run name back to the inspection fallback
+  async function handleRenameConfirm() {
+    if (!renameTarget) return;
+    await list.handleRename(renameTarget, renameValue);
+    setRenameTarget(null);
+  }
+
   return (
     <ListPageContainer>
       <SearchBar
@@ -97,6 +118,11 @@ export default function MeasurementsListPage() {
             sortDir={list.sortDir}
             onSort={list.handleSort}
             onRowClick={handleRowClick}
+            onRename={(row) => {
+              setRenameTarget(row);
+              setRenameValue(row.label ?? "");
+            }}
+            onDelete={setDeleteTarget}
             onRetry={list.fetchRows}
           />
         </div>
@@ -121,6 +147,63 @@ export default function MeasurementsListPage() {
           onClose={handleResumeClose}
         />
       )}
+
+      <Modal
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={t("common.delete")}
+      >
+        <p className="text-sm text-tv-text-primary mb-6">
+          {t("measurementsList.deleteConfirm", {
+            name: deleteTarget ? measurementDisplayName(deleteTarget, t) : "",
+          })}
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteConfirm}
+            data-testid="confirm-delete-measurement"
+          >
+            {t("common.delete")}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={renameTarget !== null}
+        onClose={() => setRenameTarget(null)}
+        title={t("measurementsList.renameTitle")}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleRenameConfirm();
+          }}
+        >
+          <Input
+            id="measurement-rename-input"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder={t("measurementsList.renamePlaceholder")}
+            data-testid="measurement-rename-input"
+          />
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setRenameTarget(null)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" data-testid="confirm-rename-measurement">
+              {t("common.save")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </ListPageContainer>
   );
 }

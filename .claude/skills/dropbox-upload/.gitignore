@@ -1,0 +1,2 @@
+# local credentials minted by `--auth` - never commit
+.env

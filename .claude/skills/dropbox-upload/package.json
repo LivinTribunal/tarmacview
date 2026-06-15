@@ -1,0 +1,6 @@
+{
+  "name": "dropbox-upload-skill",
+  "private": true,
+  "description": "Self-contained uploader for the dropbox-upload skill. CommonJS so upload-dropbox.js runs regardless of the parent project's module type.",
+  "type": "commonjs"
+}

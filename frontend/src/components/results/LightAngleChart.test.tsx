@@ -60,4 +60,16 @@ describe("LightAngleChart", () => {
     render(<LightAngleChart lights={[empty]} />);
     expect(screen.getByText("results.noData")).toBeInTheDocument();
   });
+
+  it("shades the red/white transition zones from the light's transition band", () => {
+    const { container } = render(<LightAngleChart lights={[series({})]} />);
+    // one red band (min->middle) + one white band (middle->max) per banded light
+    expect(container.querySelectorAll(".recharts-reference-area")).toHaveLength(2);
+  });
+
+  it("omits transition zones when the band is incomplete", () => {
+    const noBand = series({ transition_angle_max: null });
+    const { container } = render(<LightAngleChart lights={[noBand]} />);
+    expect(container.querySelector(".recharts-reference-area")).toBeNull();
+  });
 });

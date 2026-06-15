@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { LightSeries } from "@/types/measurement";
 import LightTimeseriesChart from "./LightTimeseriesChart";
 
-/** per-light elevation angle over time, with transition-middle reference lines. */
+/** per-light elevation angle over time, with shaded red/white transition zones. */
 export default function LightAngleChart({ lights }: { lights: LightSeries[] }) {
   const { t } = useTranslation();
   return (
@@ -12,6 +12,7 @@ export default function LightAngleChart({ lights }: { lights: LightSeries[] }) {
       field="angle"
       yLabel={t("results.charts.angleUnit")}
       showTransitionLines
+      showTransitionZones
     />
   );
 }

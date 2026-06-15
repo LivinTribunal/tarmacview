@@ -30,6 +30,7 @@ from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRep
 from app.models.agl import LHA
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
+from app.models.mission import Mission
 from app.schemas.measurement import (
     DronePathPoint,
     LightSeries,
@@ -209,8 +210,10 @@ def get_measurement(db: Session, measurement_id: UUID) -> Measurement:
     return measurement
 
 
-def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementListItemResponse:
-    """map an aggregate + its inspection context to one list row.
+def _list_item(
+    measurement: Measurement, inspection: Inspection, mission: Mission
+) -> MeasurementListItemResponse:
+    """map an aggregate + its mission/inspection context to one list row.
 
     PASS/FAIL counts and has_results derive from the aggregate's summaries +
     object_key so the row carries everything the list page routes on.
@@ -223,6 +226,8 @@ def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementL
     return MeasurementListItemResponse(
         id=measurement.id,
         inspection_id=measurement.inspection_id,
+        mission_id=mission.id,
+        mission_name=mission.name,
         inspection_method=inspection.method,
         inspection_sequence_order=inspection.sequence_order,
         status=measurement.status.value,
@@ -234,17 +239,22 @@ def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementL
     )
 
 
-def list_mission_measurements(db: Session, mission_id: UUID) -> list[MeasurementListItemResponse]:
-    """every measurement across a mission's inspections, newest first.
+def list_airport_measurements(db: Session, airport_id: UUID) -> list[MeasurementListItemResponse]:
+    """every measurement across an airport's missions/inspections, newest first.
 
-    the inspection set is fetched once and the measurements in one batched read off
-    those ids - no per-row inspection lookup. the caller (route) has already verified
-    the mission exists and the user may access it.
+    the inspection set (joined to its mission for name + scoping) is fetched once and
+    the measurements in one batched read off those ids - no per-row lookup. the caller
+    (route) has already verified the user may access the airport.
     """
-    inspections = db.query(Inspection).filter(Inspection.mission_id == mission_id).all()
-    by_id = {insp.id: insp for insp in inspections}
-    measurements = _repo(db).list_by_inspections(list(by_id.keys()))
-    return [_list_item(m, by_id[m.inspection_id]) for m in measurements]
+    rows = (
+        db.query(Inspection, Mission)
+        .join(Mission, Inspection.mission_id == Mission.id)
+        .filter(Mission.airport_id == airport_id)
+        .all()
+    )
+    context = {insp.id: (insp, mission) for insp, mission in rows}
+    measurements = _repo(db).list_by_inspections(list(context.keys()))
+    return [_list_item(m, *context[m.inspection_id]) for m in measurements]
 
 
 def airport_id_for_inspection(db: Session, inspection_id: UUID):

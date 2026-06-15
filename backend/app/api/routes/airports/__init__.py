@@ -7,6 +7,7 @@ from app.api.dependencies import CoordinatorUser, OperatorUser, get_user_airport
 from app.api.routes.airports.agls import router as agls_router
 from app.api.routes.airports.core import router as core_router
 from app.api.routes.airports.lhas import router as lhas_router
+from app.api.routes.airports.measurements import router as measurements_router
 from app.api.routes.airports.obstacles import router as obstacles_router
 from app.api.routes.airports.photo_metadata import router as photo_metadata_router
 from app.api.routes.airports.safety_zones import router as safety_zones_router
@@ -83,5 +84,6 @@ router.include_router(obstacles_router)
 router.include_router(safety_zones_router)
 router.include_router(agls_router)
 router.include_router(lhas_router)
+router.include_router(measurements_router)
 
 __all__ = ["router"]

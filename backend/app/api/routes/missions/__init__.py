@@ -38,7 +38,7 @@ from app.services import (
 )
 from app.utils.audit import log_audit
 
-from . import core, inspections, measurements
+from . import core, inspections
 
 router = APIRouter(prefix="/api/v1/missions", tags=["missions"])
 
@@ -102,11 +102,9 @@ def create_mission(
 
 # sub-routers included in source-block order so FastAPI's in-order path matching
 # stays byte-identical to the pre-split single-file router. inspections.py keeps
-# the reorder route declared before /{inspection_id} internally. measurements is a
-# read-only list whose /{mission_id}/measurements suffix never shadows core's siblings.
+# the reorder route declared before /{inspection_id} internally.
 router.include_router(core.router)
 router.include_router(inspections.router)
-router.include_router(measurements.router)
 
 __all__ = [
     "router",

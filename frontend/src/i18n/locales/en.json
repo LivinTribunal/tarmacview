@@ -2143,9 +2143,10 @@
   },
   "measurementsList": {
     "title": "Measurements",
-    "subtitle": "Runs for {{mission}}",
-    "noMissionOpen": "Open a mission to see its measurement results.",
-    "empty": "No measurements yet for this mission. Start one from the drone media upload.",
+    "searchPlaceholder": "Search results by mission or method...",
+    "empty": "No measurements yet for this airport. Start one from the drone media upload.",
+    "noMatch": "No measurements match your search",
+    "showing": "Showing {{from}}-{{to}} of {{total}}",
     "loadError": "Could not load measurements.",
     "retry": "Retry",
     "inspectionLabel": "Inspection {{order}} · {{method}}",
@@ -2153,6 +2154,13 @@
     "review": "Review",
     "watch": "View progress",
     "passFail": "{{pass}} PASS / {{fail}} FAIL",
+    "columns": {
+      "mission": "Mission",
+      "inspection": "Inspection",
+      "status": "Status",
+      "date": "Date",
+      "result": "Result"
+    },
     "status": {
       "QUEUED": "Queued",
       "FIRST_FRAME": "Extracting first frame",
@@ -2192,6 +2200,11 @@
       "chromaticity": "Chromaticity (red fraction) over time",
       "chromaticityUnit": "r / (r+g+b)",
       "timeAxis": "Time (s)"
+    },
+    "climb": {
+      "title": "Climb profile",
+      "elevationUnit": "Elevation (m)",
+      "noData": "No elevation recorded."
     },
     "map": {
       "title": "Drone path",

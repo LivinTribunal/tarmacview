@@ -2147,9 +2147,10 @@
   },
   "measurementsList": {
     "title": "Merania",
-    "subtitle": "Behy pre {{mission}}",
-    "noMissionOpen": "Otvorte misiu, aby ste videli jej výsledky meraní.",
-    "empty": "Pre túto misiu zatiaľ nie sú žiadne merania. Spustite ich pri nahrávaní záznamu z dronu.",
+    "searchPlaceholder": "Hľadať výsledky podľa misie alebo metódy...",
+    "empty": "Pre toto letisko zatiaľ nie sú žiadne merania. Spustite ich pri nahrávaní záznamu z dronu.",
+    "noMatch": "Žiadne merania nezodpovedajú vášmu hľadaniu",
+    "showing": "Zobrazené {{from}}-{{to}} z {{total}}",
     "loadError": "Merania sa nepodarilo načítať.",
     "retry": "Skúsiť znova",
     "inspectionLabel": "Inšpekcia {{order}} · {{method}}",
@@ -2157,6 +2158,13 @@
     "review": "Skontrolovať",
     "watch": "Zobraziť priebeh",
     "passFail": "{{pass}} VYHOVUJE / {{fail}} NEVYHOVUJE",
+    "columns": {
+      "mission": "Misia",
+      "inspection": "Inšpekcia",
+      "status": "Stav",
+      "date": "Dátum",
+      "result": "Výsledok"
+    },
     "status": {
       "QUEUED": "V poradí",
       "FIRST_FRAME": "Extrahuje sa prvá snímka",
@@ -2196,6 +2204,11 @@
       "chromaticity": "Chromatickosť (podiel červenej) v čase",
       "chromaticityUnit": "r / (r+g+b)",
       "timeAxis": "Čas (s)"
+    },
+    "climb": {
+      "title": "Profil stúpania",
+      "elevationUnit": "Výška (m)",
+      "noData": "Nezaznamenaná žiadna výška."
     },
     "map": {
       "title": "Trasa dronu",

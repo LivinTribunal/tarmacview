@@ -170,11 +170,9 @@ def test_missions_router_surface_and_order_preserved():
     from app.api.routes.missions import router
     from app.api.routes.missions.core import router as core_router
     from app.api.routes.missions.inspections import router as inspections_router
-    from app.api.routes.missions.measurements import router as measurements_router
 
     assert core_router is not None
     assert inspections_router is not None
-    assert measurements_router is not None
 
     registered = [
         (sorted(m for m in r.methods if m != "HEAD")[0], r.path, r.endpoint.__name__)
@@ -205,11 +203,6 @@ def test_missions_router_surface_and_order_preserved():
             "DELETE",
             "/api/v1/missions/{mission_id}/inspections/{inspection_id}",
             "delete_inspection",
-        ),
-        (
-            "GET",
-            "/api/v1/missions/{mission_id}/measurements",
-            "list_mission_measurements",
         ),
     ]
     assert registered == expected

@@ -3,6 +3,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -11,7 +12,7 @@ import {
 } from "recharts";
 import { useTranslation } from "react-i18next";
 import type { LightSeries, LightSeriesPoint } from "@/types/measurement";
-import { CHART_COLORS } from "@/constants/palette";
+import { CHART_COLORS, CHART_ZONE_COLORS } from "@/constants/palette";
 import { lightColor } from "./chartColors";
 
 interface LightTimeseriesChartProps {
@@ -21,6 +22,23 @@ interface LightTimeseriesChartProps {
   yLabel: string;
   // draw a horizontal reference line at each light's transition middle angle
   showTransitionLines?: boolean;
+  // shade each light's red (below middle) and white (above middle) transition bands
+  showTransitionZones?: boolean;
+}
+
+/** a light whose full transition band (min/middle/max) is known. */
+function hasTransitionBand(
+  light: LightSeries,
+): light is LightSeries & {
+  transition_angle_min: number;
+  transition_angle_middle: number;
+  transition_angle_max: number;
+} {
+  return (
+    light.transition_angle_min !== null &&
+    light.transition_angle_middle !== null &&
+    light.transition_angle_max !== null
+  );
 }
 
 /** shared recharts line chart - one line per light over the frame timestamp. */
@@ -30,6 +48,7 @@ export default function LightTimeseriesChart({
   field,
   yLabel,
   showTransitionLines = false,
+  showTransitionZones = false,
 }: LightTimeseriesChartProps) {
   const { t } = useTranslation();
   const hasData = lights.some((light) =>
@@ -75,6 +94,25 @@ export default function LightTimeseriesChart({
               labelFormatter={(v) => `${Number(v).toFixed(2)} s`}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
+            {showTransitionZones &&
+              lights.filter(hasTransitionBand).flatMap((light) => [
+                <ReferenceArea
+                  key={`zone-red-${light.light_name}`}
+                  y1={light.transition_angle_min}
+                  y2={light.transition_angle_middle}
+                  fill={CHART_ZONE_COLORS.RED}
+                  fillOpacity={0.12}
+                  ifOverflow="extendDomain"
+                />,
+                <ReferenceArea
+                  key={`zone-white-${light.light_name}`}
+                  y1={light.transition_angle_middle}
+                  y2={light.transition_angle_max}
+                  fill={CHART_ZONE_COLORS.WHITE}
+                  fillOpacity={0.18}
+                  ifOverflow="extendDomain"
+                />,
+              ])}
             {lights.map((light) =>
               light.points.some((p) => p[field] !== null) ? (
                 <Line

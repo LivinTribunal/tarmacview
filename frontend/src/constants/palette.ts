@@ -73,6 +73,14 @@ export const CHART_COLORS = {
   GRID: "#e9e9e9",
 };
 
+// PAPI transition-zone shading on the per-light angle chart: below the transition
+// middle the light reads red, above it reads white. low-opacity fills so the bands
+// of all four lights can overlap without muddying the lines.
+export const CHART_ZONE_COLORS = {
+  RED: "#e54545",
+  WHITE: "#9aa7bd",
+};
+
 // qr modules must stay true black regardless of theme so scanners read them
 // reliably, so this is a fixed hex rather than a --tv-* variable.
 export const QR_DARK = "#000000";

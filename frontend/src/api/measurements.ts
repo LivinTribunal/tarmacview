@@ -17,11 +17,11 @@ export async function createMeasurement(
   return res.data;
 }
 
-/** every measurement across a mission's inspections, newest first. */
-export async function listMissionMeasurements(
-  missionId: string,
+/** every measurement across an airport's missions/inspections, newest first. */
+export async function listAirportMeasurements(
+  airportId: string,
 ): Promise<MeasurementListItem[]> {
-  const res = await client.get(`/missions/${missionId}/measurements`);
+  const res = await client.get(`/airports/${airportId}/measurements`);
   return res.data;
 }
 

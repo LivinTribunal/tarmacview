@@ -23,6 +23,7 @@ EXPECTED_ROUTES = {
     ("PUT", "/api/v1/airports/{airport_id}/default-drone", "set_default_drone"),
     ("POST", "/api/v1/airports/{airport_id}/bulk-change-drone", "bulk_change_drone"),
     ("GET", "/api/v1/airports/{airport_id}/elevation", "get_elevation_at_point"),
+    ("GET", "/api/v1/airports/{airport_id}/measurements", "list_airport_measurements"),
     ("POST", "/api/v1/airports/{airport_id}/terrain-dem", "upload_terrain_dem"),
     ("DELETE", "/api/v1/airports/{airport_id}/terrain-dem", "delete_terrain_dem"),
     ("POST", "/api/v1/airports/{airport_id}/terrain-download", "download_terrain_data"),

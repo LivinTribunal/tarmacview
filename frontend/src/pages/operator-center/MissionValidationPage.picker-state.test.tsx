@@ -94,6 +94,10 @@ vi.mock("@/contexts/AirportContext", () => ({
   useAirport: () => stableAirportContext,
 }));
 
+vi.mock("@/contexts/MissionContext", () => ({
+  useMission: () => ({ selectedMission: null, setSelectedMission: vi.fn() }),
+}));
+
 vi.mock("@/components/map/AirportMap", () => ({
   default: () => <div data-testid="airport-map" />,
 }));

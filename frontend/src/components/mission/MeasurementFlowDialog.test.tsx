@@ -141,4 +141,35 @@ describe("MeasurementFlowDialog", () => {
     expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements/m1/results");
     vi.useRealTimers();
   });
+
+  it("resumes an existing run at the confirm step without creating one", async () => {
+    statusMock.mockResolvedValueOnce({
+      id: "m9",
+      status: "AWAITING_CONFIRM",
+      error_message: null,
+    });
+    previewMock.mockResolvedValueOnce({
+      id: "m9",
+      status: "AWAITING_CONFIRM",
+      first_frame_url: "http://localhost:9000/frame.jpg",
+      boxes: [{ light_name: "PAPI_A", x: 50, y: 50, size: 8 }],
+    });
+
+    render(
+      <MeasurementFlowDialog
+        inspectionId="insp-1"
+        inspectionLabel="Inspection 1 · HORIZONTAL_RANGE"
+        resumeMeasurementId="m9"
+        onClose={vi.fn()}
+      />,
+    );
+    // status fetch resolves -> AWAITING_CONFIRM, then the preview loads the confirm UI
+    await flush();
+    await flush();
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith("m9");
+    expect(screen.getByTestId("light-box-PAPI_A")).toBeInTheDocument();
+    vi.useRealTimers();
+  });
 });

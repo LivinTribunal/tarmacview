@@ -46,6 +46,8 @@ export interface ExportPanelProps {
   onDismissClampWarning?: () => void;
   /** refetch after a dispatch - the mission may transition VALIDATED -> EXPORTED. */
   onDispatched?: () => void;
+  /** open the mission's measurements list (results entry point). */
+  onViewResults?: () => void;
 }
 
 function canExport(status: MissionStatus): boolean {
@@ -71,6 +73,7 @@ export default function ExportPanel({
   clampWarning = null,
   onDismissClampWarning,
   onDispatched,
+  onViewResults,
 }: ExportPanelProps) {
   /** flight-plan export, report download, and mission lifecycle controls. */
   const { t } = useTranslation();
@@ -307,6 +310,17 @@ export default function ExportPanel({
         isDownloadingReport={isDownloadingReport}
         hasFlightPlan={hasFlightPlan}
       />
+
+      {onViewResults && (
+        <Button
+          variant="secondary"
+          onClick={onViewResults}
+          className="w-full"
+          data-testid="view-results-btn"
+        >
+          {t("measurementsList.viewResults")}
+        </Button>
+      )}
 
       {statsSlot}
 

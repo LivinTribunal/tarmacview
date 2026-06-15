@@ -1,5 +1,7 @@
 // measurement results types - mirror app/schemas/measurement.py results DTOs
 
+import type { InspectionMethod } from "./enums";
+
 export type MeasurementStatus =
   | "QUEUED"
   | "FIRST_FRAME"
@@ -7,6 +9,20 @@ export type MeasurementStatus =
   | "PROCESSING"
   | "DONE"
   | "ERROR";
+
+// one row of the mission measurements list - status + inspection context + rollup
+export interface MeasurementListItem {
+  id: string;
+  inspection_id: string;
+  inspection_method: InspectionMethod;
+  inspection_sequence_order: number;
+  status: MeasurementStatus;
+  created_at: string | null;
+  has_results: boolean;
+  pass_count: number;
+  fail_count: number;
+  error_message: string | null;
+}
 
 export interface ReferencePoint {
   light_name: string;

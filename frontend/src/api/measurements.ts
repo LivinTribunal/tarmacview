@@ -1,6 +1,7 @@
 import type {
   LightBox,
   Measurement,
+  MeasurementListItem,
   MeasurementPreview,
   MeasurementResults,
   MeasurementStatusResponse,
@@ -13,6 +14,14 @@ export async function createMeasurement(
   inspectionId: string,
 ): Promise<Measurement> {
   const res = await client.post(`/inspections/${inspectionId}/measurement`);
+  return res.data;
+}
+
+/** every measurement across a mission's inspections, newest first. */
+export async function listMissionMeasurements(
+  missionId: string,
+): Promise<MeasurementListItem[]> {
+  const res = await client.get(`/missions/${missionId}/measurements`);
   return res.data;
 }
 

@@ -15,6 +15,8 @@ import type { LightBox, MeasurementStatus } from "@/types/measurement";
 interface MeasurementFlowDialogProps {
   inspectionId: string;
   inspectionLabel: string;
+  /** resume an existing run: open at its current step instead of starting a new one. */
+  resumeMeasurementId?: string;
   onClose: () => void;
 }
 
@@ -41,12 +43,15 @@ function clampPct(value: number): number {
 export default function MeasurementFlowDialog({
   inspectionId,
   inspectionLabel,
+  resumeMeasurementId,
   onClose,
 }: MeasurementFlowDialogProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [measurementId, setMeasurementId] = useState<string | null>(null);
+  const [measurementId, setMeasurementId] = useState<string | null>(
+    resumeMeasurementId ?? null,
+  );
   const [status, setStatus] = useState<MeasurementStatus | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uiError, setUiError] = useState<string | null>(null);
@@ -67,12 +72,20 @@ export default function MeasurementFlowDialog({
     };
   }, []);
 
-  // start the run once - createMeasurement reads the inspection's uploaded media server-side
+  // start a fresh run, or in resume mode seed the current status of an existing one.
+  // createMeasurement reads the inspection's uploaded media server-side.
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
     void (async () => {
       try {
+        if (resumeMeasurementId) {
+          const s = await getMeasurementStatus(resumeMeasurementId);
+          if (!mountedRef.current) return;
+          setStatus(s.status);
+          if (s.status === "ERROR") setErrorMessage(s.error_message);
+          return;
+        }
         const m = await createMeasurement(inspectionId);
         if (!mountedRef.current) return;
         setMeasurementId(m.id);
@@ -82,7 +95,7 @@ export default function MeasurementFlowDialog({
         setUiError(apiErrorMessage(err, t("mission.measurementFlow.startError")));
       }
     })();
-  }, [inspectionId, t]);
+  }, [inspectionId, resumeMeasurementId, t]);
 
   // poll while the worker is busy; stops on AWAITING_CONFIRM / DONE / ERROR
   useEffect(() => {
@@ -147,7 +160,8 @@ export default function MeasurementFlowDialog({
 
   const phaseLabel = (() => {
     if (uiError) return null;
-    if (measurementId === null) return t("mission.measurementFlow.starting");
+    if (measurementId === null || status === null)
+      return t("mission.measurementFlow.starting");
     if (status === "QUEUED") return t("mission.measurementFlow.phase.queued");
     if (status === "FIRST_FRAME") return t("mission.measurementFlow.phase.firstFrame");
     if (status === "PROCESSING") return t("mission.measurementFlow.phase.processing");

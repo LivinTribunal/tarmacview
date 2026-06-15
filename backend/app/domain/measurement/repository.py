@@ -23,5 +23,9 @@ class MeasurementRepository(ABC):
         """all measurements for one inspection, newest first."""
 
     @abstractmethod
+    def list_by_inspections(self, inspection_ids: list[UUID]) -> list[Measurement]:
+        """all measurements across many inspections, newest first (one batched read)."""
+
+    @abstractmethod
     def save(self, measurement: Measurement) -> Measurement:
         """insert or update one aggregate and return the persisted form."""

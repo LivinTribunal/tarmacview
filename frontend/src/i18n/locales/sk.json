@@ -2114,6 +2114,27 @@
     "webglUnsupported": "WebGL nie je podporovaný",
     "webglUnsupportedHint": "Táto aplikácia vyžaduje WebGL na vykresľovanie máp a 3D pohľadov. Použite moderný prehliadač s povolenou hardvérovou akceleráciou."
   },
+  "measurementsList": {
+    "title": "Merania",
+    "subtitle": "Behy pre {{mission}}",
+    "noMissionOpen": "Otvorte misiu, aby ste videli jej výsledky meraní.",
+    "empty": "Pre túto misiu zatiaľ nie sú žiadne merania. Spustite ich pri nahrávaní záznamu z dronu.",
+    "loadError": "Merania sa nepodarilo načítať.",
+    "retry": "Skúsiť znova",
+    "inspectionLabel": "Inšpekcia {{order}} · {{method}}",
+    "viewResults": "Zobraziť výsledky",
+    "review": "Skontrolovať",
+    "watch": "Zobraziť priebeh",
+    "passFail": "{{pass}} VYHOVUJE / {{fail}} NEVYHOVUJE",
+    "status": {
+      "QUEUED": "V poradí",
+      "FIRST_FRAME": "Extrahuje sa prvá snímka",
+      "AWAITING_CONFIRM": "Vyžaduje kontrolu",
+      "PROCESSING": "Spracováva sa",
+      "DONE": "Hotovo",
+      "ERROR": "Zlyhalo"
+    }
+  },
   "results": {
     "title": "Výsledky merania",
     "status": "Stav: {{status}}",

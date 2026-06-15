@@ -159,7 +159,7 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 
 **Layout:**
 - Top nav: TarmacView Mission Control Center | Dashboard | **Missions** | Airport | Results | Selected Airport dropdown | Username dropdown
-- "Results" tab: placeholder, inaccessible, out of thesis scope (shows inspection results from drone data + computer vision)
+- "Results" tab: live — routes to `/operator-center/measurements`, the mission-scoped measurements list (Page 15). Reads the open mission from `MissionContext`; shows a "no mission open" prompt when none is selected
 - "Configurator" access: only in Username dropdown menu, visible only to Coordinators
 - Light/Dark mode toggle and EN/SK language switcher live inside the username dropdown menu
 
@@ -550,6 +550,26 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 **Route:** `/coordinator-center/inspections`
 
 **Needed:** Same pattern as airport list and drone list. Search, filters, list, Add New. First item in dropdown is also "Add New." List Item Action Pattern applies.
+
+---
+
+### Page 15 — Results: Mission Measurements List (Operator)
+
+**Route:** `/operator-center/measurements` (the now-live "Results" top-nav tab)
+
+**Source:** `GET /api/v1/missions/{mission_id}/measurements`, scoped to the open mission read from `MissionContext`. One row per measurement run across the mission's inspections, newest first.
+
+**Layout:** centered single-column list. Header: "Measurements" + "Runs for {mission}". Each row (`Card`) carries the inspection label (`Inspection {order} · {method}`), a status chip, the created date, and the one action that fits the run's phase.
+
+**Row routing by status:**
+- `DONE` — PASS/FAIL rollup (`{pass} PASS / {fail} FAIL`) + "View results" → `/operator-center/measurements/{id}/results`.
+- `AWAITING_CONFIRM` — "Review" → reopens `MeasurementFlowDialog` at the confirm step (`resumeMeasurementId` seeds the status and skips `createMeasurement`).
+- `QUEUED` / `FIRST_FRAME` / `PROCESSING` — spinner chip + "View progress" → `MeasurementFlowDialog` to watch the run.
+- `ERROR` — inline error message, no action.
+
+**States:** no mission open → "Open a mission to see its measurement results." Loading spinner. Empty → "No measurements yet for this mission. Start one from the drone media upload." Load failure → error card with Retry. Resuming an `AWAITING_CONFIRM` run may finish it, so the list refetches on dialog close.
+
+**Entry points:** the navbar "Results" tab, plus the "View results" button in `ExportPanel` on Page 08 (marks the mission open in context, then navigates). Strings under `measurementsList.*` (EN + SK); `MeasurementListItem` in `frontend/src/types/measurement.ts` mirrors `MeasurementListItemResponse`.
 
 ---
 

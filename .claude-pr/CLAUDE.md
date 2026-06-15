@@ -213,7 +213,7 @@ State machine labels (created automatically by harnext):
 
 ### Runner Topology
 
-- **Self-hosted** (your Mac, registered as `harnext-cbbe54556b22`): `harnext-verify.yml` only — needs local browser, Postgres, ffmpeg.
+- **Self-hosted** (your Mac, registered as `harnext-tarmacview`): `harnext-verify.yml` only — needs local browser, Postgres, ffmpeg.
 - **GitHub-hosted** (`ubuntu-latest`): every other stage. Authenticates to Claude Code via `CLAUDE_CODE_OAUTH_TOKEN` repo secret.
 
 Manage the runner with `harnext runner status` / `harnext runner logs`. Re-run `harnext setup` to reconfigure.

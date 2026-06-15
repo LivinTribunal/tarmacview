@@ -21,7 +21,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.label.name == 'harnext:verify'
-    runs-on: ['self-hosted', 'harnext', 'harnext-cbbe54556b22']
+    runs-on: ['self-hosted', 'harnext', 'harnext-tarmacview']
     # failsafe: the claude-code-action bun wrapper has hung indefinitely
     # in past runs (SDK reports success, then bun waits on stdio pipes
     # from leftover MCP servers / playwright chromium / dev servers and
@@ -95,6 +95,12 @@ jobs:
           VERIFY_BACKEND_URL: http://localhost:8001
           VERIFY_FRONTEND_URL: http://localhost:5174
           GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          # dropbox-upload skill: makes the proof video a shareable link in the
+          # PR comment instead of a runner-local path. best-effort - if these
+          # are unset the upload is skipped and the local path is cited instead.
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
         uses: anthropics/claude-code-action@v1
         with:
           # OAuth via the Claude Code GitHub App — usage counts against the
@@ -170,6 +176,7 @@ jobs:
             Artifact handling:
             - Copy the four artifacts (video, HAR, trace, final screenshot) out of the ephemeral worktree into `~/harnext-artifacts/$RUN_ID/`. Do NOT leave them under `~/.harnext/artifacts/...` — snap-confined viewers (VLC snap, Firefox snap) cannot open dot-directories, so the comment's cited paths must resolve.
             - If only a `recording.webm` exists, convert it: `ffmpeg -y -i ~/harnext-artifacts/$RUN_ID/recording.webm -c:v libx264 -preset veryfast -crf 23 ~/harnext-artifacts/$RUN_ID/recording.mp4`. Playwright's webm has stream-level `duration=N/A` which the VLC snap refuses to play. Cite `.mp4` if conversion succeeded; cite `.webm` only as fallback.
+            - **Upload the proof video to Dropbox for a shareable link.** Run `VIDEO_URL=$(node .claude/skills/dropbox-upload/upload-dropbox.js ~/harnext-artifacts/$RUN_ID/recording.mp4)` (use the `.webm` if no `.mp4`). The `DROPBOX_*` env is set from GitHub secrets. This is BEST-EFFORT: if the env is absent or the script exits non-zero, do NOT fail the stage - just cite the local path instead. When it succeeds, cite `$VIDEO_URL` in the final report as the primary "proof video" link (a runner-local path is useless to anyone reading the PR), with the local path as a secondary reference.
 
             FAIL the stage on ANY of:
             - Non-zero exit from the `browser-verify` skill
@@ -193,7 +200,7 @@ jobs:
             ```
             gh api -X PATCH repos/:owner/:repo/issues/comments/$COMMENT_ID --field body=@<final-report.md>
             ```
-            Final report includes: each gate name + exit code, UI verification verdict (PASS/FAIL/SKIPPED-NO-UI-SURFACE) with the asserted behavior in one sentence, cited artifact paths under `~/harnext-artifacts/$RUN_ID/` (must include the `<label>.element.png` for any rendered-value claim — NOT just `final.png`), and any commits you pushed.
+            Final report includes: each gate name + exit code, UI verification verdict (PASS/FAIL/SKIPPED-NO-UI-SURFACE) with the asserted behavior in one sentence, cited artifact paths under `~/harnext-artifacts/$RUN_ID/` (must include the `<label>.element.png` for any rendered-value claim — NOT just `final.png`), the Dropbox `$VIDEO_URL` for the proof video when the upload succeeded, and any commits you pushed.
           # --dangerously-skip-permissions bypasses the tool allowlist and
           # per-call permission prompts. safe here because verify runs on the
           # self-hosted runner against an ephemeral stack, and the agent needs

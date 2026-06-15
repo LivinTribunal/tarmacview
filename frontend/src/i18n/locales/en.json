@@ -1137,7 +1137,29 @@
       "confirmIngest": "Confirm Ingest",
       "confirming": "Confirming...",
       "assignTo": "Assign to mission",
-      "noCaptureTime": "No capture time"
+      "noCaptureTime": "No capture time",
+      "measure": "Measure"
+    },
+    "measurementFlow": {
+      "title": "Measure PAPI lights",
+      "starting": "Starting measurement…",
+      "phase": {
+        "queued": "Queued…",
+        "firstFrame": "Extracting first frame…",
+        "processing": "Processing video…"
+      },
+      "confirmTitle": "Confirm the detected PAPI lights",
+      "confirmHint": "Drag a box to reposition it, then confirm to run the analysis.",
+      "noBoxes": "No lights were detected automatically. You can still run the analysis.",
+      "confirmButton": "Confirm & process",
+      "confirming": "Starting…",
+      "doneTitle": "Measurement complete",
+      "doneHint": "The analysis finished. Open the results to view charts and the pass/fail table.",
+      "viewResults": "View results",
+      "errorTitle": "Measurement failed",
+      "startError": "Could not start the measurement.",
+      "previewError": "Could not load the first-frame preview.",
+      "confirmError": "Could not start processing."
     }
   },
   "missionList": {
@@ -2087,5 +2109,47 @@
   "errors": {
     "webglUnsupported": "WebGL is not supported",
     "webglUnsupportedHint": "This application requires WebGL to render maps and 3D views. Please use a modern browser with hardware acceleration enabled."
+  },
+  "results": {
+    "title": "Measurement Results",
+    "status": "Status: {{status}}",
+    "loadError": "Could not load measurement results.",
+    "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",
+    "downloadPdf": "Download PDF",
+    "generatingPdf": "Generating…",
+    "noData": "No data for this chart.",
+    "table": {
+      "title": "Transition angles",
+      "light": "Light",
+      "setting": "Setting angle",
+      "tolerance": "Tolerance",
+      "measured": "Measured",
+      "result": "Result",
+      "empty": "No per-light summaries available."
+    },
+    "verdict": {
+      "pass": "PASS",
+      "fail": "FAIL",
+      "unknown": "UNKNOWN"
+    },
+    "charts": {
+      "angle": "Elevation angle over time",
+      "angleUnit": "Angle (°)",
+      "intensity": "Intensity over time",
+      "intensityUnit": "Intensity",
+      "chromaticity": "Chromaticity (red fraction) over time",
+      "chromaticityUnit": "r / (r+g+b)",
+      "timeAxis": "Time (s)"
+    },
+    "map": {
+      "title": "Drone path",
+      "noPath": "No drone path recorded."
+    },
+    "video": {
+      "title": "Annotated video",
+      "empty": "No annotated video available.",
+      "enhanced": "Enhanced",
+      "combined": "All PAPI lights"
+    }
   }
 }

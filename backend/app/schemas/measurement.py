@@ -81,3 +81,66 @@ class MeasurementPreviewResponse(BaseModel):
     status: MeasurementStatusStr
     first_frame_url: str | None = None
     boxes: list[LightBox] = []
+
+
+# results shapes - the pivoted view of the gzipped per-frame blob in object storage
+
+
+class LightSeriesPoint(BaseModel):
+    """one frame's reading for a single light - the unit the timeseries plots.
+
+    chromaticity is derived from the per-frame rgb triple (normalized r/g), there
+    is no direct chromaticity key in the engine blob.
+    """
+
+    frame_number: int
+    timestamp: float
+    status: str | None = None
+    angle: float | None = None
+    horizontal_angle: float | None = None
+    intensity: float | None = None
+    area_pixels: int | None = None
+    chromaticity_x: float | None = None
+    chromaticity_y: float | None = None
+
+
+class LightSeries(BaseModel):
+    """one light's full timeseries plus its transition angles and PASS/FAIL rollup."""
+
+    light_name: str
+    setting_angle: float | None = None
+    tolerance: float | None = None
+    transition_angle_min: float | None = None
+    transition_angle_middle: float | None = None
+    transition_angle_max: float | None = None
+    passed: bool | None = None
+    points: list[LightSeriesPoint] = []
+
+
+class DronePathPoint(BaseModel):
+    """one frame's drone position, the ordered flown path on the map."""
+
+    frame_number: int
+    timestamp: float
+    latitude: float
+    longitude: float
+    elevation: float | None = None
+
+
+class MeasurementResultsResponse(BaseModel):
+    """full results payload for the operator results page.
+
+    ``has_results`` is false (and ``lights`` / ``drone_path`` / ``video_urls`` empty)
+    until the run is DONE with a results blob in object storage.
+    """
+
+    id: UUID
+    inspection_id: UUID
+    status: MeasurementStatusStr
+    has_results: bool = False
+    runway_heading: float | None = None
+    reference_points: list[ReferencePointResponse] = []
+    summaries: list[LightSummaryResponse] = []
+    lights: list[LightSeries] = []
+    drone_path: list[DronePathPoint] = []
+    video_urls: dict[str, str] = {}

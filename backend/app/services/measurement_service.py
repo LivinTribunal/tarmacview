@@ -31,12 +31,16 @@ from app.models.agl import LHA
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
 from app.schemas.measurement import (
-    LightBox as LightBoxSchema,
-)
-from app.schemas.measurement import (
+    DronePathPoint,
+    LightSeries,
+    LightSeriesPoint,
     LightSummaryResponse,
     MeasurementResponse,
+    MeasurementResultsResponse,
     ReferencePointResponse,
+)
+from app.schemas.measurement import (
+    LightBox as LightBoxSchema,
 )
 from app.services import object_storage
 
@@ -237,6 +241,146 @@ def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBoxSchema
     measurement.confirm_boxes(_boxes_from_request(boxes))
     measurement.transition_to(MeasurementStatus.PROCESSING)
     return _repo(db).save(measurement)
+
+
+# results assembly (read-only pivot of the gzipped per-frame blob)
+
+
+def _reference_point_responses(measurement: Measurement) -> list[ReferencePointResponse]:
+    """map the aggregate's snapshotted reference points onto the wire shape."""
+    return [
+        ReferencePointResponse(
+            light_name=rp.light_name,
+            latitude=rp.latitude,
+            longitude=rp.longitude,
+            elevation=rp.elevation,
+            lha_id=rp.lha_id,
+            unit_designator=rp.unit_designator,
+            setting_angle=rp.setting_angle,
+            tolerance=rp.tolerance,
+        )
+        for rp in measurement.reference_points
+    ]
+
+
+def _summary_responses(measurement: Measurement) -> list[LightSummaryResponse]:
+    """map the aggregate's per-light PASS/FAIL rollups onto the wire shape."""
+    return [
+        LightSummaryResponse(
+            light_name=s.light_name,
+            setting_angle=s.setting_angle,
+            tolerance=s.tolerance,
+            measured_transition_angle=s.measured_transition_angle,
+            passed=s.passed,
+        )
+        for s in measurement.summaries
+    ]
+
+
+def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
+    """normalized (r, g) chromaticity from an [r, g, b] triple - (None, None) if unusable."""
+    if not rgb or len(rgb) < 3:
+        return None, None
+    try:
+        r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
+    except (TypeError, ValueError):
+        return None, None
+    total = r + g + b
+    if total <= 0:
+        return None, None
+    return r / total, g / total
+
+
+def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
+    """roll one light's per-frame readings out of the blob into an ordered series."""
+    key = name.lower()
+    points: list[LightSeriesPoint] = []
+    for frame in frames:
+        if f"{key}_angle" not in frame and f"{key}_status" not in frame:
+            continue
+        cx, cy = _chromaticity_from_rgb(frame.get(f"{key}_rgb"))
+        points.append(
+            LightSeriesPoint(
+                frame_number=int(frame.get("frame_number", 0)),
+                timestamp=float(frame.get("timestamp", 0.0)),
+                status=frame.get(f"{key}_status"),
+                angle=frame.get(f"{key}_angle"),
+                horizontal_angle=frame.get(f"{key}_horizontal_angle"),
+                intensity=frame.get(f"{key}_intensity"),
+                area_pixels=frame.get(f"{key}_area_pixels"),
+                chromaticity_x=cx,
+                chromaticity_y=cy,
+            )
+        )
+    # transition angles are injected identically onto every frame - read the first
+    sample = next((f for f in frames if f.get(f"{key}_transition_angle_middle") is not None), None)
+    return LightSeries(
+        light_name=name,
+        setting_angle=summary.setting_angle if summary else None,
+        tolerance=summary.tolerance if summary else None,
+        transition_angle_min=sample.get(f"{key}_transition_angle_min") if sample else None,
+        transition_angle_middle=sample.get(f"{key}_transition_angle_middle") if sample else None,
+        transition_angle_max=sample.get(f"{key}_transition_angle_max") if sample else None,
+        passed=summary.passed if summary else None,
+        points=points,
+    )
+
+
+def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
+    """ordered drone positions pulled from each frame's gps telemetry."""
+    path: list[DronePathPoint] = []
+    for frame in frames:
+        lat = frame.get("drone_latitude")
+        lon = frame.get("drone_longitude")
+        if lat is None or lon is None:
+            continue
+        path.append(
+            DronePathPoint(
+                frame_number=int(frame.get("frame_number", 0)),
+                timestamp=float(frame.get("timestamp", 0.0)),
+                latitude=float(lat),
+                longitude=float(lon),
+                elevation=frame.get("drone_elevation_wgs84"),
+            )
+        )
+    return path
+
+
+def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsResponse:
+    """assemble the full results payload for the operator results page.
+
+    reads the gzipped per-frame blob from object storage and pivots it into per-light
+    timeseries + drone path, mints a presigned GET url per annotated video, and carries
+    the snapshotted reference points + PASS/FAIL summaries. a run that is not DONE (no
+    results blob yet) returns the metadata with ``has_results=False`` and empty series.
+    """
+    measurement = get_measurement(db, measurement_id)
+    response = MeasurementResultsResponse(
+        id=measurement.id,
+        inspection_id=measurement.inspection_id,
+        status=measurement.status.value,
+        has_results=False,
+        runway_heading=measurement.runway_heading,
+        reference_points=_reference_point_responses(measurement),
+        summaries=_summary_responses(measurement),
+    )
+    if measurement.status != MeasurementStatus.DONE or not measurement.object_key:
+        return response
+
+    raw = object_storage.get_object(measurement.object_key)
+    frames = json.loads(gzip.decompress(raw).decode("utf-8"))
+    summaries_by_name = {s.light_name: s for s in measurement.summaries}
+
+    response.lights = [
+        _light_series(name, frames, summaries_by_name.get(name)) for name in PAPI_LIGHT_NAMES
+    ]
+    response.drone_path = _drone_path(frames)
+    response.video_urls = {
+        name: object_storage.presigned_get(key)
+        for name, key in (measurement.annotated_video_keys or {}).items()
+    }
+    response.has_results = True
+    return response
 
 
 # engine seams (lazy-import the opencv engine; monkeypatched in tests)

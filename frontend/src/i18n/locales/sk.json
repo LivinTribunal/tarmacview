@@ -1141,7 +1141,29 @@
       "confirmIngest": "Potvrdiť spracovanie",
       "confirming": "Potvrdzuje sa...",
       "assignTo": "Priradiť k misii",
-      "noCaptureTime": "Bez času snímania"
+      "noCaptureTime": "Bez času snímania",
+      "measure": "Zmerať"
+    },
+    "measurementFlow": {
+      "title": "Meranie svetiel PAPI",
+      "starting": "Spúšťa sa meranie…",
+      "phase": {
+        "queued": "V poradí…",
+        "firstFrame": "Extrahuje sa prvá snímka…",
+        "processing": "Spracúva sa video…"
+      },
+      "confirmTitle": "Potvrďte rozpoznané svetlá PAPI",
+      "confirmHint": "Potiahnutím rámčeka ho premiestnite, potom potvrďte spustenie analýzy.",
+      "noBoxes": "Žiadne svetlá neboli automaticky rozpoznané. Analýzu môžete spustiť aj tak.",
+      "confirmButton": "Potvrdiť a spracovať",
+      "confirming": "Spúšťa sa…",
+      "doneTitle": "Meranie dokončené",
+      "doneHint": "Analýza sa dokončila. Otvorte výsledky pre zobrazenie grafov a tabuľky pass/fail.",
+      "viewResults": "Zobraziť výsledky",
+      "errorTitle": "Meranie zlyhalo",
+      "startError": "Meranie sa nepodarilo spustiť.",
+      "previewError": "Nepodarilo sa načítať náhľad prvej snímky.",
+      "confirmError": "Spracovanie sa nepodarilo spustiť."
     }
   },
   "missionList": {
@@ -2091,5 +2113,47 @@
   "errors": {
     "webglUnsupported": "WebGL nie je podporovaný",
     "webglUnsupportedHint": "Táto aplikácia vyžaduje WebGL na vykresľovanie máp a 3D pohľadov. Použite moderný prehliadač s povolenou hardvérovou akceleráciou."
+  },
+  "results": {
+    "title": "Výsledky merania",
+    "status": "Stav: {{status}}",
+    "loadError": "Výsledky merania sa nepodarilo načítať.",
+    "notReady": "Toto meranie ešte nedokončilo spracovanie. Výsledky sa zobrazia po dokončení behu.",
+    "downloadPdf": "Stiahnuť PDF",
+    "generatingPdf": "Generuje sa…",
+    "noData": "Pre tento graf nie sú dáta.",
+    "table": {
+      "title": "Prechodové uhly",
+      "light": "Svetlo",
+      "setting": "Nastavený uhol",
+      "tolerance": "Tolerancia",
+      "measured": "Namerané",
+      "result": "Výsledok",
+      "empty": "Žiadne súhrny pre jednotlivé svetlá."
+    },
+    "verdict": {
+      "pass": "VYHOVUJE",
+      "fail": "NEVYHOVUJE",
+      "unknown": "NEZNÁME"
+    },
+    "charts": {
+      "angle": "Elevačný uhol v čase",
+      "angleUnit": "Uhol (°)",
+      "intensity": "Intenzita v čase",
+      "intensityUnit": "Intenzita",
+      "chromaticity": "Chromatickosť (podiel červenej) v čase",
+      "chromaticityUnit": "r / (r+g+b)",
+      "timeAxis": "Čas (s)"
+    },
+    "map": {
+      "title": "Trasa dronu",
+      "noPath": "Nezaznamenaná žiadna trasa dronu."
+    },
+    "video": {
+      "title": "Anotované video",
+      "empty": "Žiadne anotované video nie je k dispozícii.",
+      "enhanced": "Vylepšené",
+      "combined": "Všetky PAPI svetlá"
+    }
   }
 }

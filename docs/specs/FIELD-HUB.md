@@ -35,6 +35,15 @@ identity); the JSBridge chain runs license verify → operator login →
 `api`/`thing`/`media` module loads with media auto-upload (originals +
 video) on. Call sequence + envelope-parsing rules:
 `docs/specs/dji-cloud-api-reference.md` §5.
+**Operator connect dialog merged** (#28) — a *Field Hub* button beside the
+export-panel link chip opens a dialog showing the device-facing connect
+address (`https://<host>:8443`) with copy + an inline-rendered QR (vendored
+dependency-free encoder, `frontend/src/utils/qrcode.ts`, so
+`package-lock.json` stays untouched), live hub / broker status, the
+connected-device list, and a one-click CA-cert download
+(`GET /api/v1/field-link/ca-cert`). The hub derives the connect address from
+`FIELDHUB_PUBLIC_HOST` (or the device-facing mqtt host) via `connect_url()`,
+and the backend status proxy now passes `connect_url` / `public_host` through.
 Companion decision record:
 `docs/adr/2026-06-09-field-hub-local-cloud-api.md`.
 
@@ -204,7 +213,8 @@ and `docs/emulator-validation.md`.
 1. Register a Cloud API application on developer.dji.com → app id / key /
    license, configured into `fieldhub` as `FIELDHUB_DJI_APP_ID` /
    `_APP_KEY` / `_APP_LICENSE`.
-2. On each RC: DJI account login in Pilot 2, install the local CA cert,
+2. On each RC: DJI account login in Pilot 2, install the local CA cert
+   (downloadable from the TarmacView *Field Hub* dialog, §6),
    point Pilot 2's *Cloud Service → third-party* at the hub URL — the hub's
    connect page (#831) takes it from there: license verify, operator login,
    module attach — and bind the device to the hub's organization/workspace.
@@ -330,6 +340,12 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   transition, and the 409 altitude-clamp gate; an unreachable/unconfigured
   hub raises 502 and nothing persists.
 - `GET /api/v1/field-link/status` — hub/broker/device online state (proxy).
+  Since #28 also proxies `connect_url` / `public_host` from the hub body;
+  the degraded / no-hub shape leaves them `null`.
+- `GET /api/v1/field-link/ca-cert` — operator-gated download of the local CA
+  cert to install on each RC. *Landed in #28*: serves the file via
+  `FileResponse` (stdlib only, no new backend dependency), 404 when the CA
+  path is unset or missing.
 - `POST /api/v1/field-link/media-events` — hub→backend ingest callback
   (shared-secret auth between the two services). *Landed in #824*: persists a
   `drone_media_file` row as `RECEIVED`, idempotent on fingerprint. Since
@@ -360,6 +376,13 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   (disabled state when hub/device offline). *Landed*: the chip in #822, the
   `SendToDroneSection` dispatch card in #825 (one shared 10 s status poll,
   status gate, altitude-clamp acknowledge retry).
+- `FieldHubDialog.tsx`: the *Field Hub* connection dialog opened from a button
+  beside the link chip. *Landed in #28*: device-facing connect address with
+  copy + inline-rendered QR, live hub / broker status, the connected-device
+  list (empty state included), and a CA-cert download with an "install on each
+  RC once" hint. Graceful states for hub-offline, online-but-no-host, and the
+  pre-first-poll connecting moment. Consumes the parent's single
+  `useFieldLinkStatus` poll - no second poll is introduced.
 - New `UploadDroneMediaDialog`: missions with received media, file counts,
   unassigned bucket, per-file reassignment, confirm-ingest action. *Landed
   in #828* behind the *Upload Drone Media* header button on the validation
@@ -376,7 +399,11 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   fast-upload, callbacks), and the webview connect page (`GET /` +
   `GET /pilot/config`) that bootstraps the JSBridge `api`/`thing`/`media`
   modules. Livestream and TSA map elements are explicitly out of scope
-  for v1.
+  for v1. Config `connect_url()` derives the device-facing
+  `https://<host>:<connect_port>` from `FIELDHUB_PUBLIC_HOST` (falling back to
+  the `mqtt_device_addr` host, empty when neither is set; port defaults to
+  8443 via `FIELDHUB_CONNECT_PORT`), and the internal status endpoint surfaces
+  `connect_url` / `public_host` so the backend proxy can hand them to the UI.
 - Persists its own small state (dispatch records, device registry) in the
   existing postgres instance, separate schema.
 

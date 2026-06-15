@@ -71,3 +71,43 @@ def test_device_mqtt_addr_override_and_fallback(monkeypatch):
 
     monkeypatch.setenv("FIELDHUB_MQTT_DEVICE_ADDR", "ssl://192.168.8.50:8883")
     assert Settings(_env_file=None).device_mqtt_addr() == "ssl://192.168.8.50:8883"
+
+
+def test_connect_url_prefers_public_host(monkeypatch):
+    """an explicit public host drives the https connect address."""
+    monkeypatch.setenv("FIELDHUB_PUBLIC_HOST", "192.168.8.50")
+
+    s = Settings(_env_file=None)
+
+    assert s.connect_host() == "192.168.8.50"
+    assert s.connect_url() == "https://192.168.8.50:8443"
+
+
+def test_connect_url_derives_host_from_mqtt_addr(monkeypatch):
+    """no public host -> host derived from the device-facing mqtt address."""
+    monkeypatch.delenv("FIELDHUB_PUBLIC_HOST", raising=False)
+    monkeypatch.setenv("FIELDHUB_MQTT_DEVICE_ADDR", "ssl://192.168.8.50:8883")
+
+    s = Settings(_env_file=None)
+
+    assert s.connect_host() == "192.168.8.50"
+    assert s.connect_url() == "https://192.168.8.50:8443"
+
+
+def test_connect_url_honors_custom_port(monkeypatch):
+    """the advertised port is overridable."""
+    monkeypatch.setenv("FIELDHUB_PUBLIC_HOST", "hub.local")
+    monkeypatch.setenv("FIELDHUB_CONNECT_PORT", "9443")
+
+    assert Settings(_env_file=None).connect_url() == "https://hub.local:9443"
+
+
+def test_connect_url_empty_when_no_host(monkeypatch):
+    """no public host and no device mqtt addr -> empty connect url."""
+    monkeypatch.delenv("FIELDHUB_PUBLIC_HOST", raising=False)
+    monkeypatch.delenv("FIELDHUB_MQTT_DEVICE_ADDR", raising=False)
+
+    s = Settings(_env_file=None)
+
+    assert s.connect_host() == ""
+    assert s.connect_url() == ""

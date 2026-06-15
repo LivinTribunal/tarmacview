@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import require_hub_secret
 from app.schemas.internal import InternalDeviceStatus, InternalStatusResponse
@@ -23,6 +24,8 @@ def status(
     return InternalStatusResponse(
         broker_connected=mqtt_listener.listener.connected,
         devices=[InternalDeviceStatus(**e) for e in device_registry.snapshot(db)],
+        connect_url=settings.connect_url() or None,
+        public_host=settings.public_host or None,
     )
 
 

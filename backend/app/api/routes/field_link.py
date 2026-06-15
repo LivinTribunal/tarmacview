@@ -1,9 +1,13 @@
 """field-link endpoints - hub status proxy and hub-reported media events."""
 
-from fastapi import APIRouter, Depends, Request
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import OperatorUser, require_hub_secret
+from app.core.config import settings
 from app.core.dependencies import get_db
 from app.core.enums import AuditAction
 from app.schemas.field_link import (
@@ -16,11 +20,22 @@ from app.utils.audit import log_audit
 
 router = APIRouter(prefix="/api/v1/field-link", tags=["field-link"])
 
+CA_CERT_MEDIA_TYPE = "application/x-x509-ca-cert"
+
 
 @router.get("/status", response_model=FieldLinkStatusResponse)
 def get_status(current_user: OperatorUser):
     """hub reachability and bound-device online state."""
     return field_link_service.get_field_link_status()
+
+
+@router.get("/ca-cert")
+def get_ca_cert(current_user: OperatorUser) -> FileResponse:
+    """download the local CA cert to install on each RC so pilot 2 trusts the hub."""
+    ca_path = settings.fieldhub_ca
+    if not ca_path or not os.path.isfile(ca_path):
+        raise HTTPException(status_code=404, detail="field hub CA certificate not available")
+    return FileResponse(ca_path, media_type=CA_CERT_MEDIA_TYPE, filename="fieldhub-ca.crt")
 
 
 @router.post("/media-events", status_code=201, response_model=DroneMediaFileResponse)

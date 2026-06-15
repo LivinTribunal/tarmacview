@@ -73,6 +73,13 @@ class Settings(BaseSettings):
     mqtt_device_username: str = ""
     mqtt_device_password: str = ""
 
+    # device-facing https host pilot 2 points its cloud-service mode at - the
+    # laptop's lan ip, never a compose hostname. empty falls back to the host
+    # derived from mqtt_device_addr so the connect address tracks one source.
+    public_host: str = ""
+    # published https port the connect url advertises
+    connect_port: int = 8443
+
     # pilot operator account - login is rejected while the password is empty
     pilot_username: str = "pilot"
     pilot_password: str = ""
@@ -109,6 +116,23 @@ class Settings(BaseSettings):
         if self.mqtt_device_addr:
             return self.mqtt_device_addr
         return f"ssl://{self.mqtt_host}:{self.mqtt_port}"
+
+    def connect_host(self) -> str:
+        """device-facing host - explicit public_host or the mqtt_device_addr host."""
+        if self.public_host:
+            return self.public_host
+        if self.mqtt_device_addr:
+            # strip scheme + port from e.g. ssl://192.168.8.50:8883
+            host = self.mqtt_device_addr.split("://", 1)[-1]
+            return host.split(":", 1)[0]
+        return ""
+
+    def connect_url(self) -> str:
+        """https address pilot 2 connects to - empty when no host is derivable."""
+        host = self.connect_host()
+        if not host:
+            return ""
+        return f"https://{host}:{self.connect_port}"
 
 
 settings = Settings()

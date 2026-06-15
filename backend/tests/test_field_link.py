@@ -11,6 +11,8 @@ from app.services import field_link_service
 
 HUB_BODY = {
     "broker_connected": True,
+    "connect_url": "https://192.168.8.50:8443",
+    "public_host": "192.168.8.50",
     "devices": [
         {
             "sn": "1ZNBJ7R0010078",
@@ -50,9 +52,33 @@ def test_status_happy_path_maps_hub_payload(hub_configured):
     assert seen["secret"] == "s3cret"
     assert result.hub_online is True
     assert result.broker_connected is True
+    assert result.connect_url == "https://192.168.8.50:8443"
+    assert result.public_host == "192.168.8.50"
     assert result.devices[0].sn == "1ZNBJ7R0010078"
     assert result.devices[0].model_name == "Matrice 350 RTK"
     assert result.devices[0].online is True
+
+
+def test_status_leaves_connect_url_none_when_hub_omits_it(hub_configured):
+    """a hub body without the connect fields maps to None, not a KeyError."""
+    body = {"broker_connected": True, "devices": []}
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=body))
+
+    result = field_link_service.get_field_link_status(transport=transport)
+
+    assert result.hub_online is True
+    assert result.connect_url is None
+    assert result.public_host is None
+
+
+def test_no_hub_leaves_connect_url_none(hub_configured):
+    """degraded response carries no connect address."""
+    transport = httpx.MockTransport(lambda request: httpx.Response(503))
+
+    result = field_link_service.get_field_link_status(transport=transport)
+
+    assert result.connect_url is None
+    assert result.public_host is None
 
 
 def test_status_degrades_when_hub_errors(hub_configured):
@@ -107,7 +133,13 @@ def test_route_returns_degraded_payload(client, monkeypatch):
     response = client.get("/api/v1/field-link/status")
 
     assert response.status_code == 200
-    assert response.json() == {"hub_online": False, "broker_connected": False, "devices": []}
+    assert response.json() == {
+        "hub_online": False,
+        "broker_connected": False,
+        "devices": [],
+        "connect_url": None,
+        "public_host": None,
+    }
 
 
 def test_route_maps_hub_payload(client, monkeypatch):
@@ -136,3 +168,30 @@ def test_route_requires_auth():
     finally:
         app.dependency_overrides.clear()
         app.dependency_overrides.update(saved_overrides)
+
+
+def test_ca_cert_serves_the_configured_file(client, monkeypatch, tmp_path):
+    """a configured CA file downloads as an attachment."""
+    ca_file = tmp_path / "ca.crt"
+    ca_file.write_text("-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n")
+    monkeypatch.setattr(settings, "fieldhub_ca", str(ca_file))
+
+    response = client.get("/api/v1/field-link/ca-cert")
+
+    assert response.status_code == 200
+    assert "fieldhub-ca.crt" in response.headers["content-disposition"]
+    assert response.content.startswith(b"-----BEGIN CERTIFICATE-----")
+
+
+def test_ca_cert_404_when_unconfigured(client, monkeypatch):
+    """no CA configured -> 404, not a 500."""
+    monkeypatch.setattr(settings, "fieldhub_ca", "")
+
+    assert client.get("/api/v1/field-link/ca-cert").status_code == 404
+
+
+def test_ca_cert_404_when_file_missing(client, monkeypatch):
+    """configured path that doesn't exist -> 404."""
+    monkeypatch.setattr(settings, "fieldhub_ca", "/no/such/ca.crt")
+
+    assert client.get("/api/v1/field-link/ca-cert").status_code == 404

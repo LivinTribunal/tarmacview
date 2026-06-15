@@ -30,6 +30,9 @@ class FieldLinkStatusResponse(BaseModel):
     hub_online: bool
     broker_connected: bool = False
     devices: list[FieldLinkDevice] = []
+    # device-facing connect address proxied from the hub - null when no host set
+    connect_url: str | None = None
+    public_host: str | None = None
 
 
 class MediaEventCreate(BaseModel):

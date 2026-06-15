@@ -64,7 +64,14 @@ const M350: FieldLinkDevice = {
 function makeStatus(
   overrides: Partial<FieldLinkStatusResponse> = {},
 ): FieldLinkStatusResponse {
-  return { hub_online: true, broker_connected: true, devices: [], ...overrides };
+  return {
+    hub_online: true,
+    broker_connected: true,
+    devices: [],
+    connect_url: null,
+    public_host: null,
+    ...overrides,
+  };
 }
 
 describe("FieldLinkStatusChip", () => {

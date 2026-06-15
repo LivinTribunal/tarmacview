@@ -7,6 +7,8 @@ const NO_HUB: FieldLinkStatusResponse = {
   hub_online: false,
   broker_connected: false,
   devices: [],
+  connect_url: null,
+  public_host: null,
 };
 
 /**

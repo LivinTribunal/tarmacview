@@ -73,6 +73,10 @@ export const CHART_COLORS = {
   GRID: "#e9e9e9",
 };
 
+// qr modules must stay true black regardless of theme so scanners read them
+// reliably, so this is a fixed hex rather than a --tv-* variable.
+export const QR_DARK = "#000000";
+
 export const SAFETY_BUFFER_COLORS: Record<string, string> = {
   RUNWAY: "#3b82f6",
   TAXIWAY: "#8b5cf6",

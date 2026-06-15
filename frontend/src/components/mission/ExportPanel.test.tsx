@@ -638,6 +638,8 @@ describe("ExportPanel - field link wiring", () => {
     vi.mocked(useFieldLinkStatus).mockReturnValue({
       hub_online: true,
       broker_connected: true,
+      connect_url: "https://192.168.8.50:8443",
+      public_host: "192.168.8.50",
       devices: [
         {
           sn: "1ZNBJ7R0010078",
@@ -663,6 +665,8 @@ describe("ExportPanel - field link wiring", () => {
     vi.mocked(useFieldLinkStatus).mockReturnValue({
       hub_online: true,
       broker_connected: true,
+      connect_url: "https://192.168.8.50:8443",
+      public_host: "192.168.8.50",
       devices: [
         {
           sn: "1ZNBJ7R0010078",

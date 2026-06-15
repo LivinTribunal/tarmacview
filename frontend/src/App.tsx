@@ -9,6 +9,7 @@ import OperatorLayout from "@/components/Layout/OperatorLayout";
 import CoordinatorLayout from "@/components/Layout/CoordinatorLayout";
 import SuperAdminLayout from "@/components/Layout/SuperAdminLayout";
 import MissionTabNav from "@/components/Layout/MissionTabNav";
+import MeasurementTabNav from "@/components/Layout/MeasurementTabNav";
 import LoginPage from "@/pages/LoginPage";
 import SetupPasswordPage from "@/pages/SetupPasswordPage";
 import MaintenancePage from "@/pages/MaintenancePage";
@@ -79,8 +80,10 @@ function App() {
               <Route path="measurements" element={<MeasurementsListPage />} />
               <Route
                 path="measurements/:measurementId/results"
-                element={<ResultsPage />}
-              />
+                element={<MeasurementTabNav />}
+              >
+                <Route index element={<ResultsPage />} />
+              </Route>
               {/* airport-required routes - redirect to dashboard if no airport */}
               <Route element={<RequireAirport />}>
                 <Route path="missions" element={<MissionListPage />} />

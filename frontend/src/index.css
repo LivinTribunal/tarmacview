@@ -35,6 +35,8 @@
   --tv-status-validated-text: #16a34a;
   --tv-status-exported-bg: #f3e8ff;
   --tv-status-exported-text: #9333ea;
+  --tv-status-measured-bg: #cffafe;
+  --tv-status-measured-text: #0891b2;
   --tv-status-completed-bg: #d1fae5;
   --tv-status-completed-text: #059669;
   --tv-status-cancelled-bg: #fee2e2;
@@ -116,6 +118,8 @@
   --tv-status-validated-text: #4ade80;
   --tv-status-exported-bg: #3b0764;
   --tv-status-exported-text: #c084fc;
+  --tv-status-measured-bg: #164e63;
+  --tv-status-measured-text: #22d3ee;
   --tv-status-completed-bg: #064e3b;
   --tv-status-completed-text: #34d399;
   --tv-status-cancelled-bg: #450a0a;

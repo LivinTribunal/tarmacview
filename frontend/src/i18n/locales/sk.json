@@ -1234,6 +1234,7 @@
     "PLANNED": "Naplánované",
     "VALIDATED": "Validované",
     "EXPORTED": "Exportované",
+    "MEASURED": "Zmerané",
     "COMPLETED": "Dokončené",
     "CANCELLED": "Zrušené"
   },

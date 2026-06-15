@@ -3,6 +3,7 @@ export type MissionStatus =
   | "PLANNED"
   | "VALIDATED"
   | "EXPORTED"
+  | "MEASURED"
   | "COMPLETED"
   | "CANCELLED";
 

@@ -1,12 +1,13 @@
 """measurement endpoints - create/status/preview/confirm flow with enqueue stubbed."""
 
 import itertools
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
+from app.models.mission import Mission
 from app.services import measurement_service
 from tests.data.airports import AIRPORT_PAYLOAD
 
@@ -146,6 +147,79 @@ def test_confirm_lights_starts_processing(
     assert r.status_code == 200, r.text
     assert r.json()["status"] == MeasurementStatus.PROCESSING.value
     assert len(_stub_enqueue["processing"]) == 1
+
+
+# measurement kickoff -> mission MEASURED transition
+
+
+def _mission_with_inspection_media(client, template_id, n_inspections=1):
+    """fresh airport/mission with n inspections, each carrying one media row."""
+    apt = client.post(
+        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
+    ).json()
+    mission = client.post(
+        "/api/v1/missions", json={"name": "Kickoff", "airport_id": apt["id"]}
+    ).json()
+    insp_ids = []
+    for _ in range(n_inspections):
+        insp = client.post(
+            f"/api/v1/missions/{mission['id']}/inspections",
+            json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
+        ).json()
+        client.post(
+            "/api/v1/drone-media/complete-upload",
+            json={
+                "mission_id": mission["id"],
+                "inspection_id": insp["id"],
+                "object_key": f"drone-media/manual/{insp['id']}.mp4",
+                "filename": "k.mp4",
+                "size_bytes": 2048,
+            },
+        )
+        insp_ids.append(insp["id"])
+    return mission["id"], insp_ids
+
+
+def _set_mission_status(db_engine, mission_id, status):
+    """force a mission to a status for kickoff setup (bypasses the state machine)."""
+    s = sessionmaker(bind=db_engine)()
+    try:
+        m = s.query(Mission).filter(Mission.id == UUID(mission_id)).first()
+        m.status = status
+        s.commit()
+    finally:
+        s.close()
+
+
+@pytest.mark.parametrize("start", ["VALIDATED", "EXPORTED"])
+def test_create_measurement_marks_mission_measured(client, db_engine, template_id, start):
+    """creating a measurement for a VALIDATED/EXPORTED mission flips it to MEASURED."""
+    mission_id, insp_ids = _mission_with_inspection_media(client, template_id)
+    _set_mission_status(db_engine, mission_id, start)
+
+    r = client.post(f"/api/v1/inspections/{insp_ids[0]}/measurement")
+    assert r.status_code == 200, r.text
+    assert client.get(f"/api/v1/missions/{mission_id}").json()["status"] == "MEASURED"
+
+
+def test_second_inspection_create_keeps_mission_measured(client, db_engine, template_id):
+    """a second inspection's create leaves an already-MEASURED mission MEASURED (idempotent)."""
+    mission_id, insp_ids = _mission_with_inspection_media(client, template_id, n_inspections=2)
+    _set_mission_status(db_engine, mission_id, "VALIDATED")
+
+    assert client.post(f"/api/v1/inspections/{insp_ids[0]}/measurement").status_code == 200
+    assert client.get(f"/api/v1/missions/{mission_id}").json()["status"] == "MEASURED"
+
+    assert client.post(f"/api/v1/inspections/{insp_ids[1]}/measurement").status_code == 200
+    assert client.get(f"/api/v1/missions/{mission_id}").json()["status"] == "MEASURED"
+
+
+def test_create_measurement_on_draft_does_not_transition(client, template_id):
+    """creating a measurement for a non-POST_PLAN mission does not transition it."""
+    mission_id, insp_ids = _mission_with_inspection_media(client, template_id)
+
+    assert client.post(f"/api/v1/inspections/{insp_ids[0]}/measurement").status_code == 200
+    assert client.get(f"/api/v1/missions/{mission_id}").json()["status"] == "DRAFT"
 
 
 def test_to_response_maps_full_aggregate():

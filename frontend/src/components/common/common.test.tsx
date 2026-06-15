@@ -185,6 +185,7 @@ describe("Badge", () => {
       "PLANNED",
       "VALIDATED",
       "EXPORTED",
+      "MEASURED",
       "COMPLETED",
       "CANCELLED",
     ] as const;
@@ -195,6 +196,13 @@ describe("Badge", () => {
       ).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it("uses the measured status tokens", () => {
+    render(<Badge status="MEASURED" />);
+    expect(screen.getByText("missionStatus.MEASURED").className).toContain(
+      "bg-[var(--tv-status-measured-bg)]",
+    );
   });
 
   it("merges custom className", () => {

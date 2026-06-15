@@ -1230,6 +1230,7 @@
     "PLANNED": "Planned",
     "VALIDATED": "Validated",
     "EXPORTED": "Exported",
+    "MEASURED": "Measured",
     "COMPLETED": "Completed",
     "CANCELLED": "Cancelled"
   },

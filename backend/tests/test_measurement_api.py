@@ -12,6 +12,7 @@ from app.core.enums import MeasurementStatus
 from app.domain.measurement.entities import LightSummary, Measurement
 from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
 from app.main import app
+from app.models.mission import Mission
 from app.services import measurement_service
 from tests.conftest import TEST_USER_ID, _override_current_user
 from tests.data.airports import AIRPORT_PAYLOAD
@@ -88,6 +89,95 @@ def test_create_measurement_missing_inspection_is_404(client):
     """an unknown inspection cannot start a run."""
     r = client.post(f"/api/v1/inspections/{uuid4()}/measurement")
     assert r.status_code == 404
+
+
+# measurement kickoff transitions the mission to MEASURED
+
+
+@pytest.fixture
+def mission_inspection_with_media(client, template_id):
+    """fresh airport/mission/inspection + one media row; returns both ids."""
+    apt = client.post(
+        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
+    ).json()
+    mission = client.post(
+        "/api/v1/missions", json={"name": "Kickoff Measure", "airport_id": apt["id"]}
+    ).json()
+    insp = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
+    ).json()
+    client.post(
+        "/api/v1/drone-media/complete-upload",
+        json={
+            "mission_id": mission["id"],
+            "inspection_id": insp["id"],
+            "object_key": "drone-media/manual/kickoff.mp4",
+            "filename": "kickoff.mp4",
+            "size_bytes": 2048,
+        },
+    )
+    return {"mission_id": mission["id"], "inspection_id": insp["id"]}
+
+
+def _force_mission_status(db_engine, mission_id, status):
+    """set a mission's status directly (test setup bypasses the state machine)."""
+    s = sessionmaker(bind=db_engine)()
+    try:
+        mission = s.query(Mission).filter(Mission.id == mission_id).first()
+        mission.status = status
+        s.commit()
+    finally:
+        s.close()
+
+
+def _mission_status(client, mission_id):
+    """read a mission's current status through the api."""
+    return client.get(f"/api/v1/missions/{mission_id}").json()["status"]
+
+
+@pytest.mark.parametrize("start_status", ["VALIDATED", "EXPORTED"])
+def test_create_measurement_transitions_mission_to_measured(
+    client, db_engine, mission_inspection_with_media, start_status, _stub_enqueue
+):
+    """kicking off a run on a VALIDATED/EXPORTED mission flips it to MEASURED."""
+    mission_id = mission_inspection_with_media["mission_id"]
+    inspection_id = mission_inspection_with_media["inspection_id"]
+    _force_mission_status(db_engine, mission_id, start_status)
+
+    r = client.post(f"/api/v1/inspections/{inspection_id}/measurement")
+    assert r.status_code == 200, r.text
+    assert _mission_status(client, mission_id) == "MEASURED"
+
+
+def test_create_measurement_is_idempotent_on_measured(
+    client, db_engine, mission_inspection_with_media, _stub_enqueue
+):
+    """a second run on an already-MEASURED mission does not error or re-transition."""
+    mission_id = mission_inspection_with_media["mission_id"]
+    inspection_id = mission_inspection_with_media["inspection_id"]
+    _force_mission_status(db_engine, mission_id, "VALIDATED")
+
+    first = client.post(f"/api/v1/inspections/{inspection_id}/measurement")
+    assert first.status_code == 200, first.text
+    assert _mission_status(client, mission_id) == "MEASURED"
+
+    second = client.post(f"/api/v1/inspections/{inspection_id}/measurement")
+    assert second.status_code == 200, second.text
+    assert _mission_status(client, mission_id) == "MEASURED"
+
+
+def test_create_measurement_leaves_non_post_plan_mission_untouched(
+    client, mission_inspection_with_media, _stub_enqueue
+):
+    """a DRAFT mission (not VALIDATED/EXPORTED) is not transitioned by a run."""
+    mission_id = mission_inspection_with_media["mission_id"]
+    inspection_id = mission_inspection_with_media["inspection_id"]
+    assert _mission_status(client, mission_id) == "DRAFT"
+
+    r = client.post(f"/api/v1/inspections/{inspection_id}/measurement")
+    assert r.status_code == 200, r.text
+    assert _mission_status(client, mission_id) == "DRAFT"
 
 
 def test_status_and_preview_poll(client, inspection_with_media):

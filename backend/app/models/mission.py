@@ -24,12 +24,16 @@ from app.core.enums import ComputationStatus, MissionStatus
 
 MAX_INSPECTIONS = 10
 
-# status state machine - valid transitions
+# status state machine - valid transitions.
+# MEASURED is additive: VALIDATED/EXPORTED fire it on measurement kickoff
+# (VALIDATED -> MEASURED skips EXPORTED), and the direct EXPORTED -> COMPLETED/
+# CANCELLED edges are kept so a mission can still complete without measuring.
 TRANSITIONS = {
     "DRAFT": ["PLANNED"],
     "PLANNED": ["VALIDATED"],
-    "VALIDATED": ["EXPORTED"],
-    "EXPORTED": ["COMPLETED", "CANCELLED"],
+    "VALIDATED": ["EXPORTED", "MEASURED"],
+    "EXPORTED": ["COMPLETED", "CANCELLED", "MEASURED"],
+    "MEASURED": ["COMPLETED", "CANCELLED"],
     "COMPLETED": [],
     "CANCELLED": [],
 }
@@ -173,7 +177,8 @@ class Mission(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('DRAFT', 'PLANNED', 'VALIDATED', 'EXPORTED', 'COMPLETED', 'CANCELLED')",
+            "status IN ('DRAFT', 'PLANNED', 'VALIDATED', 'EXPORTED', 'MEASURED', "
+            "'COMPLETED', 'CANCELLED')",
             name="ck_mission_status",
         ),
         CheckConstraint(

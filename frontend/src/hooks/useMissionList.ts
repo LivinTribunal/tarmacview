@@ -35,6 +35,7 @@ const ALL_STATUSES: MissionStatus[] = [
   "PLANNED",
   "VALIDATED",
   "EXPORTED",
+  "MEASURED",
   "COMPLETED",
   "CANCELLED",
 ];

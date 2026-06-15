@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import MeasurementStatus
+from app.core.enums import MeasurementStatus, MissionStatus
 from app.core.exceptions import DomainError, NotFoundError
 from app.core.geometry import point_lonlatalt
 from app.domain.measurement.entities import (
@@ -30,6 +30,7 @@ from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRep
 from app.models.agl import LHA
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
+from app.models.mission import Mission
 from app.schemas.measurement import (
     DronePathPoint,
     LightSeries,
@@ -188,6 +189,12 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
     media_keys = _inspection_media_keys(db, inspection_id)
     if not media_keys:
         raise DomainError("inspection has no uploaded media to measure", status_code=422)
+
+    # measurement kickoff flips a VALIDATED/EXPORTED mission to MEASURED; idempotent
+    # because POST_PLAN_STATUSES excludes MEASURED, so extra runs never re-transition.
+    mission = inspection.mission
+    if mission is not None and mission.status in Mission.POST_PLAN_STATUSES:
+        mission.transition_to(MissionStatus.MEASURED)
 
     reference_points, runway_heading = _snapshot_reference_points(db, inspection)
 

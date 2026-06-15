@@ -53,6 +53,43 @@ class TestMissionTransitions:
         m.transition_to("CANCELLED")
         assert m.status == "CANCELLED"
 
+    def test_validated_to_measured_skips_exported(self):
+        """valid transition VALIDATED -> MEASURED (skips EXPORTED)."""
+        m = self._make_mission("VALIDATED")
+        m.transition_to("MEASURED")
+        assert m.status == "MEASURED"
+
+    def test_exported_to_measured(self):
+        """valid transition EXPORTED -> MEASURED."""
+        m = self._make_mission("EXPORTED")
+        m.transition_to("MEASURED")
+        assert m.status == "MEASURED"
+
+    def test_measured_to_completed(self):
+        """valid transition MEASURED -> COMPLETED."""
+        m = self._make_mission("MEASURED")
+        m.transition_to("COMPLETED")
+        assert m.status == "COMPLETED"
+
+    def test_measured_to_cancelled(self):
+        """valid transition MEASURED -> CANCELLED."""
+        m = self._make_mission("MEASURED")
+        m.transition_to("CANCELLED")
+        assert m.status == "CANCELLED"
+
+    def test_invalid_draft_to_measured(self):
+        """invalid transition DRAFT -> MEASURED raises ValueError."""
+        m = self._make_mission("DRAFT")
+        with pytest.raises(ValueError, match="cannot transition"):
+            m.transition_to("MEASURED")
+
+    @pytest.mark.parametrize("target", ["VALIDATED", "EXPORTED", "PLANNED", "DRAFT"])
+    def test_invalid_measured_backwards(self, target):
+        """MEASURED has no backward transitions - only COMPLETED/CANCELLED."""
+        m = self._make_mission("MEASURED")
+        with pytest.raises(ValueError, match="cannot transition"):
+            m.transition_to(target)
+
     def test_invalid_draft_to_validated(self):
         """invalid transition DRAFT -> VALIDATED raises ValueError."""
         m = self._make_mission("DRAFT")

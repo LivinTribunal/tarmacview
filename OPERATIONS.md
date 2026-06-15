@@ -62,6 +62,9 @@ Backend env vars (all optional, both default off / unchanged):
 | `ELEVATION_API_FALLBACK_ENABLED` | Bootstrap default for per-point Open-Elevation lookups when no `system_settings` row exists yet. The DB row wins after first super-admin save. | `false` |
 | `ELEVATION_API_LOOKUP_TIMEOUT` | Per-request timeout in seconds. | `2.0` |
 | `OPEN_ELEVATION_URL` | Override the Open-Elevation endpoint (self-hosted mirror). | `https://api.open-elevation.com/api/v1/lookup` |
+| `SECRET_ENCRYPTION_KEY` | Decrypts the admin-stored remote elevation API key at request time. Needed only when a super admin has saved a provider key under `System Settings`; absent or rotated, the fallback degrades to flat instead of erroring (see note below). For compose, copy the value from `backend/.env` into `.env.docker`. | _(unset)_ |
+
+When the remote fallback is enabled and a super admin has stored a provider key, the backend decrypts that key with `SECRET_ENCRYPTION_KEY` on each `allow_api` lookup (LHA placement). If the key is unset or rotated, the remote backend can't be configured, so the provider falls back to flat (`airport.elevation`) rather than failing the request - a missing encryption key means "remote elevation unavailable", not a 500. Earlier this path 500'd when building an airport's PAPI/LHAs through the UI on a deployment that had a stored key but no `SECRET_ENCRYPTION_KEY`.
 
 ### Super-admin UI
 

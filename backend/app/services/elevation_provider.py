@@ -263,13 +263,20 @@ class _RemoteAwareFlatProvider(ElevationProvider):
 
 
 def _resolve_remote_backend(db) -> RemoteElevationProvider | None:
-    """instantiate the admin-selected remote backend; return None if the key is unknown."""
+    """instantiate the admin-selected remote backend; return None if it can't be resolved."""
     from app.services import runtime_settings
 
     provider_key = (
         runtime_settings.get_api_provider(db) if db is not None else DEFAULT_REMOTE_PROVIDER_KEY
     )
-    api_key = runtime_settings.get_api_key(db) if db is not None else None
+    try:
+        api_key = runtime_settings.get_api_key(db) if db is not None else None
+    except Exception as e:
+        # a missing / rotated SECRET_ENCRYPTION_KEY must not 500 callers on the
+        # allow_api path (e.g. LHA placement) - the remote backend just can't be
+        # configured here, so degrade to flat instead of crashing.
+        logger.warning("remote elevation key unavailable (%s) - falling back to flat", e)
+        return None
     cls = REMOTE_PROVIDER_REGISTRY.get(provider_key)
     if cls is None:
         logger.warning(

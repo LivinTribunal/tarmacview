@@ -109,6 +109,26 @@ class TestCreateElevationProvider:
             provider = create_elevation_provider(airport)
             assert isinstance(provider, FlatElevationProvider)
 
+    def test_allow_api_degrades_to_flat_when_key_unavailable(self):
+        """a missing SECRET_ENCRYPTION_KEY on the allow_api path degrades to flat, not 500."""
+        airport = MagicMock()
+        airport.terrain_source = "FLAT"
+        airport.elevation = 311.0
+        airport.dem_file_path = None
+
+        with (
+            patch(
+                "app.services.runtime_settings.get_api_provider",
+                return_value=DEFAULT_REMOTE_PROVIDER_KEY,
+            ),
+            patch(
+                "app.services.runtime_settings.get_api_key",
+                side_effect=RuntimeError("secret_encryption_key is not configured"),
+            ),
+        ):
+            provider = create_elevation_provider(airport, allow_api=True, db=MagicMock())
+        assert isinstance(provider, FlatElevationProvider)
+
 
 class TestMinimumAglConstant:
     """tests for MINIMUM_ALTITUDE_THRESHOLD constant."""

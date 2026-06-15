@@ -32,6 +32,10 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tarmacview}:${POSTGRES_PASSWORD:-tarmacview}@postgres:5432/${POSTGRES_DB:-tarmacview}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set - run start.sh / start.bat to generate .env.docker, or set it in your shell}
+      # decrypts admin-managed secrets at rest (e.g. the elevation api key). copy the
+      # value from backend/.env into .env.docker if you use the remote elevation api;
+      # absent is fine - the elevation api fallback degrades to flat without it.
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost"]}
       # object storage + task broker. S3_ENDPOINT_URL empty = real AWS S3;
       # otherwise the in-compose minio. media uploads + result artifacts live here.

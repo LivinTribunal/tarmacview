@@ -23,9 +23,10 @@ function fmt(value: number | null): string {
   return value === null ? "—" : `${value.toFixed(2)}°`;
 }
 
+// solid pill tones matching the measurement status tags (DONE/ERROR), not faint tints
 const VERDICT_CLASS: Record<TransitionVerdict, string> = {
-  pass: "bg-tv-success/15 text-tv-success",
-  fail: "bg-tv-error/15 text-tv-error",
+  pass: "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",
+  fail: "bg-[var(--tv-status-cancelled-bg)] text-[var(--tv-status-cancelled-text)]",
   unknown: "bg-tv-surface-hover text-tv-text-muted",
 };
 

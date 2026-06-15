@@ -2168,6 +2168,9 @@
       "PROCESSING": "Processing",
       "DONE": "Done",
       "ERROR": "Failed"
+    },
+    "filters": {
+      "allMissions": "All Missions"
     }
   },
   "results": {
@@ -2214,7 +2217,8 @@
       "title": "Annotated video",
       "empty": "No annotated video available.",
       "enhanced": "Enhanced",
-      "combined": "All PAPI lights"
+      "combined": "All PAPI lights",
+      "fullscreen": "Fullscreen"
     }
   }
 }

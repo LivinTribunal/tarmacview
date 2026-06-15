@@ -2172,6 +2172,9 @@
       "PROCESSING": "Spracováva sa",
       "DONE": "Hotovo",
       "ERROR": "Zlyhalo"
+    },
+    "filters": {
+      "allMissions": "Všetky misie"
     }
   },
   "results": {
@@ -2218,7 +2221,8 @@
       "title": "Anotované video",
       "empty": "Žiadne anotované video nie je k dispozícii.",
       "enhanced": "Vylepšené",
-      "combined": "Všetky PAPI svetlá"
+      "combined": "Všetky PAPI svetlá",
+      "fullscreen": "Celá obrazovka"
     }
   }
 }

@@ -84,6 +84,8 @@ export default function MeasurementsListPage() {
         testId="measurements-search"
       />
 
+      <ListPageContent className="mb-4">{list.filterBar}</ListPageContent>
+
       <ListPageContent>
         <div className="rounded-2xl border border-tv-border bg-tv-surface overflow-hidden">
           <MeasurementListTable

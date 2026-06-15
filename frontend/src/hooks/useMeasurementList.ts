@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listAirportMeasurements } from "@/api/measurements";
+import useListFilters from "@/components/common/useListFilters";
 import useListSort, { type SortDir } from "@/components/common/useListSort";
+import type { BadgeStyle, FilterSpec } from "@/components/common/filterSpec";
 import { DEFAULT_PAGE_SIZE } from "@/constants/pagination";
-import type { MeasurementListItem } from "@/types/measurement";
+import { MEASUREMENT_POLL_INTERVAL_MS } from "@/constants/ui";
+import type {
+  MeasurementListItem,
+  MeasurementStatus,
+} from "@/types/measurement";
 
 export type MeasurementSortKey =
   | "mission"
@@ -17,6 +24,29 @@ const NUMERIC_SORT_KEYS: readonly MeasurementSortKey[] = [
   "result",
 ];
 
+const ALL_STATUSES: MeasurementStatus[] = [
+  "QUEUED",
+  "FIRST_FRAME",
+  "AWAITING_CONFIRM",
+  "PROCESSING",
+  "DONE",
+  "ERROR",
+];
+
+// phases where the worker is still running - while any row sits here the list
+// polls so a finished run flips to DONE without a manual refresh
+const ACTIVE_STATUSES: MeasurementStatus[] = ["QUEUED", "FIRST_FRAME", "PROCESSING"];
+
+// status pill colors, mirroring the table StatusChip tones
+const STATUS_BADGE: Record<MeasurementStatus, BadgeStyle> = {
+  QUEUED: { backgroundColor: "color-mix(in srgb, var(--tv-accent) 15%, transparent)", color: "var(--tv-accent)" },
+  FIRST_FRAME: { backgroundColor: "color-mix(in srgb, var(--tv-accent) 15%, transparent)", color: "var(--tv-accent)" },
+  AWAITING_CONFIRM: { backgroundColor: "color-mix(in srgb, var(--tv-warning) 20%, transparent)", color: "var(--tv-warning)" },
+  PROCESSING: { backgroundColor: "color-mix(in srgb, var(--tv-accent) 15%, transparent)", color: "var(--tv-accent)" },
+  DONE: { backgroundColor: "var(--tv-status-completed-bg)", color: "var(--tv-status-completed-text)" },
+  ERROR: { backgroundColor: "var(--tv-status-cancelled-bg)", color: "var(--tv-status-cancelled-text)" },
+};
+
 export interface UseMeasurementListResult {
   rows: MeasurementListItem[];
   loading: boolean;
@@ -25,6 +55,8 @@ export interface UseMeasurementListResult {
 
   search: string;
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+
+  filterBar: React.ReactNode;
 
   sorted: MeasurementListItem[];
   paged: MeasurementListItem[];
@@ -46,6 +78,8 @@ interface UseMeasurementListOptions {
 export default function useMeasurementList({
   airportId,
 }: UseMeasurementListOptions): UseMeasurementListResult {
+  const { t } = useTranslation();
+
   const [rows, setRows] = useState<MeasurementListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -69,13 +103,82 @@ export default function useMeasurementList({
     fetchRows();
   }, [fetchRows]);
 
+  // background refresh that doesn't blank the table (no loading/error toggle)
+  const refreshRowsSilently = useCallback(() => {
+    if (!airportId) return;
+    listAirportMeasurements(airportId)
+      .then(setRows)
+      .catch(() => {
+        // transient poll failure - keep the last good rows, retry next tick
+      });
+  }, [airportId]);
+
+  // poll while any run is still processing so the list updates on its own
+  const hasActiveRun = useMemo(
+    () => rows.some((r) => ACTIVE_STATUSES.includes(r.status)),
+    [rows],
+  );
+
+  useEffect(() => {
+    if (!hasActiveRun) return;
+    const handle = setInterval(refreshRowsSilently, MEASUREMENT_POLL_INTERVAL_MS);
+    return () => clearInterval(handle);
+  }, [hasActiveRun, refreshRowsSilently]);
+
+  // distinct missions present in the list, for the mission select filter
+  const missionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (!seen.has(r.mission_id)) seen.set(r.mission_id, r.mission_name);
+    }
+    return Array.from(seen, ([value, label]) => ({ value, label })).sort(
+      (a, b) => a.label.localeCompare(b.label),
+    );
+  }, [rows]);
+
+  const filterSpec = useMemo<FilterSpec<MeasurementListItem>[]>(
+    () => [
+      {
+        kind: "pills",
+        field: "status",
+        multi: true,
+        defaultMode: "all-active",
+        options: ALL_STATUSES.map((s) => ({
+          value: s,
+          label: t(`measurementsList.status.${s}`),
+        })),
+        badgeStyle: (value) => STATUS_BADGE[value as MeasurementStatus],
+        testIdPrefix: "status-filter",
+      },
+      {
+        kind: "select",
+        field: "mission_id",
+        options: missionOptions,
+        placeholder: t("measurementsList.filters.allMissions"),
+        testId: "mission-filter",
+      },
+      {
+        kind: "dateRange",
+        field: "created_at",
+        testIdFrom: "date-from",
+        testIdTo: "date-to",
+      },
+    ],
+    [t, missionOptions],
+  );
+
+  const onFiltersChange = useCallback(() => setPage(0), []);
+  const { filteredRows, bar } = useListFilters(rows, filterSpec, {
+    onFiltersChange,
+  });
+
   const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
+    if (!q) return filteredRows;
+    return filteredRows.filter((r) =>
       `${r.mission_name} ${r.inspection_method}`.toLowerCase().includes(q),
     );
-  }, [rows, search]);
+  }, [filteredRows, search]);
 
   const compareMeasurement = useCallback(
     (a: MeasurementListItem, b: MeasurementListItem, key: MeasurementSortKey): number => {
@@ -127,6 +230,7 @@ export default function useMeasurementList({
     fetchRows,
     search,
     handleSearchChange,
+    filterBar: bar,
     sorted,
     paged,
     sortKey,

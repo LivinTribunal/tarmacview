@@ -159,7 +159,7 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 
 **Layout:**
 - Top nav: TarmacView Mission Control Center | Dashboard | **Missions** | Airport | Results | Selected Airport dropdown | Username dropdown
-- "Results" tab: live — routes to `/operator-center/measurements`, the mission-scoped measurements list (Page 15). Reads the open mission from `MissionContext`; shows a "no mission open" prompt when none is selected
+- "Results" tab: live — routes to `/operator-center/measurements`, the airport-scoped measurements list (Page 15). Reads the selected airport from `AirportContext` and lists every measurement across that airport's missions; shows a "select an airport" prompt when none is selected
 - "Configurator" access: only in Username dropdown menu, visible only to Coordinators
 - Light/Dark mode toggle and EN/SK language switcher live inside the username dropdown menu
 
@@ -554,23 +554,41 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 
 ---
 
-### Page 15 — Results: Mission Measurements List (Operator)
+### Page 15 — Results: Airport Measurements List (Operator)
 
 **Route:** `/operator-center/measurements` (the now-live "Results" top-nav tab)
 
-**Source:** `GET /api/v1/missions/{mission_id}/measurements`, scoped to the open mission read from `MissionContext`. One row per measurement run across the mission's inspections, newest first.
+**Source:** `GET /api/v1/airports/{airport_id}/measurements`, scoped to `AirportContext.selectedAirport`. One row per measurement run across **every** mission and inspection for that airport, newest first. (Reworked in #59 from the earlier mission-scoped list; the old `GET /missions/{mission_id}/measurements` endpoint was dropped.)
 
-**Layout:** centered single-column list. Header: "Measurements" + "Runs for {mission}". Each row (`Card`) carries the inspection label (`Inspection {order} · {method}`), a status chip, the created date, and the one action that fits the run's phase.
+**Layout:** built on the shared `ListPageLayout` primitives (`ListPageContainer` / `ListPageContent` / `SearchBar` / `Pagination` / `SortableHeader`) + `useListSort`, exactly like `MissionListPage` / `OperatorDronesPage` — no bespoke markup. `MeasurementListTable` (driven by `useMeasurementList`) renders sortable, searchable columns: **Mission · Inspection** (method + order) **· Status · Date · Result** (PASS/FAIL rollup). A filter bar above the table carries status pills + a mission select + a created-at range (`useListFilters`); search matches mission name + inspection method client-side.
+
+**Auto-refresh:** the list polls every `MEASUREMENT_POLL_INTERVAL_MS` (4 s) while any row is QUEUED / FIRST_FRAME / PROCESSING — a silent refetch that never blanks the table — and stops once none are active, so a finished run flips to DONE without a manual refresh.
 
 **Row routing by status:**
-- `DONE` — PASS/FAIL rollup (`{pass} PASS / {fail} FAIL`) + "View results" → `/operator-center/measurements/{id}/results`.
-- `AWAITING_CONFIRM` — "Review" → reopens `MeasurementFlowDialog` at the confirm step (`resumeMeasurementId` seeds the status and skips `createMeasurement`).
-- `QUEUED` / `FIRST_FRAME` / `PROCESSING` — spinner chip + "View progress" → `MeasurementFlowDialog` to watch the run.
-- `ERROR` — inline error message, no action.
+- `DONE` — PASS/FAIL rollup + click-through → `/operator-center/measurements/{id}/results` (Page 16).
+- `AWAITING_CONFIRM` — reopens `MeasurementFlowDialog` at the confirm step (`resumeMeasurementId` seeds the status and skips `createMeasurement`).
+- `QUEUED` / `FIRST_FRAME` / `PROCESSING` — spinner status tag; the row opens `MeasurementFlowDialog` to watch the run.
+- `ERROR` — inline error message, not actionable.
 
-**States:** no mission open → "Open a mission to see its measurement results." Loading spinner. Empty → "No measurements yet for this mission. Start one from the drone media upload." Load failure → error card with Retry. Resuming an `AWAITING_CONFIRM` run may finish it, so the list refetches on dialog close.
+**States:** no airport selected → "select an airport" prompt. Loading spinner. Empty → empty table. Load failure → error row with Retry. Resuming an `AWAITING_CONFIRM` run may finish it, so the list refetches on dialog close.
 
-**Entry points:** the navbar "Results" tab, plus the "View results" button in `ExportPanel` on Page 08 (marks the mission open in context, then navigates). Strings under `measurementsList.*` (EN + SK); `MeasurementListItem` in `frontend/src/types/measurement.ts` mirrors `MeasurementListItemResponse`.
+**Entry points:** the navbar "Results" tab, plus the "View results" button in `ExportPanel` on Page 08 (a plain `navigate` to the results detail). Strings under `measurementsList.*` (EN + SK); `MeasurementListItem` in `frontend/src/types/measurement.ts` mirrors `MeasurementListItemResponse` (now carrying `mission_id` + `mission_name`).
+
+---
+
+### Page 16 — Results: Measurement Detail (Operator)
+
+**Route:** `/operator-center/measurements/{measurementId}/results`
+
+**Source:** `GET /api/v1/measurements/{id}/data` (the pivoted per-frame results payload).
+
+**Layout:** `--tv-*` card stack with a header (run status + a "Download PDF" button → `GET /measurements/{id}/pdf-report`). Content renders only once `has_results` is true; otherwise a "not ready yet" card. Four content blocks:
+1. **PASS/FAIL table** — `TransitionAngleTable` of each PAPI light's measured transition angle vs `setting_angle ± tolerance`, with a solid PASS/FAIL verdict tone.
+2. **Per-light analysis** — `LightAngleChart` (per-light angle over the climb, shading the white/red transition zones via recharts `ReferenceArea` from `transition_angle_min/middle/max`), `IntensityChart`, and `ChromaticityChart`.
+3. **Flown path + climb profile** — `DronePathMap` (MapLibre drone-path map with reference points) beside `ClimbProfileChart`, which plots the flown `drone_path` elevation profile (added in #59).
+4. **Annotated videos + PDF** — `AnnotatedVideoPlayer` (defaults to "All PAPI lights", capped to a 16:9 box with per-light crops letterboxed, plus a Fullscreen button) and the PDF download.
+
+**States:** loading spinner, error card, and the `has_results: false` "not ready" card. Strings under `results.*` (EN + SK).
 
 ---
 

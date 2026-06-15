@@ -383,7 +383,12 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
 
 
 def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
-    """ordered drone positions pulled from each frame's gps telemetry."""
+    """ordered drone positions pulled from each frame's gps telemetry.
+
+    keys are the canonical blob shape the engine writes per frame
+    (``measurement_collector`` emits drone_latitude / drone_longitude /
+    drone_elevation_wgs84) - don't rename them to the overlay gps_cache keys.
+    """
     path: list[DronePathPoint] = []
     for frame in frames:
         lat = frame.get("drone_latitude")

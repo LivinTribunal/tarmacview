@@ -35,6 +35,19 @@ function refPointsFeature(
   };
 }
 
+function pathPointsFeature(
+  path: DronePathPoint[],
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: path.map((p) => ({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
+    })),
+  };
+}
+
 /** read-only maplibre map showing the flown drone path + PAPI reference points. */
 export default function DronePathMap({
   dronePath,
@@ -73,6 +86,24 @@ export default function DronePathMap({
         paint: { "line-color": TRAJECTORY_COLORS.PATH, "line-width": 3 },
       });
 
+      // per-position dots so a stationary / near-zero-length path (papi footage
+      // holds a fixed standoff while altitude sweeps) is still visible on the map
+      map.addSource("drone-path-points", {
+        type: "geojson",
+        data: pathPointsFeature(dronePath),
+      });
+      map.addLayer({
+        id: "drone-path-point",
+        type: "circle",
+        source: "drone-path-points",
+        paint: {
+          "circle-radius": 4,
+          "circle-color": TRAJECTORY_COLORS.PATH,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": NEUTRAL.WHITE,
+        },
+      });
+
       map.addSource("ref-points", {
         type: "geojson",
         data: refPointsFeature(referencePoints),
@@ -94,7 +125,19 @@ export default function DronePathMap({
           (b, c) => b.extend(c),
           new maplibregl.LngLatBounds(coords[0], coords[0]),
         );
-        map.fitBounds(bounds, { padding: 48, maxZoom: 18, duration: 0 });
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        // a single point or a near-zero-span path collapses fitBounds to a
+        // degenerate box - center on it at a sensible zoom instead of a blank map
+        const spanDeg = Math.max(
+          Math.abs(ne.lng - sw.lng),
+          Math.abs(ne.lat - sw.lat),
+        );
+        if (spanDeg < 1e-4) {
+          map.jumpTo({ center: bounds.getCenter(), zoom: 17 });
+        } else {
+          map.fitBounds(bounds, { padding: 48, maxZoom: 18, duration: 0 });
+        }
       }
     });
 

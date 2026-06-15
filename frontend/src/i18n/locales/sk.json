@@ -2195,7 +2195,9 @@
       "intensityUnit": "Intenzita",
       "chromaticity": "Chromatickosť (podiel červenej) v čase",
       "chromaticityUnit": "r / (r+g+b)",
-      "timeAxis": "Čas (s)"
+      "timeAxis": "Čas (s)",
+      "climbProfile": "Výška dronu v čase",
+      "elevationUnit": "Výška (m WGS84)"
     },
     "map": {
       "title": "Trasa dronu",

@@ -12,6 +12,7 @@ import Card from "@/components/common/Card";
 import LightAngleChart from "@/components/results/LightAngleChart";
 import ChromaticityChart from "@/components/results/ChromaticityChart";
 import IntensityChart from "@/components/results/IntensityChart";
+import ClimbProfileChart from "@/components/results/ClimbProfileChart";
 import TransitionAngleTable from "@/components/results/TransitionAngleTable";
 import DronePathMap from "@/components/results/DronePathMap";
 import AnnotatedVideoPlayer from "@/components/results/AnnotatedVideoPlayer";
@@ -142,6 +143,7 @@ export default function ResultsPage() {
             <LightAngleChart lights={results.lights} />
             <ChromaticityChart lights={results.lights} />
             <IntensityChart lights={results.lights} />
+            <ClimbProfileChart dronePath={results.drone_path} />
             <Card className="flex flex-col">
               <h3 className="text-sm font-medium text-tv-text-primary mb-3">
                 {t("results.map.title")}

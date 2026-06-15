@@ -373,20 +373,33 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
 
 
 def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
-    """ordered drone positions pulled from each frame's gps telemetry."""
+    """ordered drone positions pulled from each frame's gps telemetry.
+
+    the engine writes per-frame gps as ``drone_latitude`` / ``drone_longitude`` /
+    ``drone_elevation_wgs84`` (the ``measurement_collector`` blob shape); the bare
+    ``latitude`` / ``longitude`` / ``elevation_wgs84`` shape (the ``GPSData`` dict
+    form) is also accepted so a blob from either gps serialization still draws.
+    """
     path: list[DronePathPoint] = []
     for frame in frames:
         lat = frame.get("drone_latitude")
+        if lat is None:
+            lat = frame.get("latitude")
         lon = frame.get("drone_longitude")
+        if lon is None:
+            lon = frame.get("longitude")
         if lat is None or lon is None:
             continue
+        elevation = frame.get("drone_elevation_wgs84")
+        if elevation is None:
+            elevation = frame.get("elevation_wgs84")
         path.append(
             DronePathPoint(
                 frame_number=int(frame.get("frame_number", 0)),
                 timestamp=float(frame.get("timestamp", 0.0)),
                 latitude=float(lat),
                 longitude=float(lon),
-                elevation=frame.get("drone_elevation_wgs84"),
+                elevation=elevation,
             )
         )
     return path

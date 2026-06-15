@@ -2191,7 +2191,9 @@
       "intensityUnit": "Intensity",
       "chromaticity": "Chromaticity (red fraction) over time",
       "chromaticityUnit": "r / (r+g+b)",
-      "timeAxis": "Time (s)"
+      "timeAxis": "Time (s)",
+      "climbProfile": "Drone altitude over time",
+      "elevationUnit": "Altitude (m WGS84)"
     },
     "map": {
       "title": "Drone path",

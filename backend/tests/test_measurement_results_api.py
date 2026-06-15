@@ -176,6 +176,53 @@ def test_data_done_pivots_blob(client, db_engine, inspection_id, _stub_storage):
     assert any(s["light_name"] == "PAPI_A" and s["passed"] for s in body["summaries"])
 
 
+def test_drone_path_reads_engine_keys():
+    """_drone_path pivots the drone_* engine keys into an ordered path."""
+    frames = [_frame(i) for i in range(3)]
+    path = measurement_service._drone_path(frames)
+    assert len(path) == 3
+    assert path[0].latitude == pytest.approx(48.1)
+    assert path[0].longitude == pytest.approx(17.2)
+    # elevation carried through from drone_elevation_wgs84
+    assert path[0].elevation == pytest.approx(150.0)
+    assert path[2].elevation == pytest.approx(152.0)
+    assert [p.frame_number for p in path] == [0, 1, 2]
+
+
+def test_drone_path_skips_frames_without_gps():
+    """a frame missing lat/lon is skipped, not coerced to null island."""
+    frames = [
+        _frame(0),
+        {"frame_number": 1, "timestamp": 0.03},  # no gps
+        _frame(2),
+    ]
+    path = measurement_service._drone_path(frames)
+    assert [p.frame_number for p in path] == [0, 2]
+
+
+def test_drone_path_empty_blob_is_empty():
+    """no frames -> empty path, not an error."""
+    assert measurement_service._drone_path([]) == []
+
+
+def test_drone_path_accepts_bare_gps_keys():
+    """the bare latitude/longitude/elevation_wgs84 shape also draws."""
+    frames = [
+        {
+            "frame_number": 5,
+            "timestamp": 0.16,
+            "latitude": 49.3,
+            "longitude": 18.4,
+            "elevation_wgs84": 222.0,
+        }
+    ]
+    path = measurement_service._drone_path(frames)
+    assert len(path) == 1
+    assert path[0].latitude == pytest.approx(49.3)
+    assert path[0].longitude == pytest.approx(18.4)
+    assert path[0].elevation == pytest.approx(222.0)
+
+
 def test_pdf_report_unknown_measurement_is_404(client):
     """pdf for an unknown measurement 404."""
     assert client.get(f"/api/v1/measurements/{uuid4()}/pdf-report").status_code == 404

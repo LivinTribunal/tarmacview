@@ -4,7 +4,6 @@ import { useParams, useNavigate, useOutletContext } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useAirport } from "@/contexts/AirportContext";
-import { useMission } from "@/contexts/MissionContext";
 import useMissionValidation from "@/hooks/useMissionValidation";
 import ValidationResultsPanel from "@/components/mission/ValidationResultsPanel";
 import WarningsPanel from "@/components/mission/WarningsPanel";
@@ -22,7 +21,6 @@ export default function MissionValidationPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { airportDetail } = useAirport();
-  const { setSelectedMission } = useMission();
   const {
     setSaveContext,
     setComputeContext,
@@ -223,8 +221,7 @@ export default function MissionValidationPage() {
               onDismissClampWarning={dismissClampWarning}
               onDispatched={fetchData}
               onViewResults={() => {
-                // mark this mission "open" so the list reads it from context
-                setSelectedMission(mission);
+                // results are airport-scoped now; the airport is already selected
                 navigate("/operator-center/measurements");
               }}
               statsSlot={

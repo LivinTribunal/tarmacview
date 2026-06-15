@@ -7,8 +7,8 @@ import {
   ClipboardCheck,
   Loader2,
 } from "lucide-react";
-import { useMission } from "@/contexts/MissionContext";
-import { listMissionMeasurements } from "@/api/measurements";
+import { useAirport } from "@/contexts/AirportContext";
+import { listAirportMeasurements } from "@/api/measurements";
 import type { MeasurementListItem } from "@/types/measurement";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
@@ -28,28 +28,55 @@ interface ResumeTarget {
   label: string;
 }
 
-/** mission-scoped measurements list - the results entry point for the operator. */
+/** rows for one mission, in the contiguous order the backend already grouped them. */
+interface MissionGroup {
+  missionId: string;
+  missionName: string;
+  rows: MeasurementListItem[];
+}
+
+/** fold the already-grouped rows into per-mission sections, preserving order. */
+function groupByMission(rows: MeasurementListItem[]): MissionGroup[] {
+  const groups: MissionGroup[] = [];
+  const byId = new Map<string, MissionGroup>();
+  for (const row of rows) {
+    let group = byId.get(row.mission_id);
+    if (!group) {
+      group = {
+        missionId: row.mission_id,
+        missionName: row.mission_name,
+        rows: [],
+      };
+      byId.set(row.mission_id, group);
+      groups.push(group);
+    }
+    group.rows.push(row);
+  }
+  return groups;
+}
+
+/** airport-scoped measurements list - the results entry point for the operator. */
 export default function MeasurementsListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { selectedMission } = useMission();
+  const { selectedAirport } = useAirport();
 
   const [rows, setRows] = useState<MeasurementListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [resumeTarget, setResumeTarget] = useState<ResumeTarget | null>(null);
 
-  const missionId = selectedMission?.id ?? null;
+  const airportId = selectedAirport?.id ?? null;
 
   const fetchRows = useCallback(() => {
-    if (!missionId) return;
+    if (!airportId) return;
     setLoading(true);
     setError(false);
-    listMissionMeasurements(missionId)
+    listAirportMeasurements(airportId)
       .then(setRows)
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [missionId]);
+  }, [airportId]);
 
   useEffect(() => {
     fetchRows();
@@ -76,18 +103,20 @@ export default function MeasurementsListPage() {
     fetchRows();
   }
 
-  if (!selectedMission) {
+  if (!selectedAirport) {
     return (
       <div
         className="flex h-full items-center justify-center bg-tv-bg"
-        data-testid="measurements-no-mission"
+        data-testid="measurements-no-airport"
       >
         <p className="text-sm text-tv-text-muted">
-          {t("measurementsList.noMissionOpen")}
+          {t("measurementsList.noAirport")}
         </p>
       </div>
     );
   }
+
+  const groups = groupByMission(rows);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col gap-4 overflow-auto p-6">
@@ -96,7 +125,7 @@ export default function MeasurementsListPage() {
           {t("measurementsList.title")}
         </h1>
         <p className="text-sm text-tv-text-secondary">
-          {t("measurementsList.subtitle", { mission: selectedMission.name })}
+          {t("measurementsList.subtitle", { airport: selectedAirport.name })}
         </p>
       </header>
 
@@ -119,7 +148,7 @@ export default function MeasurementsListPage() {
         </Card>
       )}
 
-      {!loading && !error && rows.length === 0 && (
+      {!loading && !error && groups.length === 0 && (
         <Card className="py-8 text-center">
           <p
             className="text-sm text-tv-text-muted"
@@ -130,21 +159,34 @@ export default function MeasurementsListPage() {
         </Card>
       )}
 
-      {!loading && !error && rows.length > 0 && (
-        <ul className="flex flex-col gap-3" data-testid="measurements-list">
-          {rows.map((row) => (
-            <li key={row.id}>
-              <MeasurementRow
-                row={row}
-                label={inspectionLabel(row)}
-                onViewResults={() =>
-                  navigate(`/operator-center/measurements/${row.id}/results`)
-                }
-                onResume={() => openResume(row)}
-              />
-            </li>
+      {!loading && !error && groups.length > 0 && (
+        <div className="flex flex-col gap-6" data-testid="measurements-list">
+          {groups.map((group) => (
+            <section
+              key={group.missionId}
+              className="flex flex-col gap-3"
+              data-testid={`mission-group-${group.missionId}`}
+            >
+              <h2 className="text-sm font-semibold text-tv-text-secondary">
+                {t("measurementsList.missionGroup", { mission: group.missionName })}
+              </h2>
+              <ul className="flex flex-col gap-3">
+                {group.rows.map((row) => (
+                  <li key={row.id}>
+                    <MeasurementRow
+                      row={row}
+                      label={inspectionLabel(row)}
+                      onViewResults={() =>
+                        navigate(`/operator-center/measurements/${row.id}/results`)
+                      }
+                      onResume={() => openResume(row)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
 
       {resumeTarget && (

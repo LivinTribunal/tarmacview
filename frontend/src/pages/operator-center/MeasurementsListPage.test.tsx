@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import en from "@/i18n/locales/en.json";
 import type { MeasurementListItem } from "@/types/measurement";
 import MeasurementsListPage from "./MeasurementsListPage";
-import { listMissionMeasurements } from "@/api/measurements";
+import { listAirportMeasurements } from "@/api/measurements";
 
 /** resolve a dotted i18n key against the real en.json bundle. */
 function resolveKey(key: string): string {
@@ -39,19 +39,19 @@ vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: vi.fn() },
 }));
 
-const { navigateMock, missionHolder } = vi.hoisted(() => ({
+const { navigateMock, airportHolder } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
-  missionHolder: { current: null as { id: string; name: string } | null },
+  airportHolder: { current: null as { id: string; name: string } | null },
 }));
 
 vi.mock("react-router", () => ({ useNavigate: () => navigateMock }));
 
-vi.mock("@/contexts/MissionContext", () => ({
-  useMission: () => ({ selectedMission: missionHolder.current }),
+vi.mock("@/contexts/AirportContext", () => ({
+  useAirport: () => ({ selectedAirport: airportHolder.current }),
 }));
 
 vi.mock("@/api/measurements", () => ({
-  listMissionMeasurements: vi.fn(),
+  listAirportMeasurements: vi.fn(),
 }));
 
 // stub the heavy flow dialog - its own test covers the resume internals
@@ -61,11 +61,13 @@ vi.mock("@/components/mission/MeasurementFlowDialog", () => ({
   ),
 }));
 
-const listMock = vi.mocked(listMissionMeasurements);
+const listMock = vi.mocked(listAirportMeasurements);
 
 function row(over: Partial<MeasurementListItem>): MeasurementListItem {
   return {
     id: "m1",
+    mission_id: "mission-1",
+    mission_name: "Demo Mission",
     inspection_id: "i1",
     inspection_method: "HORIZONTAL_RANGE",
     inspection_sequence_order: 1,
@@ -82,23 +84,23 @@ function row(over: Partial<MeasurementListItem>): MeasurementListItem {
 describe("MeasurementsListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    missionHolder.current = { id: "mission-1", name: "Demo Mission" };
+    airportHolder.current = { id: "airport-1", name: "Demo Airport" };
     listMock.mockResolvedValue([]);
   });
 
-  it("shows the no-mission-open state when no mission is selected", () => {
-    missionHolder.current = null;
+  it("shows the no-airport state when no airport is selected", () => {
+    airportHolder.current = null;
     render(<MeasurementsListPage />);
-    expect(screen.getByTestId("measurements-no-mission")).toBeInTheDocument();
+    expect(screen.getByTestId("measurements-no-airport")).toBeInTheDocument();
     expect(listMock).not.toHaveBeenCalled();
   });
 
-  it("shows the empty state when the mission has no measurements", async () => {
+  it("shows the empty state when the airport has no measurements", async () => {
     render(<MeasurementsListPage />);
     await waitFor(() =>
       expect(screen.getByTestId("measurements-empty")).toBeInTheDocument(),
     );
-    expect(listMock).toHaveBeenCalledWith("mission-1");
+    expect(listMock).toHaveBeenCalledWith("airport-1");
   });
 
   it("renders a row per measurement and routes each status", async () => {
@@ -151,6 +153,27 @@ describe("MeasurementsListPage", () => {
     expect(screen.getByTestId("error-err-1")).toHaveTextContent(
       "processing failed: boom",
     );
+  });
+
+  it("sections rows by mission with a per-mission heading", async () => {
+    listMock.mockResolvedValue([
+      row({ id: "a-1", mission_id: "mission-a", mission_name: "Alpha" }),
+      row({ id: "a-2", mission_id: "mission-a", mission_name: "Alpha" }),
+      row({ id: "b-1", mission_id: "mission-b", mission_name: "Bravo" }),
+    ]);
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-list")).toBeInTheDocument(),
+    );
+
+    const alpha = screen.getByTestId("mission-group-mission-a");
+    const bravo = screen.getByTestId("mission-group-mission-b");
+    expect(alpha).toHaveTextContent("Alpha");
+    expect(bravo).toHaveTextContent("Bravo");
+    // both of Alpha's rows live under its section, Bravo's single row under its own
+    expect(alpha.querySelectorAll("li")).toHaveLength(2);
+    expect(bravo.querySelectorAll("li")).toHaveLength(1);
   });
 
   it("surfaces a load error with a retry", async () => {

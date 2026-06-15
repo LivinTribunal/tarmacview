@@ -28,8 +28,10 @@ from app.domain.measurement.entities import (
 from app.domain.measurement.repository import MeasurementRepository
 from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
 from app.models.agl import LHA
+from app.models.airport import Airport
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
+from app.models.mission import Mission
 from app.schemas.measurement import (
     DronePathPoint,
     LightSeries,
@@ -209,11 +211,14 @@ def get_measurement(db: Session, measurement_id: UUID) -> Measurement:
     return measurement
 
 
-def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementListItemResponse:
-    """map an aggregate + its inspection context to one list row.
+def _list_item(
+    measurement: Measurement, inspection: Inspection, mission: Mission
+) -> MeasurementListItemResponse:
+    """map an aggregate + its mission/inspection context to one list row.
 
     PASS/FAIL counts and has_results derive from the aggregate's summaries +
-    object_key so the row carries everything the list page routes on.
+    object_key so the row carries everything the list page routes on; mission name
+    rides along so the airport-scoped list can disambiguate cross-mission rows.
     """
     pass_count = sum(1 for s in measurement.summaries if s.passed is True)
     fail_count = sum(1 for s in measurement.summaries if s.passed is False)
@@ -222,6 +227,8 @@ def _list_item(measurement: Measurement, inspection: Inspection) -> MeasurementL
     )
     return MeasurementListItemResponse(
         id=measurement.id,
+        mission_id=mission.id,
+        mission_name=mission.name,
         inspection_id=measurement.inspection_id,
         inspection_method=inspection.method,
         inspection_sequence_order=inspection.sequence_order,
@@ -241,10 +248,44 @@ def list_mission_measurements(db: Session, mission_id: UUID) -> list[Measurement
     those ids - no per-row inspection lookup. the caller (route) has already verified
     the mission exists and the user may access it.
     """
+    mission = db.query(Mission).filter(Mission.id == mission_id).first()
+    if mission is None:
+        raise NotFoundError("mission not found")
     inspections = db.query(Inspection).filter(Inspection.mission_id == mission_id).all()
     by_id = {insp.id: insp for insp in inspections}
     measurements = _repo(db).list_by_inspections(list(by_id.keys()))
-    return [_list_item(m, by_id[m.inspection_id]) for m in measurements]
+    return [_list_item(m, by_id[m.inspection_id], mission) for m in measurements]
+
+
+def list_airport_measurements(db: Session, airport_id: UUID) -> list[MeasurementListItemResponse]:
+    """every measurement across the airport's missions, grouped by mission, newest first.
+
+    the airport's missions are loaded once, their inspections in one batched read by
+    mission_id, and the measurements through the port's batched list_by_inspections -
+    no per-row lookup. the globally newest-first measurements are then grouped by
+    mission preserving order, so each mission's rows stay contiguous (newest activity
+    first) and newest-first within - the shape the list page sections on. the caller
+    (route) has already verified the user may access the airport.
+    """
+    if db.query(Airport.id).filter(Airport.id == airport_id).first() is None:
+        raise NotFoundError("airport not found")
+
+    missions = db.query(Mission).filter(Mission.airport_id == airport_id).all()
+    missions_by_id = {m.id: m for m in missions}
+    inspections = (
+        db.query(Inspection).filter(Inspection.mission_id.in_(missions_by_id.keys())).all()
+        if missions_by_id
+        else []
+    )
+    inspections_by_id = {insp.id: insp for insp in inspections}
+    measurements = _repo(db).list_by_inspections(list(inspections_by_id.keys()))
+
+    grouped: dict[UUID, list[MeasurementListItemResponse]] = {}
+    for m in measurements:
+        inspection = inspections_by_id[m.inspection_id]
+        mission = missions_by_id[inspection.mission_id]
+        grouped.setdefault(mission.id, []).append(_list_item(m, inspection, mission))
+    return [row for rows in grouped.values() for row in rows]
 
 
 def airport_id_for_inspection(db: Session, inspection_id: UUID):

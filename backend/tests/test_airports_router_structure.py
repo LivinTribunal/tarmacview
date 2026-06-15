@@ -10,7 +10,8 @@ from app.api.routes.airports import router as airports_router
 from app.main import app
 
 # (method, path, route function name) - 39 routes byte-identical to the
-# single-file router before decomposition, plus extract-photo-metadata.
+# single-file router before decomposition, plus extract-photo-metadata and the
+# airport-scoped measurements list.
 # a missing/extra/renamed route or a changed path breaks this on purpose.
 EXPECTED_ROUTES = {
     ("GET", "/api/v1/airports", "list_airports"),
@@ -93,6 +94,7 @@ EXPECTED_ROUTES = {
         "/api/v1/airports/{airport_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/{lha_id}",
         "delete_lha",
     ),
+    ("GET", "/api/v1/airports/{airport_id}/measurements", "list_airport_measurements"),
 }
 
 

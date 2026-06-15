@@ -69,13 +69,17 @@ class MeasurementStatusResponse(BaseModel):
 
 
 class MeasurementListItemResponse(BaseModel):
-    """one row of the mission measurements list - status + inspection context + rollup.
+    """one row of the results list - status + mission/inspection context + rollup.
 
     ``has_results`` and the PASS/FAIL counts derive from the aggregate's summaries +
     object_key, so the list page can route each row without a per-row results fetch.
+    ``mission_id`` / ``mission_name`` come from a join so the airport-scoped list can
+    disambiguate rows that span multiple missions.
     """
 
     id: UUID
+    mission_id: UUID
+    mission_name: str
     inspection_id: UUID
     inspection_method: str
     inspection_sequence_order: int

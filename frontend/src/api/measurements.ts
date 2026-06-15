@@ -25,6 +25,14 @@ export async function listMissionMeasurements(
   return res.data;
 }
 
+/** every measurement across the airport's missions, grouped by mission, newest first. */
+export async function listAirportMeasurements(
+  airportId: string,
+): Promise<MeasurementListItem[]> {
+  const res = await client.get(`/airports/${airportId}/measurements`);
+  return res.data;
+}
+
 /** progress poll - status doubles as the phase, error_message set only on ERROR. */
 export async function getMeasurementStatus(
   measurementId: string,

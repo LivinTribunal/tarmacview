@@ -10,9 +10,11 @@ export type MeasurementStatus =
   | "DONE"
   | "ERROR";
 
-// one row of the mission measurements list - status + inspection context + rollup
+// one row of the results list - status + mission/inspection context + rollup
 export interface MeasurementListItem {
   id: string;
+  mission_id: string;
+  mission_name: string;
   inspection_id: string;
   inspection_method: InspectionMethod;
   inspection_sequence_order: number;

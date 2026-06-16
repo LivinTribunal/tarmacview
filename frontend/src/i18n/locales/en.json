@@ -2141,6 +2141,14 @@
     "webglUnsupported": "WebGL is not supported",
     "webglUnsupportedHint": "This application requires WebGL to render maps and 3D views. Please use a modern browser with hardware acceleration enabled."
   },
+  "measurement": {
+    "label": "Measurement",
+    "selectMeasurement": "Select a measurement",
+    "searchPlaceholder": "Search measurements...",
+    "tab": {
+      "all": "All"
+    }
+  },
   "measurementsList": {
     "title": "Measurements",
     "searchPlaceholder": "Search results by mission or method...",
@@ -2180,6 +2188,7 @@
     "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",
     "downloadPdf": "Download PDF",
     "generatingPdf": "Generating…",
+    "passRollup": "{{pass}}/{{total}} pass",
     "noData": "No data for this chart.",
     "table": {
       "title": "Transition angles",

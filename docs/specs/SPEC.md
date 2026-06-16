@@ -132,15 +132,16 @@ DRAFT → PLANNED → VALIDATED → EXPORTED → MEASURED → COMPLETED
 - Changing drone profile → regresses to PLANNED (inspections still valid, trajectory needs regeneration)
 
 **Modification rules:**
-- DRAFT, PLANNED, VALIDATED: inspections can be added/removed/reordered, drone profile can be changed (auto-regresses as above)
-- EXPORTED, COMPLETED, CANCELLED: terminal states — no modifications allowed, user must duplicate the mission
+- DRAFT, PLANNED, VALIDATED, EXPORTED: inspections can be added/removed/reordered and the drone profile changed; the edit auto-regresses to DRAFT/PLANNED as above
+- MEASURED: edit-locked. `Mission.invalidate_trajectory()` raises (services map `ValueError → DomainError(409)`), so add/remove inspection, drone swap, and trajectory-affecting config changes are all rejected. The footage was already scored against the planned LHA ground truth, so editing the plan afterward would orphan the measurement. Only COMPLETED / CANCELLED stay reachable; the mission is still deletable.
+- COMPLETED, CANCELLED: terminal states — no modifications allowed, user must duplicate the mission
 
 **Duplication:**
 - Duplicated missions always start in DRAFT status regardless of the original's status
 
 **Status gating:**
 - Export button: disabled until VALIDATED
-- Complete/Cancel buttons: disabled until EXPORTED
+- Complete/Cancel buttons: enabled once EXPORTED or MEASURED
 - COMPLETED and CANCELLED are terminal states — no further actions
 
 ---
@@ -283,7 +284,7 @@ Full-screen MapLibre. Toolbar: undo/redo (10 max, per-session), save, recompute,
 Two-column layout. Left scrollable panel: MissionConfigForm (drone profile select, default speed, altitude offset, takeoff/landing CoordinateInputs with pick-on-map, operator notes), InspectionList (reorderable, add via TemplatePicker modal, remove, visibility toggle, count badge X/10), InspectionConfigForm (template name, method read-only, per-AGL LHA section collapsed by default under a clickable header with helper-mode toggle (All / Range / From-threshold / Custom) above the LHA checkboxes when expanded, method-specific fields for FLY_OVER, PARALLEL_SIDE_SWEEP, and APPROACH_DESCENT rendered before the direction section, altitudeOffset, speedOverride, measurementDensity, hoverDuration — with speed/framerate warning), StatsPanel (distance, duration, waypoint count, battery % — post-computation only), WarningsPanel (severity-grouped: Violations / Warnings / Suggestions sections, each collapsible with a count badge, rows deduped by `violation_kind` — falling back to `constraint_name` then message for legacy null-kind rows — post-computation only). Right: AirportMap with flight path visualization (direction arrows on path segments, blue transit paths #7eb8e5, per-inspection colored measurement segments, overlapping paths offset ~5m left of heading for visibility, blue ring around the selected inspection's measurement waypoints), WaypointListPanel (sortable list), PoiInfoPanel (the single feature-info panel for any clicked feature, waypoints included). "Compute Trajectory" button in MissionTabNav bar. Schema uses `config` (not `config_override`) in InspectionCreate/InspectionUpdate.
 
 ### Page 08 — Validation & Export (`/operator-center/missions/:id/validation-export`)
-Left: per-constraint breakdown (pass/fail/warning), "Edit Configuration" → Config tab, "Accept" → VALIDATED. Right: map + export section (KML/KMZ/JSON/MAVLink checkboxes, download button). Export disabled until VALIDATED. Complete/Cancel disabled until EXPORTED. Delete available always. The *Upload Drone Media* button in the MissionTabNav header opens the drone-media dialog — see "Drone media matching + upload dialog" below.
+Left: per-constraint breakdown (pass/fail/warning), "Edit Configuration" → Config tab, "Accept" → VALIDATED. Right: map + export section (KML/KMZ/JSON/MAVLink checkboxes, download button). Export disabled until VALIDATED. Complete/Cancel enabled once EXPORTED or MEASURED. Delete available always. The *Upload Drone Media* button in the MissionTabNav header opens the drone-media dialog — see "Drone media matching + upload dialog" below.
 
 #### Geozone bundle option
 
@@ -420,7 +421,7 @@ Airport list, inspection template editor (AGL selector, per-AGL helper-mode togg
 
 - `Mission.transition_to(target_status)` — enforces state machine
 - `Mission.mark_measured()` — VALIDATED/EXPORTED -> MEASURED on measurement kickoff; idempotent, no-ops outside `POST_PLAN_STATUSES` so repeat create-measurement calls (multi-inspection missions) neither re-transition nor raise
-- `Mission.invalidate_trajectory()` — PLANNED/VALIDATED/EXPORTED -> DRAFT on trajectory changes; sets `has_unsaved_map_changes = True` and resets computation status. Raises on terminal statuses. The existing flight plan row is intentionally kept as a stale reference; deletion is wired at the DB level via the CASCADE on `flight_plan.mission_id` (relationship uses `passive_deletes=True`).
+- `Mission.invalidate_trajectory()` — PLANNED/VALIDATED/EXPORTED -> DRAFT on trajectory changes; sets `has_unsaved_map_changes = True` and resets computation status. Raises on terminal statuses and on MEASURED (the footage was already scored against the planned LHA ground truth, so editing the plan afterward would orphan the measurement — only COMPLETED / CANCELLED stay reachable). The existing flight plan row is intentionally kept as a stale reference; deletion is wired at the DB level via the CASCADE on `flight_plan.mission_id` (relationship uses `passive_deletes=True`).
 - `Mission.has_trajectory_changes(data)` — returns True when `data` touches a `TRAJECTORY_FIELDS` member
 - `Mission.regress_if_trajectory_changed(data)` — invalidates trajectory when needed; returns True on regression. Does NOT apply field values — callers still own field assignment via `apply_schema_update` / `setattr`.
 - `Mission.modify_inspections(callback)` — runs an inspections mutator and invalidates the trajectory atomically. Keeps the existing flight plan as stale.

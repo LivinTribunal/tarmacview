@@ -87,7 +87,7 @@ export default function NavBar({ items, role, roleSwitchItems = EMPTY_NAV_ITEMS 
                     to={item.to}
                     onClick={(e) => disabled && e.preventDefault()}
                     className={({ isActive }) =>
-                      `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center ${
+                      `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center justify-center text-center ${
                         disabled
                           ? "opacity-50 cursor-not-allowed text-tv-text-muted"
                           : isActive
@@ -116,7 +116,7 @@ export default function NavBar({ items, role, roleSwitchItems = EMPTY_NAV_ITEMS 
                 to={item.to}
                 onClick={(e) => disabled && e.preventDefault()}
                 className={({ isActive }) =>
-                  `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center ${
+                  `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center justify-center text-center ${
                     disabled
                       ? "opacity-50 cursor-not-allowed text-tv-text-muted"
                       : isActive

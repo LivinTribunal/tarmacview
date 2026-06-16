@@ -341,9 +341,15 @@ class Mission(Base):
         render it as a stale reference until the operator triggers a fresh
         recompute; sets has_unsaved_map_changes so callers know a recompute
         is pending.
+
+        MEASURED is locked: the footage was already scored against the planned
+        LHA ground truth, so editing the plan afterwards would orphan the
+        measurement. its only forward transitions are COMPLETED / CANCELLED.
         """
         if self.status in self.TERMINAL_STATUSES:
             raise ValueError("cannot modify mission in completed or cancelled state")
+        if self.status == MissionStatus.MEASURED:
+            raise ValueError("cannot modify mission after measurement")
         if self.status in self.NON_DRAFT_WITH_PLAN_STATUSES:
             self.status = MissionStatus.DRAFT
         self.has_unsaved_map_changes = True

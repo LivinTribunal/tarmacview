@@ -81,7 +81,11 @@ export default function ValidationStatusPanel({
   const warningCount = violations.filter((v) => v.is_warning).length;
   const violationCount = violations.filter((v) => !v.is_warning).length;
 
-  const isApproved = missionStatus === "VALIDATED" || missionStatus === "EXPORTED" || missionStatus === "COMPLETED";
+  const isApproved =
+    missionStatus === "VALIDATED" ||
+    missionStatus === "EXPORTED" ||
+    missionStatus === "MEASURED" ||
+    missionStatus === "COMPLETED";
 
   let overallStatus: "approved" | "passed" | "warnings" | "failed" | "notValidated";
   if (!hasTrajectory || !validation) {

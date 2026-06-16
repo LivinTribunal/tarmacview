@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import Modal from "@/components/common/Modal";
 import { isAxiosError } from "@/api/client";
 import {
@@ -41,7 +40,6 @@ export default function MeasurementFlowDialog({
   onClose,
 }: MeasurementFlowDialogProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const [status, setStatus] = useState<MeasurementStatus | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -122,10 +120,11 @@ export default function MeasurementFlowDialog({
     setBoxes((prev) => prev.map((b, i) => (i === dragIndex ? { ...b, x, y } : b)));
   }
 
+  // the dialog only opens for AWAITING_CONFIRM rows and never polls, so the run
+  // never reaches DONE here - confirm hands off to the list + progress toast.
   const showAwaitingConfirm = status === "AWAITING_CONFIRM" && !uiError;
-  const showDone = status === "DONE" && !uiError;
   const showError = (status === "ERROR" || uiError !== null) && !showAwaitingConfirm;
-  const showLoading = !showAwaitingConfirm && !showDone && !showError;
+  const showLoading = !showAwaitingConfirm && !showError;
 
   return (
     <Modal isOpen onClose={onClose} title={t("mission.measurementFlow.title")}>
@@ -202,28 +201,6 @@ export default function MeasurementFlowDialog({
               {confirming
                 ? t("mission.measurementFlow.confirming")
                 : t("mission.measurementFlow.confirmButton")}
-            </button>
-          </div>
-        )}
-
-        {showDone && (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <CheckCircle2 className="h-8 w-8 text-tv-success" />
-            <h3 className="text-sm font-semibold text-tv-text-primary">
-              {t("mission.measurementFlow.doneTitle")}
-            </h3>
-            <p className="text-xs text-tv-text-secondary">
-              {t("mission.measurementFlow.doneHint")}
-            </p>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(`/operator-center/measurements/${measurementId}/results`)
-              }
-              data-testid="view-results-button"
-              className="rounded-lg bg-tv-accent px-4 py-2 text-sm font-semibold text-tv-accent-text hover:opacity-90"
-            >
-              {t("mission.measurementFlow.viewResults")}
             </button>
           </div>
         )}

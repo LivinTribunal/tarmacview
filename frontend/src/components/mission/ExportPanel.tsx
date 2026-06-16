@@ -117,9 +117,10 @@ export default function ExportPanel({
   const exportEnabled = canExport(status);
   const terminal = isTerminal(status);
 
-  // lifecycle button gating
-  const canComplete = status === "EXPORTED";
-  const canCancelMission = status === "EXPORTED";
+  // lifecycle button gating - the state machine allows both EXPORTED and
+  // MEASURED to reach COMPLETED / CANCELLED
+  const canComplete = status === "EXPORTED" || status === "MEASURED";
+  const canCancelMission = status === "EXPORTED" || status === "MEASURED";
   const canDelete = status !== "EXPORTED" && status !== "COMPLETED";
 
   const formatList = useMemo(() => Array.from(selectedFormats), [selectedFormats]);

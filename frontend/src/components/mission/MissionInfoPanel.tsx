@@ -37,7 +37,11 @@ export default function MissionInfoPanel({
   /** read-only mission info collapsible card. */
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
-  const isApproved = mission.status === "VALIDATED" || mission.status === "EXPORTED" || mission.status === "COMPLETED";
+  const isApproved =
+    mission.status === "VALIDATED" ||
+    mission.status === "EXPORTED" ||
+    mission.status === "MEASURED" ||
+    mission.status === "COMPLETED";
 
   return (
     <div data-testid="mission-info-panel">

@@ -147,3 +147,17 @@ def test_mark_measured_noop_outside_post_plan(start):
     m = _mission(start)
     m.mark_measured()
     assert m.status == start
+
+
+def test_measured_locks_trajectory_edits():
+    """MEASURED refuses trajectory-affecting edits - the plan is frozen post-measurement."""
+    m = _mission("MEASURED")
+    with pytest.raises(ValueError, match="after measurement"):
+        m.invalidate_trajectory()
+    assert m.status == "MEASURED"
+
+
+def test_measured_stays_deletable():
+    """MEASURED is not terminal - it can still be deleted (unlike COMPLETED/CANCELLED)."""
+    m = _mission("MEASURED")
+    m.assert_deletable()

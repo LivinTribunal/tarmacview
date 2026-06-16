@@ -134,6 +134,13 @@ class TestMissionInvalidateTrajectory:
         with pytest.raises(ValueError, match="cannot modify"):
             m.invalidate_trajectory()
 
+    def test_measured_raises(self):
+        """MEASURED is locked - editing the plan would orphan the measurement."""
+        m = self._make_mission("MEASURED")
+        with pytest.raises(ValueError, match="after measurement"):
+            m.invalidate_trajectory()
+        assert m.status == "MEASURED"
+
 
 class TestMissionValidateTransitAltitude:
     """tests for Mission.validate_transit_altitude business rules."""
@@ -274,6 +281,24 @@ class TestMissionInspections:
         with pytest.raises(ValueError, match="not found"):
             m.remove_inspection(uuid4())
 
+    def test_add_inspection_measured_raises(self):
+        """adding an inspection to a MEASURED mission is locked, not regressed."""
+        m = self._make_mission("MEASURED")
+        insp = self._make_inspection()
+        with pytest.raises(ValueError, match="after measurement"):
+            m.add_inspection(insp)
+        assert len(m.inspections) == 0
+        assert m.status == "MEASURED"
+
+    def test_remove_inspection_measured_raises(self):
+        """removing an inspection from a MEASURED mission is locked, not regressed."""
+        insp = self._make_inspection()
+        m = self._make_mission("MEASURED", inspections=[insp])
+        with pytest.raises(ValueError, match="after measurement"):
+            m.remove_inspection(insp.id)
+        assert len(m.inspections) == 1
+        assert m.status == "MEASURED"
+
 
 class TestMissionChangeDroneProfile:
     """tests for Mission.change_drone_profile."""
@@ -316,6 +341,14 @@ class TestMissionChangeDroneProfile:
         m.change_drone_profile(new_id)
         assert m.drone_profile_id == new_id
         assert m.status == "DRAFT"
+
+    def test_change_drone_profile_measured_raises(self):
+        """changing drone profile on a MEASURED mission is locked, not regressed."""
+        m = self._make_mission("MEASURED")
+        with pytest.raises(ValueError, match="after measurement"):
+            m.change_drone_profile(uuid4())
+        assert m.drone_profile_id is None
+        assert m.status == "MEASURED"
 
 
 class TestInspectionLhaIds:

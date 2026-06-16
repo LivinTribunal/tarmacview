@@ -621,6 +621,41 @@ describe("ExportPanel - altitude clamp warning", () => {
   });
 });
 
+// lifecycle gating - complete / cancel must be reachable from EXPORTED and
+// MEASURED, the two non-terminal statuses the state machine lets reach a
+// terminal state.
+describe("ExportPanel - lifecycle gating", () => {
+  it("disables complete/cancel for a VALIDATED mission", () => {
+    renderPanel({ mission: makeMission({ status: "VALIDATED" }) });
+
+    expect(screen.getByTestId("complete-btn")).toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+  });
+
+  it("enables complete/cancel for an EXPORTED mission", () => {
+    renderPanel({ mission: makeMission({ status: "EXPORTED" }) });
+
+    expect(screen.getByTestId("complete-btn")).not.toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
+  });
+
+  it("enables complete/cancel for a MEASURED mission", () => {
+    renderPanel({ mission: makeMission({ status: "MEASURED" }) });
+
+    expect(screen.getByTestId("complete-btn")).not.toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
+  });
+
+  it("routes complete/cancel clicks through the confirm modal for MEASURED", () => {
+    const onComplete = vi.fn();
+    renderPanel({ mission: makeMission({ status: "MEASURED" }), onComplete });
+
+    fireEvent.click(screen.getByTestId("complete-btn"));
+    fireEvent.click(screen.getByTestId("confirm-action-btn"));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
 // field-link chip + send-to-drone - both fed by the panel's single poll
 describe("ExportPanel - field link wiring", () => {
   afterEach(() => {

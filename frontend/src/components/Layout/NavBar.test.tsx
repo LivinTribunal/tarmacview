@@ -153,6 +153,9 @@ describe("NavBar pill label layout", () => {
     const pills = screen.getByTestId("navbar-pills");
     expect(pills.className).toMatch(/overflow-x-auto/);
     expect(pills.className).toMatch(/min-w-0/);
+    // safe centering so overflow falls back to start-alignment - leftmost pill stays reachable
+    expect(pills.className).toMatch(/\[justify-content:safe_center\]/);
+    expect(pills.className).not.toMatch(/(^|\s)justify-center(\s|$)/);
   });
 
   it("does not regress the active-pill highlight", () => {

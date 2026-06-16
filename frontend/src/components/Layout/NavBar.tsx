@@ -74,7 +74,7 @@ export default function NavBar({ items, role, roleSwitchItems = EMPTY_NAV_ITEMS 
       <div className="flex-1 flex items-center gap-4 min-w-0">
         {/* nav pills - role-switch group rendered first, divided from in-role page nav */}
         <div
-          className="flex flex-1 min-w-0 items-center justify-center gap-1 overflow-x-auto rounded-full bg-tv-surface p-1 h-11"
+          className="flex flex-1 min-w-0 items-center [justify-content:safe_center] gap-1 overflow-x-auto rounded-full bg-tv-surface p-1 h-11"
           data-testid="navbar-pills"
         >
           {roleSwitchItems.length > 0 && (

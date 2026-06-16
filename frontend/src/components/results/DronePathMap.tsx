@@ -11,6 +11,12 @@ interface DronePathMapProps {
   referencePoints: ReferencePoint[];
 }
 
+// PAPI footage often holds a fixed standoff while altitude sweeps, so the flown
+// path collapses to a near-stationary point. below this lng/lat span (~1 m) the
+// bbox is degenerate and fitBounds over-zooms - fall back to a fixed zoom.
+const DEGENERATE_SPAN_DEG = 1e-5;
+const STATIONARY_ZOOM = 16;
+
 function pathFeature(path: DronePathPoint[]): GeoJSON.Feature<GeoJSON.LineString> {
   return {
     type: "Feature",
@@ -19,6 +25,21 @@ function pathFeature(path: DronePathPoint[]): GeoJSON.Feature<GeoJSON.LineString
       type: "LineString",
       coordinates: path.map((p) => [p.longitude, p.latitude]),
     },
+  };
+}
+
+// the path points as a marker layer - a near-zero-length LineString draws
+// nothing, so the markers keep a stationary/single-point path visible
+function pathPointsFeature(
+  path: DronePathPoint[],
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: path.map((p) => ({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
+    })),
   };
 }
 
@@ -73,6 +94,22 @@ export default function DronePathMap({
         paint: { "line-color": TRAJECTORY_COLORS.PATH, "line-width": 3 },
       });
 
+      map.addSource("drone-path-points", {
+        type: "geojson",
+        data: pathPointsFeature(dronePath),
+      });
+      map.addLayer({
+        id: "drone-path-points-circle",
+        type: "circle",
+        source: "drone-path-points",
+        paint: {
+          "circle-radius": 4,
+          "circle-color": TRAJECTORY_COLORS.PATH,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": NEUTRAL.WHITE,
+        },
+      });
+
       map.addSource("ref-points", {
         type: "geojson",
         data: refPointsFeature(referencePoints),
@@ -90,11 +127,21 @@ export default function DronePathMap({
       });
 
       if (coords.length > 0) {
-        const bounds = coords.reduce(
-          (b, c) => b.extend(c),
-          new maplibregl.LngLatBounds(coords[0], coords[0]),
-        );
-        map.fitBounds(bounds, { padding: 48, maxZoom: 18, duration: 0 });
+        const lngs = coords.map((c) => c[0]);
+        const lats = coords.map((c) => c[1]);
+        const spanLng = Math.max(...lngs) - Math.min(...lngs);
+        const spanLat = Math.max(...lats) - Math.min(...lats);
+        if (spanLng < DEGENERATE_SPAN_DEG && spanLat < DEGENERATE_SPAN_DEG) {
+          // everything collapses to one spot - fitBounds would over-zoom
+          map.setCenter(coords[0]);
+          map.setZoom(STATIONARY_ZOOM);
+        } else {
+          const bounds = coords.reduce(
+            (b, c) => b.extend(c),
+            new maplibregl.LngLatBounds(coords[0], coords[0]),
+          );
+          map.fitBounds(bounds, { padding: 48, maxZoom: 18, duration: 0 });
+        }
       }
     });
 

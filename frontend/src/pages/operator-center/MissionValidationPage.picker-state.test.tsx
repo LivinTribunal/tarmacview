@@ -98,6 +98,11 @@ vi.mock("@/contexts/MissionContext", () => ({
   useMission: () => ({ selectedMission: null, setSelectedMission: vi.fn() }),
 }));
 
+// the page mounts UploadDroneMediaDialog, which reads this context
+vi.mock("@/contexts/MeasurementProgressContext", () => ({
+  useMeasurementProgress: () => ({ activeCount: 0, track: vi.fn(), sync: vi.fn() }),
+}));
+
 vi.mock("@/components/map/AirportMap", () => ({
   default: () => <div data-testid="airport-map" />,
 }));

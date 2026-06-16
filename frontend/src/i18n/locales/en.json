@@ -1163,13 +1163,8 @@
       "confirming": "Confirming...",
       "assignTo": "Assign to mission",
       "noCaptureTime": "No capture time",
-      "measure": "Measure",
-      "measureAll": "Measure all",
-      "measuringAll": "Starting…",
-      "measureAllStarted": "{{count}} started — review in Results",
-      "measureAllPartial": "{{started}} of {{total}} started, {{failed}} failed — review in Results",
-      "measureAllError": "Could not start any measurements.",
-      "reviewInResults": "Review in Results"
+      "confirm": "Confirm & measure",
+      "confirmStartError": "Could not start any measurements."
     },
     "measurementFlow": {
       "title": "Measure PAPI lights",
@@ -2136,6 +2131,9 @@
     "computingNamed": "Computing trajectory for {{name}}...",
     "success": "Trajectory computed successfully",
     "failed": "Trajectory computation failed"
+  },
+  "measurementProgress": {
+    "processing": "{{count}} measurement(s) processing"
   },
   "errors": {
     "webglUnsupported": "WebGL is not supported",

@@ -74,7 +74,7 @@ export default function NavBar({ items, role, roleSwitchItems = EMPTY_NAV_ITEMS 
       <div className="flex-1 flex items-center gap-4 min-w-0">
         {/* nav pills - role-switch group rendered first, divided from in-role page nav */}
         <div
-          className="flex flex-1 items-center justify-center gap-1 rounded-full bg-tv-surface p-1 h-11"
+          className="flex flex-1 min-w-0 items-center justify-center gap-1 overflow-x-auto rounded-full bg-tv-surface p-1 h-11"
           data-testid="navbar-pills"
         >
           {roleSwitchItems.length > 0 && (
@@ -87,7 +87,7 @@ export default function NavBar({ items, role, roleSwitchItems = EMPTY_NAV_ITEMS 
                     to={item.to}
                     onClick={(e) => disabled && e.preventDefault()}
                     className={({ isActive }) =>
-                      `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center ${
+                      `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center justify-center text-center whitespace-nowrap flex-shrink-0 ${
                         disabled
                           ? "opacity-50 cursor-not-allowed text-tv-text-muted"
                           : isActive
@@ -116,7 +116,7 @@ export default function NavBar({ items, role, roleSwitchItems = EMPTY_NAV_ITEMS 
                 to={item.to}
                 onClick={(e) => disabled && e.preventDefault()}
                 className={({ isActive }) =>
-                  `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center ${
+                  `px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center justify-center text-center whitespace-nowrap flex-shrink-0 ${
                     disabled
                       ? "opacity-50 cursor-not-allowed text-tv-text-muted"
                       : isActive

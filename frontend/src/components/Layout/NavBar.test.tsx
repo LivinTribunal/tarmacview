@@ -106,3 +106,74 @@ describe("NavBar role-switch group", () => {
     expect(screen.queryByTestId("navbar-divider")).not.toBeInTheDocument();
   });
 });
+
+describe("NavBar pill label layout", () => {
+  /** test suite for single-line, centered pills and graceful narrow-width degradation. */
+  function renderNav(props: { roleSwitchItems?: NavItem[]; items: NavItem[]; role: "operator" | "coordinator" | "admin" }) {
+    return render(
+      <MemoryRouter initialEntries={["/coordinator-center/airports"]}>
+        <NavBar {...props} />
+      </MemoryRouter>,
+    );
+  }
+
+  it("keeps multi-word role-switch labels on one centered line", () => {
+    /** role-switch pills get whitespace-nowrap + centering so labels never wrap left-aligned. */
+    renderNav({
+      roleSwitchItems: [{ label: "Mission Center", to: "/operator-center/dashboard" }],
+      items: [{ label: "Airports", to: "/coordinator-center/airports" }],
+      role: "admin",
+    });
+    const mission = screen.getByTestId("navbar-role-switch-/operator-center/dashboard");
+    expect(mission.className).toMatch(/whitespace-nowrap/);
+    expect(mission.className).toMatch(/justify-center/);
+    expect(mission.className).toMatch(/text-center/);
+    expect(mission.className).toMatch(/flex-shrink-0/);
+  });
+
+  it("keeps multi-word in-role labels on one centered line", () => {
+    /** in-role pills share the same single-line, centered, non-shrinking styling. */
+    renderNav({
+      items: [{ label: "Audit Log", to: "/super-admin/audit" }],
+      role: "admin",
+    });
+    const audit = screen.getByText("Audit Log");
+    expect(audit.className).toMatch(/whitespace-nowrap/);
+    expect(audit.className).toMatch(/justify-center/);
+    expect(audit.className).toMatch(/text-center/);
+    expect(audit.className).toMatch(/flex-shrink-0/);
+  });
+
+  it("lets the pills bar scroll horizontally when space is tight", () => {
+    /** the navbar-pills container degrades to horizontal scroll instead of squeezing pills. */
+    renderNav({
+      items: [{ label: "Airports", to: "/coordinator-center/airports" }],
+      role: "admin",
+    });
+    const pills = screen.getByTestId("navbar-pills");
+    expect(pills.className).toMatch(/overflow-x-auto/);
+    expect(pills.className).toMatch(/min-w-0/);
+  });
+
+  it("does not regress the active-pill highlight", () => {
+    /** the active in-role pill keeps its active background/text tokens. */
+    renderNav({
+      items: [{ label: "Airports", to: "/coordinator-center/airports" }],
+      role: "admin",
+    });
+    const active = screen.getByText("Airports");
+    expect(active.className).toMatch(/bg-tv-nav-active-bg/);
+    expect(active.className).toMatch(/text-tv-nav-active-text/);
+  });
+
+  it("does not regress the disabled-pill state", () => {
+    /** a disabled in-role pill keeps opacity-50 + cursor-not-allowed. */
+    renderNav({
+      items: [{ label: "Drones", to: "/coordinator-center/drones", disabled: true }],
+      role: "admin",
+    });
+    const disabled = screen.getByText("Drones");
+    expect(disabled.className).toMatch(/opacity-50/);
+    expect(disabled.className).toMatch(/cursor-not-allowed/);
+  });
+});

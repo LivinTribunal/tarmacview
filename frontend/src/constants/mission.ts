@@ -21,6 +21,7 @@ export const STATUS_ORDER = [
   "PLANNED",
   "VALIDATED",
   "EXPORTED",
+  "MEASURED",
   "COMPLETED",
   "CANCELLED",
 ];

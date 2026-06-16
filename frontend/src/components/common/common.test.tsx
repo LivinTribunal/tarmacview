@@ -185,6 +185,7 @@ describe("Badge", () => {
       "PLANNED",
       "VALIDATED",
       "EXPORTED",
+      "MEASURED",
       "COMPLETED",
       "CANCELLED",
     ] as const;
@@ -202,6 +203,14 @@ describe("Badge", () => {
     expect(screen.getByText("missionStatus.PLANNED").className).toContain(
       "ml-2",
     );
+  });
+
+  it("renders the MEASURED status with its themed tokens", () => {
+    render(<Badge status="MEASURED" />);
+    const el = screen.getByText("missionStatus.MEASURED");
+    expect(el).toBeInTheDocument();
+    expect(el.className).toContain("var(--tv-status-measured-bg)");
+    expect(el.className).toContain("var(--tv-status-measured-text)");
   });
 });
 

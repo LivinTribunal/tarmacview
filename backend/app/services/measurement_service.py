@@ -193,6 +193,11 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
 
     reference_points, runway_heading = _snapshot_reference_points(db, inspection)
 
+    # measurement kickoff flips the parent mission VALIDATED/EXPORTED -> MEASURED
+    # (idempotent for a multi-inspection mission)
+    if inspection.mission is not None:
+        inspection.mission.mark_measured()
+
     measurement = Measurement(
         inspection_id=inspection_id,
         status=MeasurementStatus.QUEUED,

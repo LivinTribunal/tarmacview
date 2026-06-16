@@ -171,6 +171,22 @@ describe("MissionListPage", () => {
     expect(screen.getByText("Alpha Mission")).toBeInTheDocument();
   });
 
+  it("renders and toggles the MEASURED status filter pill", async () => {
+    /** verify MEASURED joins the status pills and isolating it hides non-MEASURED rows. */
+    renderPage(mockAirport);
+    await waitFor(() => {
+      expect(screen.getByText("Test Mission")).toBeInTheDocument();
+    });
+
+    const pill = screen.getByTestId("status-filter-MEASURED");
+    expect(pill).toBeInTheDocument();
+
+    // isolating MEASURED hides the DRAFT + PLANNED rows (neither is MEASURED)
+    fireEvent.click(pill);
+    expect(screen.queryByText("Test Mission")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alpha Mission")).not.toBeInTheDocument();
+  });
+
   it("reset restores all filters and rerenders all missions", async () => {
     /** verify the reset button appears when filters are dirty and clears them. */
     renderPage(mockAirport);

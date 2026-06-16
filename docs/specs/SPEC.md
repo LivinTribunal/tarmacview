@@ -80,7 +80,7 @@ A run is deletable and renamable from the Results list and the results page: `DE
 
 | Enum | Values |
 |------|--------|
-| MissionStatus | DRAFT, PLANNED, VALIDATED, EXPORTED, COMPLETED, CANCELLED |
+| MissionStatus | DRAFT, PLANNED, VALIDATED, EXPORTED, MEASURED, COMPLETED, CANCELLED |
 | WaypointType | TAKEOFF, TRANSIT, MEASUREMENT, HOVER, LANDING |
 | CameraAction | NONE, PHOTO_CAPTURE, RECORDING_START, RECORDING_STOP |
 | ExportFormat | MAVLINK, KML, KMZ, JSON |
@@ -104,16 +104,25 @@ A run is deletable and renamable from the Results list and the results page: `DE
 ## Mission Status State Machine
 
 ```
-DRAFT → PLANNED → VALIDATED → EXPORTED → COMPLETED
-                                        → CANCELLED
+DRAFT → PLANNED → VALIDATED → EXPORTED → MEASURED → COMPLETED
+                       │          │          │     → CANCELLED
+                       └──────────┴→ MEASURED ┘
+        (VALIDATED and EXPORTED both jump to MEASURED on measurement kickoff;
+         VALIDATED → MEASURED skips EXPORTED)
 ```
 
 **Transitions:**
 - DRAFT → PLANNED: automatic after trajectory generation succeeds
 - PLANNED → VALIDATED: operator clicks Accept
 - VALIDATED → EXPORTED: operator triggers export
+- VALIDATED → MEASURED: measurement kickoff on a never-exported mission (skips EXPORTED)
+- EXPORTED → MEASURED: measurement kickoff after export
 - EXPORTED → COMPLETED: operator marks mission done
 - EXPORTED → CANCELLED: operator abandons mission
+- MEASURED → COMPLETED: operator marks mission done
+- MEASURED → CANCELLED: operator abandons mission
+
+**MEASURED trigger:** the transition fires on *measurement kickoff* — the moment a mission's first measurement run is created (`measurement_service.create_measurement` calls `Mission.mark_measured()` before the flush). It is idempotent: a multi-inspection mission hits create more than once and only the first call (while still VALIDATED/EXPORTED) transitions; later calls no-op. MEASURED is intentionally NOT in `TERMINAL_STATUSES` or `POST_PLAN_STATUSES` — it lives only in the state machine, so it is reachable but does not change any status-set gate.
 
 **Regression rules:**
 - Any waypoint edit (move, add, delete) → status regresses to PLANNED
@@ -360,7 +369,7 @@ Frontend: `SendToDroneSection` card in the export panel. The button is gated on 
 
 Per-inspection manual upload (Phase 1 of the merge): the operator can upload footage straight from the browser into a specific inspection, scoped to one mission. Media + result artifacts live in S3-compatible object storage (MinIO locally, S3 in the cloud); `app.services.object_storage` mints presigned PUT/GET urls (signed against `s3_public_endpoint` so the browser can reach the bucket directly), and `boto3` is imported lazily so the app still imports on a backend pinned to `requirements.txt` only. The browser flow is: `POST /api/v1/drone-media/upload-url` mints a presigned PUT target + object key (no row yet) → the browser PUTs the file straight to the bucket → `POST /api/v1/drone-media/complete-upload` records the `origin=MANUAL` row at the inspection's `max(order_index)+1`. `GET /api/v1/missions/{mission_id}/drone-media` returns the inspection-grouped view (each inspection's media ordered 1..N) plus the mission-level unassigned bucket. `PUT /api/v1/drone-media/{media_id}/move` reassigns a file to another inspection/position (or null to detach it), `PUT /api/v1/drone-media/inspections/{inspection_id}/reorder` renumbers one inspection's media to a supplied id order, and `DELETE /api/v1/drone-media/{media_id}` removes a manual upload and drops its stored object. Dense 1..N ordering is service-owned (sentinel-shift renumber under a parent-**mission** row lock, mirroring the LHA `sequence_number` protocol); delete and move re-densify the affected groups. Guards: a target inspection must belong to the file's mission (422), only `MANUAL`-origin rows are deletable (422 otherwise — hub footage is never deletable here), and any reassignment/delete is blocked once the row is `INGESTED` (409). No video processing yet — that is Phase 2.
 
-Frontend: the *Upload Drone Media* header button on the Validation & Export page (the MissionTabNav action slot) opens `UploadDroneMediaDialog`, scoped to the current mission. The dialog lists the mission's inspections (labelled `Inspection {order} · {method}`) plus an *Unassigned* bucket, each with a file-count badge. Each inspection group has a drop-or-browse zone that uploads video files (presigned PUT → complete-upload); files can be reordered within an inspection and dragged between inspections (`@dnd-kit`), and manual rows carry a trash button that deletes them. Inspection assignment + order survive a reload. Empty states: "This mission has no inspections yet. Add an inspection before uploading media." when the mission has none, "No files yet" per empty group. Load/upload/move/reorder/delete failures surface as an inline error line. A **Measure all** header button fires one measurement per inspection-with-media in parallel (`createMeasurement` → `POST /api/v1/inspections/{inspection_id}/measurement`) — a fire-all, confirm-later batch that skips empty groups and the unassigned bucket, settles every call so one failure can't abort the rest, tallies started vs failed, and links to the measurements list (`/operator-center/measurements`) where auto-confirm triages the `AWAITING_CONFIRM` runs; it is distinct from the per-inspection **Measure** button, which opens `MeasurementFlowDialog` for a single run. Strings under `mission.uploadDroneMediaDialog.*` plus the button label `mission.validationExportPage.uploadDroneMedia` (EN + SK); types in `frontend/src/types/droneMedia.ts` mirror `backend/app/schemas/drone_media.py` + the media shapes in `schemas/field_link.py`.
+Frontend: the *Upload Drone Media* header button on the Validation & Export page (the MissionTabNav action slot) opens `UploadDroneMediaDialog`, scoped to the current mission. The dialog lists the mission's inspections (labelled `Inspection {order} · {method}`) plus an *Unassigned* bucket, each with a file-count badge. Each inspection group has a drop-or-browse zone that uploads video files (presigned PUT → complete-upload); files can be reordered within an inspection and dragged between inspections (`@dnd-kit`), and manual rows carry a trash button that deletes them. Inspection assignment + order survive a reload. Empty states: "This mission has no inspections yet. Add an inspection before uploading media." when the mission has none, "No files yet" per empty group. Load/upload/move/reorder/delete failures surface as an inline error line. A single footer **Confirm** button fires one measurement per inspection-with-media at once (`Promise.allSettled` over `createMeasurement` → `POST /api/v1/inspections/{inspection_id}/measurement`) — skipping empty groups and the unassigned bucket, settling every call so one failure can't abort the rest. It registers the started run ids with the measurement-progress context (the corner progress toast), navigates to the measurements list (`/operator-center/measurements`), and closes; if every run fails to start it shows an inline error and stays open. There is no per-inspection measure button anymore — `MeasurementFlowDialog` is review-only and opens from the list for an `AWAITING_CONFIRM` run. Strings under `mission.uploadDroneMediaDialog.*` plus the button label `mission.validationExportPage.uploadDroneMedia` (EN + SK); types in `frontend/src/types/droneMedia.ts` mirror `backend/app/schemas/drone_media.py` + the media shapes in `schemas/field_link.py`.
 
 ### Page 09 — Airport (Operator) (`/operator-center/airport`)
 Read-only full airport view. All infrastructure on map. Left: surface list, AGL/PoI list. Everything clickable.
@@ -410,6 +419,7 @@ Airport list, inspection template editor (AGL selector, per-AGL helper-mode togg
 ### Business Methods on Entities
 
 - `Mission.transition_to(target_status)` — enforces state machine
+- `Mission.mark_measured()` — VALIDATED/EXPORTED -> MEASURED on measurement kickoff; idempotent, no-ops outside `POST_PLAN_STATUSES` so repeat create-measurement calls (multi-inspection missions) neither re-transition nor raise
 - `Mission.invalidate_trajectory()` — PLANNED/VALIDATED/EXPORTED -> DRAFT on trajectory changes; sets `has_unsaved_map_changes = True` and resets computation status. Raises on terminal statuses. The existing flight plan row is intentionally kept as a stale reference; deletion is wired at the DB level via the CASCADE on `flight_plan.mission_id` (relationship uses `passive_deletes=True`).
 - `Mission.has_trajectory_changes(data)` — returns True when `data` touches a `TRAJECTORY_FIELDS` member
 - `Mission.regress_if_trajectory_changed(data)` — invalidates trajectory when needed; returns True on regression. Does NOT apply field values — callers still own field assignment via `apply_schema_update` / `setattr`.

@@ -36,6 +36,8 @@ class Measurement(Base):
     id = Column(UUID, primary_key=True, default=uuid4)
     inspection_id = Column(UUID, ForeignKey("inspection.id", ondelete="CASCADE"), nullable=False)
     status = Column(String(20), nullable=False, default=MeasurementStatus.QUEUED.value)
+    # operator-supplied free-text run name; null falls back to the inspection label
+    label = Column(String, nullable=True)
     runway_heading = Column(Float, nullable=True)
     # snapshotted LHA ground truth - an audit record, not a live join
     reference_points = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))

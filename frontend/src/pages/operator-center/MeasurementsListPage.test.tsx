@@ -11,7 +11,11 @@ import { MEASUREMENT_POLL_INTERVAL_MS } from "@/constants/ui";
 import en from "@/i18n/locales/en.json";
 import type { MeasurementListItem } from "@/types/measurement";
 import MeasurementsListPage from "./MeasurementsListPage";
-import { listAirportMeasurements } from "@/api/measurements";
+import {
+  deleteMeasurement,
+  listAirportMeasurements,
+  updateMeasurement,
+} from "@/api/measurements";
 
 /** resolve a dotted i18n key against the real en.json bundle. */
 function resolveKey(key: string): string {
@@ -60,6 +64,8 @@ vi.mock("@/contexts/AirportContext", () => ({
 
 vi.mock("@/api/measurements", () => ({
   listAirportMeasurements: vi.fn(),
+  deleteMeasurement: vi.fn(),
+  updateMeasurement: vi.fn(),
 }));
 
 vi.mock("@/contexts/MeasurementProgressContext", () => ({
@@ -74,6 +80,8 @@ vi.mock("@/components/mission/MeasurementFlowDialog", () => ({
 }));
 
 const listMock = vi.mocked(listAirportMeasurements);
+const deleteMock = vi.mocked(deleteMeasurement);
+const updateMock = vi.mocked(updateMeasurement);
 
 function row(over: Partial<MeasurementListItem>): MeasurementListItem {
   return {
@@ -84,6 +92,7 @@ function row(over: Partial<MeasurementListItem>): MeasurementListItem {
     inspection_method: "HORIZONTAL_RANGE",
     inspection_sequence_order: 1,
     status: "DONE",
+    label: null,
     created_at: "2026-06-01T10:00:00Z",
     has_results: true,
     pass_count: 3,
@@ -263,6 +272,73 @@ describe("MeasurementsListPage", () => {
     fireEvent.click(screen.getByText(en.measurementsList.retry));
     await waitFor(() =>
       expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+  });
+
+  it("renders the operator label when set, else the inspection fallback", async () => {
+    listMock.mockResolvedValue([
+      row({ id: "named-1", label: "morning re-fly", mission_name: "Alpha" }),
+      row({
+        id: "plain-1",
+        label: null,
+        inspection_sequence_order: 2,
+        mission_name: "Bravo",
+      }),
+    ]);
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+
+    const table = screen.getByTestId("measurements-table");
+    expect(within(table).getByText("morning re-fly")).toBeInTheDocument();
+    expect(within(table).getByText(/Inspection 2/)).toBeInTheDocument();
+  });
+
+  it("deletes a row through the confirm modal and refetches", async () => {
+    listMock.mockResolvedValue([
+      row({ id: "done-1", status: "DONE", label: "morning re-fly" }),
+    ]);
+    deleteMock.mockResolvedValue(undefined);
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+    expect(listMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTitle(en.measurementsList.actions.delete));
+    fireEvent.click(screen.getByTestId("confirm-delete-measurement"));
+
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("done-1"));
+    // the list refetches after a successful delete
+    await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("renames a row through the rename modal", async () => {
+    listMock.mockResolvedValue([row({ id: "done-1", status: "DONE", label: null })]);
+    updateMock.mockResolvedValue({
+      id: "done-1",
+      inspection_id: "i1",
+      status: "DONE",
+      label: "named run",
+      error_message: null,
+    });
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTitle(en.measurementsList.actions.rename));
+    fireEvent.change(screen.getByTestId("measurement-rename-input"), {
+      target: { value: "named run" },
+    });
+    fireEvent.click(screen.getByTestId("confirm-rename-measurement"));
+
+    await waitFor(() =>
+      expect(updateMock).toHaveBeenCalledWith("done-1", "named run"),
     );
   });
 });

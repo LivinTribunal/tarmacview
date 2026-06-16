@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import type { TFunction } from "i18next";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
+import RowActionButtons from "@/components/common/RowActionButtons";
 import { SortableHeader } from "@/components/common/ListPageLayout";
 import type { SortDir } from "@/components/common/useListSort";
 import type { MeasurementSortKey } from "@/hooks/useMeasurementList";
@@ -15,7 +17,26 @@ interface MeasurementListTableProps {
   sortDir: SortDir;
   onSort: (key: MeasurementSortKey) => void;
   onRowClick: (row: MeasurementListItem) => void;
+  onRename: (row: MeasurementListItem) => void;
+  onDelete: (row: MeasurementListItem) => void;
   onRetry: () => void;
+}
+
+/** the run's display name - the operator label when set, else the inspection label. */
+export function measurementDisplayName(
+  row: Pick<
+    MeasurementListItem,
+    "label" | "inspection_sequence_order" | "inspection_method"
+  >,
+  t: TFunction,
+): string {
+  return (
+    row.label ||
+    t("measurementsList.inspectionLabel", {
+      order: row.inspection_sequence_order,
+      method: t(`map.inspectionMethod.${row.inspection_method}`, row.inspection_method),
+    })
+  );
 }
 
 // terminal states render as plain solid pills like every other status tag;
@@ -57,6 +78,8 @@ export default function MeasurementListTable({
   sortDir,
   onSort,
   onRowClick,
+  onRename,
+  onDelete,
   onRetry,
 }: MeasurementListTableProps) {
   const { t } = useTranslation();
@@ -120,6 +143,7 @@ export default function MeasurementListTable({
               {col.label}
             </SortableHeader>
           ))}
+          <th className="w-10" aria-label={t("common.actions")} />
         </tr>
       </thead>
       <tbody>
@@ -135,13 +159,7 @@ export default function MeasurementListTable({
             >
               <td className="px-4 py-3 font-medium">{row.mission_name}</td>
               <td className="px-4 py-3 text-tv-text-secondary">
-                {t("measurementsList.inspectionLabel", {
-                  order: row.inspection_sequence_order,
-                  method: t(
-                    `map.inspectionMethod.${row.inspection_method}`,
-                    row.inspection_method,
-                  ),
-                })}
+                {measurementDisplayName(row, t)}
               </td>
               <td className="px-4 py-3">
                 <StatusChip status={row.status} />
@@ -164,6 +182,23 @@ export default function MeasurementListTable({
                 ) : (
                   <span className="text-tv-text-muted">—</span>
                 )}
+              </td>
+              <td className="px-4 py-3">
+                <RowActionButtons
+                  actions={[
+                    {
+                      icon: Pencil,
+                      onClick: () => onRename(row),
+                      title: t("measurementsList.actions.rename"),
+                    },
+                    {
+                      icon: Trash2,
+                      onClick: () => onDelete(row),
+                      title: t("measurementsList.actions.delete"),
+                      variant: "danger",
+                    },
+                  ]}
+                />
               </td>
             </tr>
           );

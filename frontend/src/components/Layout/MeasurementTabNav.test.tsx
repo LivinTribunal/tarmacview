@@ -83,6 +83,7 @@ function row(over: Partial<MeasurementListItem>): MeasurementListItem {
     has_results: true,
     pass_count: 1,
     fail_count: 3,
+    label: null,
     error_message: null,
     ...over,
   };

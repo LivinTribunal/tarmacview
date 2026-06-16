@@ -104,6 +104,7 @@ describe("MeasurementFlowDialog", () => {
       id: "m9",
       inspection_id: "insp-1",
       status: "PROCESSING",
+      label: null,
       error_message: null,
     });
     const onClose = vi.fn();

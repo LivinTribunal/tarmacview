@@ -2181,7 +2181,14 @@
     },
     "filters": {
       "allMissions": "Všetky misie"
-    }
+    },
+    "actions": {
+      "rename": "Premenovať",
+      "delete": "Vymazať"
+    },
+    "deleteConfirm": "Naozaj chcete vymazať „{{name}}“? Týmto sa natrvalo odstráni beh aj jeho výsledky.",
+    "renameTitle": "Premenovať meranie",
+    "renamePlaceholder": "Zadajte názov (prázdne použije označenie inšpekcie)"
   },
   "results": {
     "title": "Výsledky merania",

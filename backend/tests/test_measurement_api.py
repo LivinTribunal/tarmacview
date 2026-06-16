@@ -1,12 +1,14 @@
 """measurement endpoints - create/status/preview/confirm flow with enqueue stubbed."""
 
 import itertools
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
+from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
+from app.models.audit_log import AuditLog
 from app.services import measurement_service
 from tests.data.airports import AIRPORT_PAYLOAD
 
@@ -146,6 +148,150 @@ def test_confirm_lights_starts_processing(
     assert r.status_code == 200, r.text
     assert r.json()["status"] == MeasurementStatus.PROCESSING.value
     assert len(_stub_enqueue["processing"]) == 1
+
+
+def _seed_artifacts(db_engine, measurement_id: str) -> set[str]:
+    """attach object-storage keys to a created run so delete has artifacts to drop."""
+    s = sessionmaker(bind=db_engine)()
+    try:
+        repo = SqlAlchemyMeasurementRepository(s)
+        m = repo.get_by_id(UUID(measurement_id))
+        m.object_key = "measurements/x/results.json.gz"
+        m.first_frame_object_key = "measurements/x/first_frame.jpg"
+        m.annotated_video_keys = {"PAPI_A": "measurements/x/PAPI_A.mp4"}
+        repo.save(m)
+        s.commit()
+    finally:
+        s.close()
+    return {
+        "measurements/x/results.json.gz",
+        "measurements/x/first_frame.jpg",
+        "measurements/x/PAPI_A.mp4",
+    }
+
+
+def test_delete_measurement_removes_row_drops_artifacts_and_audits(
+    client, db_engine, inspection_with_media, monkeypatch
+):
+    """DELETE removes the run, writes a DELETE audit row, and drops every artifact key."""
+    created = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement").json()
+    mid = created["id"]
+    expected_keys = _seed_artifacts(db_engine, mid)
+
+    dropped: list[str] = []
+    monkeypatch.setattr(
+        measurement_service.object_storage, "delete_object", lambda key: dropped.append(key)
+    )
+
+    r = client.delete(f"/api/v1/measurements/{mid}")
+    assert r.status_code == 204, r.text
+
+    # the row is gone
+    assert client.get(f"/api/v1/measurements/{mid}/status").status_code == 404
+
+    # every artifact key was dropped after the commit (best-effort, post-commit)
+    assert set(dropped) == expected_keys
+
+    # exactly one DELETE audit row on Measurement
+    s = sessionmaker(bind=db_engine)()
+    try:
+        rows = (
+            s.query(AuditLog)
+            .filter(
+                AuditLog.action == "DELETE",
+                AuditLog.entity_type == "Measurement",
+                AuditLog.entity_id == UUID(mid),
+            )
+            .all()
+        )
+    finally:
+        s.close()
+    assert len(rows) == 1
+    assert rows[0].airport_id is not None
+
+
+def test_delete_measurement_missing_is_404(client):
+    """deleting an unknown measurement 404s."""
+    assert client.delete(f"/api/v1/measurements/{uuid4()}").status_code == 404
+
+
+def test_patch_measurement_sets_label_and_round_trips(client, db_engine, inspection_with_media):
+    """PATCH sets the label; it round-trips through the aggregate + results and audits UPDATE."""
+    created = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement").json()
+    mid = created["id"]
+    assert created["label"] is None
+
+    r = client.patch(f"/api/v1/measurements/{mid}", json={"label": "morning re-fly"})
+    assert r.status_code == 200, r.text
+    assert r.json()["label"] == "morning re-fly"
+
+    # round-trips through the full aggregate and the results payload
+    assert client.get(f"/api/v1/measurements/{mid}").json()["label"] == "morning re-fly"
+    assert client.get(f"/api/v1/measurements/{mid}/data").json()["label"] == "morning re-fly"
+
+    # one UPDATE audit row on Measurement
+    s = sessionmaker(bind=db_engine)()
+    try:
+        rows = (
+            s.query(AuditLog)
+            .filter(
+                AuditLog.action == "UPDATE",
+                AuditLog.entity_type == "Measurement",
+                AuditLog.entity_id == UUID(mid),
+            )
+            .all()
+        )
+    finally:
+        s.close()
+    assert len(rows) == 1
+    assert rows[0].entity_name == "morning re-fly"
+
+
+def test_patch_measurement_blank_label_clears_it(client, inspection_with_media):
+    """a blank/whitespace label clears the column so the UI falls back to the inspection label."""
+    created = client.post(f"/api/v1/inspections/{inspection_with_media}/measurement").json()
+    mid = created["id"]
+    client.patch(f"/api/v1/measurements/{mid}", json={"label": "temp"})
+
+    r = client.patch(f"/api/v1/measurements/{mid}", json={"label": "   "})
+    assert r.status_code == 200
+    assert r.json()["label"] is None
+
+
+def test_patch_label_appears_in_airport_list_and_results_carry_inspection_context(
+    client, template_id
+):
+    """a labelled run carries its label into the airport list + inspection context into results."""
+    apt = client.post(
+        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
+    ).json()
+    mission = client.post(
+        "/api/v1/missions", json={"name": "Label List", "airport_id": apt["id"]}
+    ).json()
+    insp = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={"template_id": template_id, "method": "HORIZONTAL_RANGE"},
+    ).json()
+    client.post(
+        "/api/v1/drone-media/complete-upload",
+        json={
+            "mission_id": mission["id"],
+            "inspection_id": insp["id"],
+            "object_key": "drone-media/manual/lbl.mp4",
+            "filename": "lbl.mp4",
+            "size_bytes": 1024,
+        },
+    )
+    created = client.post(f"/api/v1/inspections/{insp['id']}/measurement").json()
+    client.patch(f"/api/v1/measurements/{created['id']}", json={"label": "named run"})
+
+    rows = client.get(f"/api/v1/airports/{apt['id']}/measurements").json()
+    assert any(r["id"] == created["id"] and r["label"] == "named run" for r in rows)
+
+    # results carry the inspection context that powers the blank-label fallback
+    data = client.get(f"/api/v1/measurements/{created['id']}/data").json()
+    assert data["inspection_method"] == "HORIZONTAL_RANGE"
+    assert data["inspection_sequence_order"] == insp["sequence_order"]
 
 
 def test_to_response_maps_full_aggregate():

@@ -141,7 +141,7 @@ function makeFile(
 }
 
 function measurement(id: string): Measurement {
-  return { id, inspection_id: "insp-1", status: "QUEUED", error_message: null };
+  return { id, inspection_id: "insp-1", status: "QUEUED", label: null, error_message: null };
 }
 
 const MEDIA: MissionInspectionMediaResponse = {

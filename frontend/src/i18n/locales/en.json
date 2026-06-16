@@ -2177,7 +2177,14 @@
     },
     "filters": {
       "allMissions": "All Missions"
-    }
+    },
+    "actions": {
+      "rename": "Rename",
+      "delete": "Delete"
+    },
+    "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? This permanently removes the run and its results.",
+    "renameTitle": "Rename Measurement",
+    "renamePlaceholder": "Enter a name (leave blank to use the inspection label)"
   },
   "results": {
     "title": "Measurement Results",

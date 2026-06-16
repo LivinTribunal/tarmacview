@@ -32,9 +32,6 @@ vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: vi.fn() },
 }));
 
-const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
-vi.mock("react-router", () => ({ useNavigate: () => navigateMock }));
-
 vi.mock("@/api/client", () => ({ isAxiosError: () => false }));
 
 vi.mock("@/api/measurements", () => ({
@@ -143,6 +140,19 @@ describe("MeasurementFlowDialog", () => {
     expect(
       screen.getByText(en.mission.measurementFlow.previewError),
     ).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("never renders the DONE view-results branch - a DONE status falls to loading", async () => {
+    // the dialog only opens for AWAITING_CONFIRM rows and no longer polls, so
+    // DONE is unreachable here; if it ever leaks in, fall back to the spinner.
+    statusMock.mockResolvedValue({ id: "m9", status: "DONE", error_message: null });
+    renderDialog();
+    await flush();
+    await flush();
+
+    expect(screen.queryByTestId("view-results-button")).toBeNull();
+    expect(screen.queryByTestId("confirm-lights-button")).toBeNull();
     vi.useRealTimers();
   });
 });

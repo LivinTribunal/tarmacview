@@ -1168,20 +1168,11 @@
     },
     "measurementFlow": {
       "title": "Measure PAPI lights",
-      "starting": "Starting measurement…",
-      "phase": {
-        "queued": "Queued…",
-        "firstFrame": "Extracting first frame…",
-        "processing": "Processing video…"
-      },
       "confirmTitle": "Confirm the detected PAPI lights",
       "confirmHint": "Drag a box to reposition it, then confirm to run the analysis.",
       "noBoxes": "No lights were detected automatically. You can still run the analysis.",
       "confirmButton": "Confirm & process",
       "confirming": "Starting…",
-      "doneTitle": "Measurement complete",
-      "doneHint": "The analysis finished. Open the results to view charts and the pass/fail table.",
-      "viewResults": "View results",
       "errorTitle": "Measurement failed",
       "startError": "Could not start the measurement.",
       "previewError": "Could not load the first-frame preview.",
@@ -2188,7 +2179,6 @@
     "renamePlaceholder": "Enter a name (leave blank to use the inspection label)"
   },
   "results": {
-    "title": "Measurement Results",
     "status": "Status: {{status}}",
     "loadError": "Could not load measurement results.",
     "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",

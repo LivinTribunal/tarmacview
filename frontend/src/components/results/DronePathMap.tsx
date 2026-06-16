@@ -17,6 +17,23 @@ interface DronePathMapProps {
 const DEGENERATE_SPAN_DEG = 1e-5;
 const STATIONARY_ZOOM = 16;
 
+// true when the bbox of `coords` collapses below DEGENERATE_SPAN_DEG in both
+// lng and lat. single pass min/max, not Math.max(...coords) - spreading one
+// argument per coord overflows the call stack on very long footage.
+export function isDegenerateBbox(coords: [number, number][]): boolean {
+  if (coords.length === 0) return false;
+  let [minLng, minLat] = coords[0];
+  let maxLng = minLng;
+  let maxLat = minLat;
+  for (const [lng, lat] of coords) {
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  }
+  return maxLng - minLng < DEGENERATE_SPAN_DEG && maxLat - minLat < DEGENERATE_SPAN_DEG;
+}
+
 function pathFeature(path: DronePathPoint[]): GeoJSON.Feature<GeoJSON.LineString> {
   return {
     type: "Feature",
@@ -127,11 +144,7 @@ export default function DronePathMap({
       });
 
       if (coords.length > 0) {
-        const lngs = coords.map((c) => c[0]);
-        const lats = coords.map((c) => c[1]);
-        const spanLng = Math.max(...lngs) - Math.min(...lngs);
-        const spanLat = Math.max(...lats) - Math.min(...lats);
-        if (spanLng < DEGENERATE_SPAN_DEG && spanLat < DEGENERATE_SPAN_DEG) {
+        if (isDegenerateBbox(coords)) {
           // everything collapses to one spot - fitBounds would over-zoom
           map.setCenter(coords[0]);
           map.setZoom(STATIONARY_ZOOM);

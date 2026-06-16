@@ -84,8 +84,11 @@ export default function MissionConfigPage() {
   const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDraft = mission?.status === "DRAFT";
+  // MEASURED is locked alongside the terminal states: editing the plan after
+  // measurement would orphan the scored footage, and the backend now 409s on
+  // any trajectory-affecting edit, so gate the edit controls off here too.
   const canModify = mission
-    ? !TERMINAL_STATUSES.includes(mission.status)
+    ? !TERMINAL_STATUSES.includes(mission.status) && mission.status !== "MEASURED"
     : false;
 
   const templateMap = useMemo(

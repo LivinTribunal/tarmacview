@@ -23,6 +23,7 @@ class MissionStatus(str, enum.Enum):
     PLANNED = "PLANNED"
     VALIDATED = "VALIDATED"
     EXPORTED = "EXPORTED"
+    MEASURED = "MEASURED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 

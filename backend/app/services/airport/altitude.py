@@ -11,6 +11,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.enums import MissionStatus
 from app.core.exceptions import NotFoundError
 from app.core.geometry import wkt_to_geojson
 from app.models.agl import AGL, LHA
@@ -241,10 +242,18 @@ def renormalize_airport_altitudes(db: Session, airport_id: UUID) -> dict[str, li
         # (the plan was computed against the old alt). a no-op rewrite (alt
         # already matches the resampled ground) does not invalidate. terminal
         # missions are skipped entirely because invalidate_trajectory() refuses
-        # to modify COMPLETED / CANCELLED rows.
+        # to modify COMPLETED / CANCELLED rows. MEASURED missions are skipped the
+        # same way: the footage was already scored against the planned LHA ground
+        # truth, so rewriting the coords would orphan the measurement (the
+        # invalidate_trajectory() MEASURED lock would raise before the regression
+        # branch is ever reached). the skip is recorded in skipped["missions"] so
+        # the carve-out is observable to the caller, not silent.
         missions = db.query(Mission).filter(Mission.airport_id == airport_id).all()
         for mission in missions:
             if mission.status in Mission.TERMINAL_STATUSES:
+                continue
+            if mission.status == MissionStatus.MEASURED:
+                skipped["missions"].append(mission.id)
                 continue
             try:
                 changed = False

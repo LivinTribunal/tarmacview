@@ -1196,3 +1196,91 @@ def test_renormalize_refreshes_waypoint_agl(db_session, monkeypatch):
     # rendering-only refresh must not regress mission status.
     db_session.refresh(mission)
     assert mission.status == "DRAFT"
+
+
+def test_renormalize_skips_measured_mission_coords(db_session, monkeypatch):
+    """a renormalize leaves a MEASURED mission's takeoff/landing coords + status
+    untouched, while a PLANNED mission in the same airport still regresses.
+
+    the footage was already scored against the planned LHA ground truth, so a
+    DEM upload / terrain-source change must not silently rewrite the plan a
+    MEASURED mission was measured against. the skip is recorded in
+    skipped["missions"] so it is observable, not silent.
+    """
+    from uuid import uuid4
+
+    from app.core.geometry import point_lonlatalt
+    from app.models.airport import Airport
+    from app.models.mission import Mission
+    from app.services import airport_service
+    from app.services.geometry_converter import geojson_to_wkt
+
+    airport = Airport(
+        id=uuid4(),
+        icao_code=uuid4().hex[:4].upper(),
+        name="Renorm Measured Lock",
+        elevation=300.0,
+        location=geojson_to_wkt({"type": "Point", "coordinates": [14.26, 50.10, 300.0]}),
+        terrain_source="FLAT",
+    )
+    db_session.add(airport)
+
+    measured = Mission(
+        id=uuid4(),
+        name="Measured Mission",
+        airport_id=airport.id,
+        status="MEASURED",
+        takeoff_coordinate=geojson_to_wkt(
+            {"type": "Point", "coordinates": [14.265, 50.101, 300.0]}
+        ),
+        landing_coordinate=geojson_to_wkt(
+            {"type": "Point", "coordinates": [14.266, 50.102, 300.0]}
+        ),
+    )
+    planned = Mission(
+        id=uuid4(),
+        name="Planned Mission",
+        airport_id=airport.id,
+        status="PLANNED",
+        takeoff_coordinate=geojson_to_wkt(
+            {"type": "Point", "coordinates": [14.265, 50.101, 300.0]}
+        ),
+        landing_coordinate=geojson_to_wkt(
+            {"type": "Point", "coordinates": [14.266, 50.102, 300.0]}
+        ),
+    )
+    db_session.add_all([measured, planned])
+    db_session.flush()
+
+    class _SlopedProvider:
+        """returns a ground 60 m above the stored coord alt so a rewrite is real."""
+
+        def get_elevation(self, lat, lon):
+            return 360.0
+
+        def get_elevations_batch(self, points):
+            return [360.0 for _ in points]
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        "app.services.airport.altitude.create_elevation_provider",
+        lambda *a, **kw: _SlopedProvider(),
+    )
+
+    skipped = airport_service.renormalize_airport_altitudes(db_session, airport.id)
+
+    # MEASURED mission: coords + status untouched, id surfaced in skipped.
+    db_session.refresh(measured)
+    assert measured.status == "MEASURED"
+    assert point_lonlatalt(measured.takeoff_coordinate)[2] == pytest.approx(300.0)
+    assert point_lonlatalt(measured.landing_coordinate)[2] == pytest.approx(300.0)
+    assert measured.id in skipped["missions"]
+
+    # regression guard: PLANNED mission on the same alt shift still regresses.
+    db_session.refresh(planned)
+    assert planned.status == "DRAFT"
+    assert point_lonlatalt(planned.takeoff_coordinate)[2] == pytest.approx(360.0)
+    assert point_lonlatalt(planned.landing_coordinate)[2] == pytest.approx(360.0)
+    assert planned.id not in skipped["missions"]

@@ -582,13 +582,21 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 
 **Source:** `GET /api/v1/measurements/{id}/data` (the pivoted per-frame results payload).
 
-**Layout:** `--tv-*` card stack with a header (run status + a "Download PDF" button → `GET /measurements/{id}/pdf-report`). Content renders only once `has_results` is true; otherwise a "not ready yet" card. Four content blocks:
+**Header (since #76):** a two-row header mirroring the missions workspace — the operator `NavBar` (airport picker, theme toggle, user menu) on top, plus a `MeasurementTabNav` second row (`frontend/src/components/Layout/MeasurementTabNav.tsx`) that wraps the page body via an `<Outlet/>`. The results route nests under `MeasurementTabNav` with an index child (`ResultsPage`), so deep links still resolve. The second row follows the navbar's 30/70 split and carries:
+- a **measurements picker** (`DetailSelector`) scoped to the current run's mission — one entry per inspection, sorted by `inspection_sequence_order`, searchable by order + method, each row showing its PASS/FAIL counts; selecting one navigates to `/operator-center/measurements/<id>/results`. Built off the airport-wide `listAirportMeasurements(airportId)` list, filtered client-side by the current row's `mission_id` (no mission-scoped endpoint). A list icon jumps back to the airport measurements list (Page 15).
+- a **report section tab strip** — a single **All** tab today, structured as the `REPORT_SECTIONS` array for later extension.
+- the run's **PASS rollup** (`results.passRollup`, "X/Y pass") computed from the current row's `pass_count / (pass_count + fail_count)`; hidden when the current row isn't found.
+- the **Download PDF** button (→ `GET /measurements/{id}/pdf-report`), lifted out of the page body into the header.
+
+Degrades gracefully when no airport is selected or the current row isn't in the list: the picker shows its placeholder, the rollup is hidden, and download + results still work off the route param.
+
+**Body** (`ResultsPage`, body-only since #76 — the run-status/Download-PDF header block was moved into `MeasurementTabNav`): a `--tv-*` card stack that renders only once `has_results` is true; otherwise a "not ready yet" card. Four content blocks:
 1. **PASS/FAIL table** — `TransitionAngleTable` of each PAPI light's measured transition angle vs `setting_angle ± tolerance`, with a solid PASS/FAIL verdict tone.
 2. **Per-light analysis** — `LightAngleChart` (per-light angle over the climb, shading the white/red transition zones via recharts `ReferenceArea` from `transition_angle_min/middle/max`), `IntensityChart`, and `ChromaticityChart`.
 3. **Flown path + climb profile** — `DronePathMap` (MapLibre drone-path map with reference points) beside `ClimbProfileChart`, which plots the flown `drone_path` elevation profile (added in #59).
-4. **Annotated videos + PDF** — `AnnotatedVideoPlayer` (defaults to "All PAPI lights", capped to a 16:9 box with per-light crops letterboxed, plus a Fullscreen button) and the PDF download.
+4. **Annotated videos** — `AnnotatedVideoPlayer` (defaults to "All PAPI lights", capped to a 16:9 box with per-light crops letterboxed, plus a Fullscreen button). The PDF download now lives in the header, not the body.
 
-**States:** loading spinner, error card, and the `has_results: false` "not ready" card. Strings under `results.*` (EN + SK).
+**States:** loading spinner, error card, and the `has_results: false` "not ready" card. Strings under `results.*` + `measurement.*` (EN + SK).
 
 ---
 

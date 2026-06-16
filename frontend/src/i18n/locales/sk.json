@@ -1167,13 +1167,8 @@
       "confirming": "Potvrdzuje sa...",
       "assignTo": "Priradiť k misii",
       "noCaptureTime": "Bez času snímania",
-      "measure": "Zmerať",
-      "measureAll": "Zmerať všetko",
-      "measuringAll": "Spúšťa sa…",
-      "measureAllStarted": "Spustených {{count}} — skontrolujte vo Výsledkoch",
-      "measureAllPartial": "Spustených {{started}} z {{total}}, {{failed}} zlyhalo — skontrolujte vo Výsledkoch",
-      "measureAllError": "Nepodarilo sa spustiť žiadne meranie.",
-      "reviewInResults": "Skontrolovať vo Výsledkoch"
+      "confirm": "Potvrdiť a zmerať",
+      "confirmStartError": "Nepodarilo sa spustiť žiadne meranie."
     },
     "measurementFlow": {
       "title": "Meranie svetiel PAPI",
@@ -1234,6 +1229,7 @@
     "PLANNED": "Naplánované",
     "VALIDATED": "Validované",
     "EXPORTED": "Exportované",
+    "MEASURED": "Zmerané",
     "COMPLETED": "Dokončené",
     "CANCELLED": "Zrušené"
   },
@@ -2141,6 +2137,9 @@
     "success": "Trajektória úspešne vypočítaná",
     "failed": "Výpočet trajektórie zlyhal"
   },
+  "measurementProgress": {
+    "processing": "Spracúva sa {{count}} meraní"
+  },
   "errors": {
     "webglUnsupported": "WebGL nie je podporovaný",
     "webglUnsupportedHint": "Táto aplikácia vyžaduje WebGL na vykresľovanie máp a 3D pohľadov. Použite moderný prehliadač s povolenou hardvérovou akceleráciou."
@@ -2183,7 +2182,14 @@
     },
     "filters": {
       "allMissions": "Všetky misie"
-    }
+    },
+    "actions": {
+      "rename": "Premenovať",
+      "delete": "Vymazať"
+    },
+    "deleteConfirm": "Naozaj chcete vymazať „{{name}}“? Týmto sa natrvalo odstráni beh aj jeho výsledky.",
+    "renameTitle": "Premenovať meranie",
+    "renamePlaceholder": "Zadajte názov (prázdne použije označenie inšpekcie)"
   },
   "results": {
     "title": "Výsledky merania",

@@ -24,12 +24,15 @@ from app.core.enums import ComputationStatus, MissionStatus
 
 MAX_INSPECTIONS = 10
 
-# status state machine - valid transitions
+# status state machine - valid transitions.
+# MEASURED sits between EXPORTED and the terminal states; a mission measured
+# straight from VALIDATED skips EXPORTED.
 TRANSITIONS = {
     "DRAFT": ["PLANNED"],
     "PLANNED": ["VALIDATED"],
-    "VALIDATED": ["EXPORTED"],
-    "EXPORTED": ["COMPLETED", "CANCELLED"],
+    "VALIDATED": ["EXPORTED", "MEASURED"],
+    "EXPORTED": ["MEASURED", "COMPLETED", "CANCELLED"],
+    "MEASURED": ["COMPLETED", "CANCELLED"],
     "COMPLETED": [],
     "CANCELLED": [],
 }
@@ -173,7 +176,8 @@ class Mission(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('DRAFT', 'PLANNED', 'VALIDATED', 'EXPORTED', 'COMPLETED', 'CANCELLED')",
+            "status IN ('DRAFT', 'PLANNED', 'VALIDATED', 'EXPORTED', 'MEASURED', "
+            "'COMPLETED', 'CANCELLED')",
             name="ck_mission_status",
         ),
         CheckConstraint(
@@ -202,6 +206,16 @@ class Mission(Base):
                 f"cannot transition from {self.status} to {target_status}, allowed: {allowed}"
             )
         self.status = target_status
+
+    def mark_measured(self):
+        """transition VALIDATED/EXPORTED -> MEASURED on measurement kickoff, idempotent.
+
+        a mission with multiple inspections hits create_measurement more than once,
+        so this fires on the first call and no-ops once already MEASURED (or in any
+        other status) rather than raising.
+        """
+        if self.status in self.POST_PLAN_STATUSES:
+            self.transition_to(MissionStatus.MEASURED)
 
     # mission is finished - immutable history, callers must duplicate to edit
     TERMINAL_STATUSES = frozenset({MissionStatus.COMPLETED, MissionStatus.CANCELLED})

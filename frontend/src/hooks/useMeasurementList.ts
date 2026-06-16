@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listAirportMeasurements } from "@/api/measurements";
+import {
+  deleteMeasurement,
+  listAirportMeasurements,
+  updateMeasurement,
+} from "@/api/measurements";
+import { useMeasurementProgress } from "@/contexts/MeasurementProgressContext";
 import useListFilters from "@/components/common/useListFilters";
 import useListSort, { type SortDir } from "@/components/common/useListSort";
 import type { BadgeStyle, FilterSpec } from "@/components/common/filterSpec";
@@ -53,6 +58,9 @@ export interface UseMeasurementListResult {
   error: boolean;
   fetchRows: () => void;
 
+  handleDelete: (row: MeasurementListItem) => Promise<void>;
+  handleRename: (row: MeasurementListItem, label: string) => Promise<void>;
+
   search: string;
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 
@@ -79,6 +87,7 @@ export default function useMeasurementList({
   airportId,
 }: UseMeasurementListOptions): UseMeasurementListResult {
   const { t } = useTranslation();
+  const { sync } = useMeasurementProgress();
 
   const [rows, setRows] = useState<MeasurementListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,17 +122,24 @@ export default function useMeasurementList({
       });
   }, [airportId]);
 
-  // poll while any run is still processing so the list updates on its own
-  const hasActiveRun = useMemo(
-    () => rows.some((r) => ACTIVE_STATUSES.includes(r.status)),
+  // ids of runs still processing - drives both the list poll and the progress toast
+  const activeIds = useMemo(
+    () => rows.filter((r) => ACTIVE_STATUSES.includes(r.status)).map((r) => r.id),
     [rows],
   );
 
+  // seed the corner progress toast with any active runs the list discovered
+  // (e.g. landing here directly, or after confirming a run back into processing)
   useEffect(() => {
-    if (!hasActiveRun) return;
+    sync(activeIds);
+  }, [activeIds, sync]);
+
+  // poll while any run is still processing so the list updates on its own
+  useEffect(() => {
+    if (activeIds.length === 0) return;
     const handle = setInterval(refreshRowsSilently, MEASUREMENT_POLL_INTERVAL_MS);
     return () => clearInterval(handle);
-  }, [hasActiveRun, refreshRowsSilently]);
+  }, [activeIds, refreshRowsSilently]);
 
   // distinct missions present in the list, for the mission select filter
   const missionOptions = useMemo(() => {
@@ -210,6 +226,32 @@ export default function useMeasurementList({
 
   const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
 
+  const handleDelete = useCallback(
+    async (row: MeasurementListItem) => {
+      /** delete a measurement run and refresh the list. */
+      try {
+        await deleteMeasurement(row.id);
+        fetchRows();
+      } catch {
+        // ignore
+      }
+    },
+    [fetchRows],
+  );
+
+  const handleRename = useCallback(
+    async (row: MeasurementListItem, label: string) => {
+      /** set/clear a run's label (blank clears to the inspection fallback). */
+      try {
+        await updateMeasurement(row.id, label.trim() || null);
+        fetchRows();
+      } catch {
+        // ignore
+      }
+    },
+    [fetchRows],
+  );
+
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearch(e.target.value);
@@ -228,6 +270,8 @@ export default function useMeasurementList({
     loading,
     error,
     fetchRows,
+    handleDelete,
+    handleRename,
     search,
     handleSearchChange,
     filterBar: bar,

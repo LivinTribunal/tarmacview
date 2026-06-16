@@ -4,7 +4,9 @@ import NavBar from "./NavBar";
 import type { NavItem } from "./NavBar";
 import { MissionProvider } from "@/contexts/MissionContext";
 import { ComputationProvider } from "@/contexts/ComputationContext";
+import { MeasurementProgressProvider } from "@/contexts/MeasurementProgressContext";
 import ComputationNotification from "@/components/common/ComputationNotification";
+import MeasurementProgressNotification from "@/components/common/MeasurementProgressNotification";
 
 /** operator layout - nav shell wrapping pages in mission and computation providers. */
 export default function OperatorLayout() {
@@ -24,8 +26,11 @@ export default function OperatorLayout() {
       <main className="flex-1 min-h-0 overflow-auto">
         <MissionProvider>
           <ComputationProvider>
-            <Outlet />
-            <ComputationNotification />
+            <MeasurementProgressProvider>
+              <Outlet />
+              <ComputationNotification />
+              <MeasurementProgressNotification />
+            </MeasurementProgressProvider>
           </ComputationProvider>
         </MissionProvider>
       </main>

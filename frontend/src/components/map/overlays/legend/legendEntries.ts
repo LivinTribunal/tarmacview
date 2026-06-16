@@ -78,5 +78,6 @@ export const STATUSES_WITH_FULL_WAYPOINTS: MissionStatus[] = [
   "PLANNED",
   "VALIDATED",
   "EXPORTED",
+  "MEASURED",
   "COMPLETED",
 ];

@@ -5,6 +5,7 @@ type BadgeStatus =
   | "PLANNED"
   | "VALIDATED"
   | "EXPORTED"
+  | "MEASURED"
   | "COMPLETED"
   | "CANCELLED";
 
@@ -22,6 +23,8 @@ const statusStyles: Record<BadgeStatus, string> = {
     "bg-[var(--tv-status-validated-bg)] text-[var(--tv-status-validated-text)]",
   EXPORTED:
     "bg-[var(--tv-status-exported-bg)] text-[var(--tv-status-exported-text)]",
+  MEASURED:
+    "bg-[var(--tv-status-measured-bg)] text-[var(--tv-status-measured-text)]",
   COMPLETED:
     "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",
   CANCELLED:

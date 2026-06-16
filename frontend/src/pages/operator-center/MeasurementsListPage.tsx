@@ -18,18 +18,11 @@ import MeasurementFlowDialog from "@/components/mission/MeasurementFlowDialog";
 import useMeasurementList from "@/hooks/useMeasurementList";
 import type { MeasurementListItem } from "@/types/measurement";
 
-/** a measurement to resume in the flow dialog (confirm-later / watch progress). */
-interface ResumeTarget {
+/** a measurement opened for PAPI-box review in the flow dialog. */
+interface ReviewTarget {
   measurementId: string;
-  inspectionId: string;
   label: string;
 }
-
-const ACTIVE_STATUSES: MeasurementListItem["status"][] = [
-  "QUEUED",
-  "FIRST_FRAME",
-  "PROCESSING",
-];
 
 /** airport-scoped measurements list - the results entry point for the operator. */
 export default function MeasurementsListPage() {
@@ -38,7 +31,7 @@ export default function MeasurementsListPage() {
   const { selectedAirport } = useAirport();
 
   const list = useMeasurementList({ airportId: selectedAirport?.id });
-  const [resumeTarget, setResumeTarget] = useState<ResumeTarget | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MeasurementListItem | null>(null);
   const [renameTarget, setRenameTarget] = useState<MeasurementListItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -61,25 +54,22 @@ export default function MeasurementsListPage() {
     });
   }
 
-  // route each row by its phase: done -> results, awaiting/active -> flow dialog,
-  // error rows surface their message inline and are not actionable.
+  // route each row by its phase: done -> results, awaiting -> review modal.
+  // active rows are inert (the corner progress toast tracks them); error rows
+  // surface their message inline.
   function handleRowClick(row: MeasurementListItem) {
     if (row.status === "DONE") {
       navigate(`/operator-center/measurements/${row.id}/results`);
       return;
     }
-    if (row.status === "AWAITING_CONFIRM" || ACTIVE_STATUSES.includes(row.status)) {
-      setResumeTarget({
-        measurementId: row.id,
-        inspectionId: row.inspection_id,
-        label: rowLabel(row),
-      });
+    if (row.status === "AWAITING_CONFIRM") {
+      setReviewTarget({ measurementId: row.id, label: rowLabel(row) });
     }
   }
 
-  // resuming an AWAITING_CONFIRM run may finish it; refresh on close
-  function handleResumeClose() {
-    setResumeTarget(null);
+  // confirming a run sends it back to processing; refresh so the list reflects it
+  function handleReviewClose() {
+    setReviewTarget(null);
     list.fetchRows();
   }
 
@@ -139,12 +129,11 @@ export default function MeasurementsListPage() {
         />
       )}
 
-      {resumeTarget && (
+      {reviewTarget && (
         <MeasurementFlowDialog
-          inspectionId={resumeTarget.inspectionId}
-          inspectionLabel={resumeTarget.label}
-          resumeMeasurementId={resumeTarget.measurementId}
-          onClose={handleResumeClose}
+          measurementId={reviewTarget.measurementId}
+          inspectionLabel={reviewTarget.label}
+          onClose={handleReviewClose}
         />
       )}
 

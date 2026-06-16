@@ -6,7 +6,6 @@ import ResultsPage from "./ResultsPage";
 
 vi.mock("@/api/measurements", () => ({
   getMeasurementResults: vi.fn(),
-  downloadMeasurementReport: vi.fn(),
   updateMeasurement: vi.fn(),
   deleteMeasurement: vi.fn(),
 }));
@@ -97,7 +96,8 @@ describe("ResultsPage", () => {
     expect(screen.getByTestId("mock-drone-path-map")).toBeInTheDocument();
     expect(screen.getByTestId("mock-climb-profile")).toBeInTheDocument();
     expect(screen.getByTestId("mock-video-player")).toBeInTheDocument();
-    expect(screen.getByTestId("download-pdf-btn")).toBeInTheDocument();
+    // download moved to MeasurementTabNav (the results header)
+    expect(screen.queryByTestId("download-pdf-btn")).toBeNull();
   });
 
   it("shows the pending state when the run is not done", async () => {

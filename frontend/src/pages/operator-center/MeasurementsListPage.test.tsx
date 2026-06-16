@@ -68,10 +68,14 @@ vi.mock("@/api/measurements", () => ({
   updateMeasurement: vi.fn(),
 }));
 
-// stub the heavy flow dialog - its own test covers the resume internals
+vi.mock("@/contexts/MeasurementProgressContext", () => ({
+  useMeasurementProgress: () => ({ activeCount: 0, track: vi.fn(), sync: vi.fn() }),
+}));
+
+// stub the heavy flow dialog - its own test covers the review internals
 vi.mock("@/components/mission/MeasurementFlowDialog", () => ({
-  default: ({ resumeMeasurementId }: { resumeMeasurementId?: string }) => (
-    <div data-testid="flow-dialog" data-resume={resumeMeasurementId} />
+  default: ({ measurementId }: { measurementId?: string }) => (
+    <div data-testid="flow-dialog" data-measurement={measurementId} />
   ),
 }));
 
@@ -165,18 +169,15 @@ describe("MeasurementsListPage", () => {
       "/operator-center/measurements/done-1/results",
     );
 
-    // AWAITING_CONFIRM -> resume the confirm step in the flow dialog
+    // active run -> inert (the corner progress toast tracks it, no modal)
+    fireEvent.click(screen.getByTestId("measurement-row-proc-1"));
+    expect(screen.queryByTestId("flow-dialog")).not.toBeInTheDocument();
+
+    // AWAITING_CONFIRM -> open the box-review modal for that run
     fireEvent.click(screen.getByTestId("measurement-row-confirm-1"));
     expect(await screen.findByTestId("flow-dialog")).toHaveAttribute(
-      "data-resume",
+      "data-measurement",
       "confirm-1",
-    );
-
-    // active run -> resume to watch progress in the flow dialog
-    fireEvent.click(screen.getByTestId("measurement-row-proc-1"));
-    expect(screen.getByTestId("flow-dialog")).toHaveAttribute(
-      "data-resume",
-      "proc-1",
     );
 
     // error row surfaces its message inline

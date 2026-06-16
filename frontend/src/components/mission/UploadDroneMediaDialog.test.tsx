@@ -109,6 +109,11 @@ vi.mock("@/api/droneMedia", () => ({
 
 vi.mock("@/api/measurements", () => ({ createMeasurement: vi.fn() }));
 
+const { trackMock } = vi.hoisted(() => ({ trackMock: vi.fn() }));
+vi.mock("@/contexts/MeasurementProgressContext", () => ({
+  useMeasurementProgress: () => ({ activeCount: 0, track: trackMock, sync: vi.fn() }),
+}));
+
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
 vi.mock("react-router", () => ({ useNavigate: () => navigateMock }));
 
@@ -169,9 +174,10 @@ const MEDIA: MissionInspectionMediaResponse = {
   ],
 };
 
+const onCloseMock = vi.fn();
 function renderDialog() {
   return render(
-    <UploadDroneMediaDialog isOpen onClose={vi.fn()} missionId="mission-1" />,
+    <UploadDroneMediaDialog isOpen onClose={onCloseMock} missionId="mission-1" />,
   );
 }
 
@@ -309,10 +315,20 @@ describe("UploadDroneMediaDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("fires one measurement per inspection with media on 'Measure all'", async () => {
-    vi.mocked(createMeasurement).mockResolvedValue(measurement("m1"));
+  it("does not render a per-inspection measure button", async () => {
     renderDialog();
-    const button = await screen.findByTestId("measure-all");
+    await screen.findByTestId("media-group-insp-1");
+
+    expect(screen.queryByTestId("measure-insp-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("measure-insp-2")).not.toBeInTheDocument();
+  });
+
+  it("starts one run per inspection with media on Confirm, then tracks, navigates, and closes", async () => {
+    vi.mocked(createMeasurement).mockImplementation((id) =>
+      Promise.resolve(measurement(id === "insp-1" ? "m1" : "m2")),
+    );
+    renderDialog();
+    const button = await screen.findByTestId("confirm-measurements");
 
     await act(async () => {
       fireEvent.click(button);
@@ -322,12 +338,13 @@ describe("UploadDroneMediaDialog", () => {
     await waitFor(() => expect(createMeasurement).toHaveBeenCalledTimes(2));
     expect(createMeasurement).toHaveBeenCalledWith("insp-1");
     expect(createMeasurement).toHaveBeenCalledWith("insp-2");
-    expect(
-      await screen.findByText("2 started — review in Results"),
-    ).toBeInTheDocument();
+    // the two started runs are registered with the progress toast
+    expect(trackMock).toHaveBeenCalledWith(["m1", "m2"]);
+    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements");
+    expect(onCloseMock).toHaveBeenCalled();
   });
 
-  it("disables 'Measure all' when no inspection has media", async () => {
+  it("disables Confirm when no inspection has media", async () => {
     vi.mocked(listMissionDroneMedia).mockResolvedValue({
       ...MEDIA,
       inspections: [
@@ -342,20 +359,20 @@ describe("UploadDroneMediaDialog", () => {
     });
     renderDialog();
 
-    const button = await screen.findByTestId("measure-all");
+    const button = await screen.findByTestId("confirm-measurements");
     expect(button).toBeDisabled();
     fireEvent.click(button);
     expect(createMeasurement).not.toHaveBeenCalled();
   });
 
-  it("surfaces partial failure without aborting the batch", async () => {
+  it("tracks only the started runs when one inspection fails to start", async () => {
     vi.mocked(createMeasurement).mockImplementation((id) =>
       id === "insp-2"
         ? Promise.reject(new Error("worker down"))
         : Promise.resolve(measurement("m1")),
     );
     renderDialog();
-    const button = await screen.findByTestId("measure-all");
+    const button = await screen.findByTestId("confirm-measurements");
 
     await act(async () => {
       fireEvent.click(button);
@@ -363,21 +380,26 @@ describe("UploadDroneMediaDialog", () => {
 
     // one bad inspection must not block the other - both are attempted
     await waitFor(() => expect(createMeasurement).toHaveBeenCalledTimes(2));
-    expect(
-      await screen.findByText("1 of 2 started, 1 failed — review in Results"),
-    ).toBeInTheDocument();
+    expect(trackMock).toHaveBeenCalledWith(["m1"]);
+    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements");
+    expect(onCloseMock).toHaveBeenCalled();
   });
 
-  it("navigates to the measurements list from 'review in Results'", async () => {
-    vi.mocked(createMeasurement).mockResolvedValue(measurement("m1"));
+  it("stays open with an error when every run fails to start", async () => {
+    vi.mocked(createMeasurement).mockRejectedValue(new Error("worker down"));
     renderDialog();
-    const button = await screen.findByTestId("measure-all");
+    const button = await screen.findByTestId("confirm-measurements");
 
     await act(async () => {
       fireEvent.click(button);
     });
 
-    fireEvent.click(await screen.findByTestId("review-in-results"));
-    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements");
+    await waitFor(() => expect(createMeasurement).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByText("Could not start any measurements."),
+    ).toBeInTheDocument();
+    expect(trackMock).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(onCloseMock).not.toHaveBeenCalled();
   });
 });

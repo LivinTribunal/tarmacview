@@ -1167,13 +1167,8 @@
       "confirming": "Potvrdzuje sa...",
       "assignTo": "Priradiť k misii",
       "noCaptureTime": "Bez času snímania",
-      "measure": "Zmerať",
-      "measureAll": "Zmerať všetko",
-      "measuringAll": "Spúšťa sa…",
-      "measureAllStarted": "Spustených {{count}} — skontrolujte vo Výsledkoch",
-      "measureAllPartial": "Spustených {{started}} z {{total}}, {{failed}} zlyhalo — skontrolujte vo Výsledkoch",
-      "measureAllError": "Nepodarilo sa spustiť žiadne meranie.",
-      "reviewInResults": "Skontrolovať vo Výsledkoch"
+      "confirm": "Potvrdiť a zmerať",
+      "confirmStartError": "Nepodarilo sa spustiť žiadne meranie."
     },
     "measurementFlow": {
       "title": "Meranie svetiel PAPI",
@@ -2141,9 +2136,20 @@
     "success": "Trajektória úspešne vypočítaná",
     "failed": "Výpočet trajektórie zlyhal"
   },
+  "measurementProgress": {
+    "processing": "Spracúva sa {{count}} meraní"
+  },
   "errors": {
     "webglUnsupported": "WebGL nie je podporovaný",
     "webglUnsupportedHint": "Táto aplikácia vyžaduje WebGL na vykresľovanie máp a 3D pohľadov. Použite moderný prehliadač s povolenou hardvérovou akceleráciou."
+  },
+  "measurement": {
+    "label": "Meranie",
+    "selectMeasurement": "Vyberte meranie",
+    "searchPlaceholder": "Hľadať merania...",
+    "tab": {
+      "all": "Všetky"
+    }
   },
   "measurementsList": {
     "title": "Merania",
@@ -2191,6 +2197,7 @@
     "notReady": "Toto meranie ešte nedokončilo spracovanie. Výsledky sa zobrazia po dokončení behu.",
     "downloadPdf": "Stiahnuť PDF",
     "generatingPdf": "Generuje sa…",
+    "passRollup": "{{pass}}/{{total}} vyhovuje",
     "noData": "Pre tento graf nie sú dáta.",
     "table": {
       "title": "Prechodové uhly",

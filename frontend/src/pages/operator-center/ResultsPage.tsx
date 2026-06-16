@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { FileText, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import {
   deleteMeasurement,
-  downloadMeasurementReport,
   getMeasurementResults,
   updateMeasurement,
 } from "@/api/measurements";
@@ -29,7 +28,6 @@ export default function ResultsPage() {
   const [results, setResults] = useState<MeasurementResults | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -53,32 +51,6 @@ export default function ResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [measurementId]);
-
-  const handleDownload = useCallback(async () => {
-    if (!measurementId) return;
-    setDownloading(true);
-    try {
-      const { blob, filename } = await downloadMeasurementReport(measurementId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename ?? `MeasurementReport_${measurementId}.pdf`;
-      document.body.appendChild(a);
-      try {
-        a.click();
-      } finally {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (err) {
-      console.error(
-        "measurement report download failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-    } finally {
-      setDownloading(false);
-    }
   }, [measurementId]);
 
   const handleRenameConfirm = useCallback(async () => {
@@ -138,12 +110,9 @@ export default function ResultsPage() {
     <div className="p-4 md:p-6 space-y-4 overflow-y-auto" data-testid="results-page">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-tv-text-primary">
-            {t("results.title")}
-          </h1>
           {displayName && (
             <p
-              className="text-sm text-tv-text-secondary mt-0.5"
+              className="text-sm text-tv-text-secondary"
               data-testid="results-run-name"
             >
               {displayName}
@@ -165,20 +134,6 @@ export default function ResultsPage() {
           >
             <Pencil className="h-4 w-4" />
             {t("measurementsList.actions.rename")}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={handleDownload}
-            disabled={downloading}
-            className="flex items-center gap-2"
-            data-testid="download-pdf-btn"
-          >
-            {downloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileText className="h-4 w-4" />
-            )}
-            {downloading ? t("results.generatingPdf") : t("results.downloadPdf")}
           </Button>
           <Button
             variant="danger"

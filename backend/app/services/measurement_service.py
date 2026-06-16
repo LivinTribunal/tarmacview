@@ -135,6 +135,7 @@ def to_response(m: Measurement) -> MeasurementResponse:
         id=m.id,
         inspection_id=m.inspection_id,
         status=m.status.value,
+        label=m.label,
         runway_heading=m.runway_heading,
         reference_points=[
             ReferencePointResponse(
@@ -236,6 +237,7 @@ def _list_item(
         inspection_method=inspection.method,
         inspection_sequence_order=inspection.sequence_order,
         status=measurement.status.value,
+        label=measurement.label,
         created_at=measurement.created_at,
         has_results=has_results,
         pass_count=pass_count,
@@ -295,6 +297,45 @@ def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBoxSchema
     measurement.confirm_boxes(_boxes_from_request(boxes))
     measurement.transition_to(MeasurementStatus.PROCESSING)
     return _repo(db).save(measurement)
+
+
+def update_measurement(db: Session, measurement_id: UUID, label: str | None) -> Measurement:
+    """set or clear a measurement's free-text label (blank -> None). flush; route commits.
+
+    404 when the measurement is missing. a blank/whitespace label clears it so the UI
+    falls back to the inspection label.
+    """
+    measurement = get_measurement(db, measurement_id)
+    measurement.label = (label or "").strip() or None
+    return _repo(db).save(measurement)
+
+
+def _measurement_object_keys(measurement: Measurement) -> list[str]:
+    """every object-storage key one run owns - results blob, first frame, videos."""
+    keys: list[str] = []
+    if measurement.object_key:
+        keys.append(measurement.object_key)
+    if measurement.first_frame_object_key:
+        keys.append(measurement.first_frame_object_key)
+    keys.extend(measurement.annotated_video_keys.values())
+    return keys
+
+
+def delete_measurement(db: Session, measurement_id: UUID) -> tuple[UUID, str | None, list[str]]:
+    """delete one measurement aggregate; return context for the audit + artifact cleanup.
+
+    collects every object-storage key the run owns before dropping the row so the route
+    can audit the delete, commit, then drop the artifacts post-commit (best-effort) -
+    mirrors the drone-media delete pattern so a failed commit can't orphan a live
+    reference. returns (inspection_id, label, object_keys); 404 when missing. flushes;
+    the route commits.
+    """
+    measurement = get_measurement(db, measurement_id)
+    object_keys = _measurement_object_keys(measurement)
+    inspection_id = measurement.inspection_id
+    label = measurement.label
+    _repo(db).delete(measurement_id)
+    return inspection_id, label, object_keys
 
 
 # results assembly (read-only pivot of the gzipped per-frame blob)
@@ -388,7 +429,12 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
 
 
 def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
-    """ordered drone positions pulled from each frame's gps telemetry."""
+    """ordered drone positions pulled from each frame's gps telemetry.
+
+    keys are the canonical blob shape the engine writes per frame
+    (``measurement_collector`` emits drone_latitude / drone_longitude /
+    drone_elevation_wgs84) - don't rename them to the overlay gps_cache keys.
+    """
     path: list[DronePathPoint] = []
     for frame in frames:
         lat = frame.get("drone_latitude")
@@ -416,11 +462,15 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
     results blob yet) returns the metadata with ``has_results=False`` and empty series.
     """
     measurement = get_measurement(db, measurement_id)
+    inspection = db.query(Inspection).filter(Inspection.id == measurement.inspection_id).first()
     response = MeasurementResultsResponse(
         id=measurement.id,
         inspection_id=measurement.inspection_id,
         status=measurement.status.value,
         has_results=False,
+        label=measurement.label,
+        inspection_method=inspection.method if inspection else None,
+        inspection_sequence_order=inspection.sequence_order if inspection else None,
         runway_heading=measurement.runway_heading,
         reference_points=_reference_point_responses(measurement),
         summaries=_summary_responses(measurement),

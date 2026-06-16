@@ -1,4 +1,4 @@
-"""alembic round-trip for 0019_mission_status_measured on a fresh postgres (T3 migration)."""
+"""alembic round-trip for 0020_mission_status_measured on a fresh postgres (T3 migration)."""
 
 from pathlib import Path
 from uuid import uuid4
@@ -14,7 +14,7 @@ from app.core.config import settings
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
-PRIOR_REVISION = "0018_measurement"
+PRIOR_REVISION = "0019_measurement_label"
 
 
 def _alembic_config() -> Config:
@@ -50,7 +50,7 @@ def _seed_airport(conn, airport_id) -> None:
 
 
 def test_upgrade_downgrade_upgrade_round_trip(alembic_env, fresh_pg):
-    """0019 applies, reverts cleanly to 0018, and re-applies on the same database."""
+    """0020 applies, reverts cleanly to its parent, and re-applies on the same database."""
     command.upgrade(alembic_env, "head")
     command.downgrade(alembic_env, PRIOR_REVISION)
     command.upgrade(alembic_env, "head")

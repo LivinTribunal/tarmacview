@@ -1,8 +1,9 @@
 """measurement repository port - the narrow seam that keeps the db swappable.
 
-access stays the lowest common denominator (get-by-id, list-by-inspection, save) so
-both the sqlalchemy adapter built now and a future dynamodb adapter can satisfy it
-without the domain, service, or engine changing. see TARMACVIEW-MERGE-PLAN.md D3/§6.
+access stays the lowest common denominator (get-by-id, list-by-inspection, save,
+delete) so both the sqlalchemy adapter built now and a future dynamodb adapter can
+satisfy it without the domain, service, or engine changing. see
+TARMACVIEW-MERGE-PLAN.md D3/§6.
 """
 
 from abc import ABC, abstractmethod
@@ -29,3 +30,7 @@ class MeasurementRepository(ABC):
     @abstractmethod
     def save(self, measurement: Measurement) -> Measurement:
         """insert or update one aggregate and return the persisted form."""
+
+    @abstractmethod
+    def delete(self, measurement_id: UUID) -> None:
+        """delete one aggregate by id - a no-op when it does not exist."""

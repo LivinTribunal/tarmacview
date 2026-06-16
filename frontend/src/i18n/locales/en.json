@@ -1163,13 +1163,8 @@
       "confirming": "Confirming...",
       "assignTo": "Assign to mission",
       "noCaptureTime": "No capture time",
-      "measure": "Measure",
-      "measureAll": "Measure all",
-      "measuringAll": "Starting…",
-      "measureAllStarted": "{{count}} started — review in Results",
-      "measureAllPartial": "{{started}} of {{total}} started, {{failed}} failed — review in Results",
-      "measureAllError": "Could not start any measurements.",
-      "reviewInResults": "Review in Results"
+      "confirm": "Confirm & measure",
+      "confirmStartError": "Could not start any measurements."
     },
     "measurementFlow": {
       "title": "Measure PAPI lights",
@@ -2138,9 +2133,20 @@
     "success": "Trajectory computed successfully",
     "failed": "Trajectory computation failed"
   },
+  "measurementProgress": {
+    "processing": "{{count}} measurement(s) processing"
+  },
   "errors": {
     "webglUnsupported": "WebGL is not supported",
     "webglUnsupportedHint": "This application requires WebGL to render maps and 3D views. Please use a modern browser with hardware acceleration enabled."
+  },
+  "measurement": {
+    "label": "Measurement",
+    "selectMeasurement": "Select a measurement",
+    "searchPlaceholder": "Search measurements...",
+    "tab": {
+      "all": "All"
+    }
   },
   "measurementsList": {
     "title": "Measurements",
@@ -2172,7 +2178,14 @@
     },
     "filters": {
       "allMissions": "All Missions"
-    }
+    },
+    "actions": {
+      "rename": "Rename",
+      "delete": "Delete"
+    },
+    "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? This permanently removes the run and its results.",
+    "renameTitle": "Rename Measurement",
+    "renamePlaceholder": "Enter a name (leave blank to use the inspection label)"
   },
   "results": {
     "title": "Measurement Results",
@@ -2181,6 +2194,7 @@
     "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",
     "downloadPdf": "Download PDF",
     "generatingPdf": "Generating…",
+    "passRollup": "{{pass}}/{{total}} pass",
     "noData": "No data for this chart.",
     "table": {
       "title": "Transition angles",

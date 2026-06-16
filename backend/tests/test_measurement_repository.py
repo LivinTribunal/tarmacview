@@ -141,6 +141,46 @@ def test_get_by_id_missing_returns_none(session):
     assert repo.get_by_id(uuid4()) is None
 
 
+def test_label_round_trips_both_directions(session, inspection_id):
+    """the free-text label maps to the row and back through get_by_id."""
+    s, created = session
+    repo = SqlAlchemyMeasurementRepository(s)
+
+    m = Measurement(inspection_id=inspection_id, label="morning re-fly")
+    saved = repo.save(m)
+    s.commit()
+    created.append(saved.id)
+    assert saved.label == "morning re-fly"
+
+    loaded = repo.get_by_id(saved.id)
+    assert loaded.label == "morning re-fly"
+
+    # clearing the label persists as null
+    loaded.label = None
+    repo.save(loaded)
+    s.commit()
+    assert repo.get_by_id(saved.id).label is None
+
+
+def test_delete_removes_the_row(session, inspection_id):
+    """delete drops one aggregate; a second delete is a harmless no-op."""
+    s, created = session
+    repo = SqlAlchemyMeasurementRepository(s)
+
+    saved = repo.save(Measurement(inspection_id=inspection_id))
+    s.commit()
+    created.append(saved.id)
+    assert repo.get_by_id(saved.id) is not None
+
+    repo.delete(saved.id)
+    s.commit()
+    assert repo.get_by_id(saved.id) is None
+
+    # idempotent - deleting a missing id does not raise
+    repo.delete(saved.id)
+    s.commit()
+
+
 @pytest.fixture
 def two_inspections(client):
     """a fresh mission with two inspections - FK targets for the batched-list test."""

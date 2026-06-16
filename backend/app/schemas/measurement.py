@@ -49,6 +49,7 @@ class MeasurementResponse(BaseModel):
     id: UUID
     inspection_id: UUID
     status: MeasurementStatusStr
+    label: str | None = None
     runway_heading: float | None = None
     reference_points: list[ReferencePointResponse] = []
     light_boxes: list[LightBox] = []
@@ -58,6 +59,12 @@ class MeasurementResponse(BaseModel):
     error_message: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class MeasurementUpdate(BaseModel):
+    """partial update for one measurement - sets/clears its free-text label."""
+
+    label: str | None = None
 
 
 class MeasurementStatusResponse(BaseModel):
@@ -82,6 +89,7 @@ class MeasurementListItemResponse(BaseModel):
     inspection_method: str
     inspection_sequence_order: int
     status: MeasurementStatusStr
+    label: str | None = None
     created_at: datetime | None = None
     has_results: bool = False
     pass_count: int = 0
@@ -159,6 +167,11 @@ class MeasurementResultsResponse(BaseModel):
     inspection_id: UUID
     status: MeasurementStatusStr
     has_results: bool = False
+    label: str | None = None
+    # inspection context so the results header can render the same blank-label
+    # fallback ("Inspection N - Method") as the list page
+    inspection_method: str | None = None
+    inspection_sequence_order: int | None = None
     runway_heading: float | None = None
     reference_points: list[ReferencePointResponse] = []
     summaries: list[LightSummaryResponse] = []

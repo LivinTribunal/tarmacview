@@ -6,22 +6,17 @@ import Modal from "@/components/common/Modal";
 import { isAxiosError } from "@/api/client";
 import {
   confirmMeasurementLights,
-  createMeasurement,
   getMeasurementPreview,
   getMeasurementStatus,
 } from "@/api/measurements";
 import type { LightBox, MeasurementStatus } from "@/types/measurement";
 
 interface MeasurementFlowDialogProps {
-  inspectionId: string;
+  /** the run to review - opened only for AWAITING_CONFIRM rows from the list. */
+  measurementId: string;
   inspectionLabel: string;
-  /** resume an existing run: open at its current step instead of starting a new one. */
-  resumeMeasurementId?: string;
   onClose: () => void;
 }
-
-const POLL_INTERVAL_MS = 3000;
-const ACTIVE_STATUSES: MeasurementStatus[] = ["QUEUED", "FIRST_FRAME", "PROCESSING"];
 
 /** pull a human message off an axios error, falling back to an i18n string. */
 function apiErrorMessage(err: unknown, fallback: string): string {
@@ -39,19 +34,15 @@ function clampPct(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
-/** drives one measurement run end to end: start -> poll -> confirm boxes -> poll -> results. */
+/** review step for one measurement: confirm/adjust the detected PAPI boxes, then hand back. */
 export default function MeasurementFlowDialog({
-  inspectionId,
+  measurementId,
   inspectionLabel,
-  resumeMeasurementId,
   onClose,
 }: MeasurementFlowDialogProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [measurementId, setMeasurementId] = useState<string | null>(
-    resumeMeasurementId ?? null,
-  );
   const [status, setStatus] = useState<MeasurementStatus | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uiError, setUiError] = useState<string | null>(null);
@@ -72,54 +63,27 @@ export default function MeasurementFlowDialog({
     };
   }, []);
 
-  // start a fresh run, or in resume mode seed the current status of an existing one.
-  // createMeasurement reads the inspection's uploaded media server-side.
+  // seed the current status of the run we're reviewing (no polling - the run
+  // sits in AWAITING_CONFIRM until the operator confirms here)
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
     void (async () => {
       try {
-        if (resumeMeasurementId) {
-          const s = await getMeasurementStatus(resumeMeasurementId);
-          if (!mountedRef.current) return;
-          setStatus(s.status);
-          if (s.status === "ERROR") setErrorMessage(s.error_message);
-          return;
-        }
-        const m = await createMeasurement(inspectionId);
-        if (!mountedRef.current) return;
-        setMeasurementId(m.id);
-        setStatus(m.status);
-      } catch (err) {
-        if (!mountedRef.current) return;
-        setUiError(apiErrorMessage(err, t("mission.measurementFlow.startError")));
-      }
-    })();
-  }, [inspectionId, resumeMeasurementId, t]);
-
-  // poll while the worker is busy; stops on AWAITING_CONFIRM / DONE / ERROR
-  useEffect(() => {
-    if (!measurementId || status === null || !ACTIVE_STATUSES.includes(status)) return;
-    let cancelled = false;
-    const handle = setInterval(async () => {
-      try {
         const s = await getMeasurementStatus(measurementId);
-        if (cancelled) return;
+        if (!mountedRef.current) return;
         setStatus(s.status);
         if (s.status === "ERROR") setErrorMessage(s.error_message);
-      } catch {
-        // transient poll failure - keep polling
+      } catch (err) {
+        if (!mountedRef.current) return;
+        setUiError(apiErrorMessage(err, t("mission.measurementFlow.previewError")));
       }
-    }, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(handle);
-    };
-  }, [measurementId, status]);
+    })();
+  }, [measurementId, t]);
 
-  // fetch the first frame + detected boxes once the worker pauses for confirmation
+  // fetch the first frame + detected boxes once we know it's awaiting confirmation
   useEffect(() => {
-    if (status !== "AWAITING_CONFIRM" || !measurementId || previewLoaded) return;
+    if (status !== "AWAITING_CONFIRM" || previewLoaded) return;
     void (async () => {
       try {
         const preview = await getMeasurementPreview(measurementId);
@@ -134,14 +98,14 @@ export default function MeasurementFlowDialog({
     })();
   }, [status, measurementId, previewLoaded, t]);
 
+  // confirm the boxes and start processing; the list + progress toast take over
   async function handleConfirm() {
-    if (!measurementId) return;
     setConfirming(true);
     setUiError(null);
     try {
-      const m = await confirmMeasurementLights(measurementId, boxes);
+      await confirmMeasurementLights(measurementId, boxes);
       if (!mountedRef.current) return;
-      setStatus(m.status);
+      onClose();
     } catch (err) {
       if (!mountedRef.current) return;
       setUiError(apiErrorMessage(err, t("mission.measurementFlow.confirmError")));
@@ -158,29 +122,19 @@ export default function MeasurementFlowDialog({
     setBoxes((prev) => prev.map((b, i) => (i === dragIndex ? { ...b, x, y } : b)));
   }
 
-  const phaseLabel = (() => {
-    if (uiError) return null;
-    if (measurementId === null || status === null)
-      return t("mission.measurementFlow.starting");
-    if (status === "QUEUED") return t("mission.measurementFlow.phase.queued");
-    if (status === "FIRST_FRAME") return t("mission.measurementFlow.phase.firstFrame");
-    if (status === "PROCESSING") return t("mission.measurementFlow.phase.processing");
-    return null;
-  })();
-
   const showAwaitingConfirm = status === "AWAITING_CONFIRM" && !uiError;
   const showDone = status === "DONE" && !uiError;
   const showError = (status === "ERROR" || uiError !== null) && !showAwaitingConfirm;
+  const showLoading = !showAwaitingConfirm && !showDone && !showError;
 
   return (
     <Modal isOpen onClose={onClose} title={t("mission.measurementFlow.title")}>
       <div className="flex flex-col gap-4" data-testid="measurement-flow-dialog">
         <p className="text-xs text-tv-text-secondary">{inspectionLabel}</p>
 
-        {phaseLabel && (
-          <div className="flex items-center gap-2 py-6 justify-center text-sm text-tv-text-secondary">
+        {showLoading && (
+          <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-tv-accent" />
-            {phaseLabel}
           </div>
         )}
 
@@ -264,7 +218,6 @@ export default function MeasurementFlowDialog({
             <button
               type="button"
               onClick={() =>
-                measurementId &&
                 navigate(`/operator-center/measurements/${measurementId}/results`)
               }
               data-testid="view-results-button"

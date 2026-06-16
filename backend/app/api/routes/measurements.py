@@ -20,8 +20,9 @@ from app.schemas.measurement import (
     MeasurementResponse,
     MeasurementResultsResponse,
     MeasurementStatusResponse,
+    MeasurementUpdate,
 )
-from app.services import measurement_report_service, measurement_service
+from app.services import measurement_report_service, measurement_service, object_storage
 from app.utils.audit import log_audit
 
 router = APIRouter(prefix="/api/v1", tags=["measurements"])
@@ -60,6 +61,61 @@ def get_measurement(
 ):
     """full measurement aggregate (results + summaries once processing is done)."""
     return measurement_service.to_response(measurement_service.get_measurement(db, measurement_id))
+
+
+@router.patch("/measurements/{measurement_id}", response_model=MeasurementResponse)
+def update_measurement(
+    measurement_id: UUID,
+    body: MeasurementUpdate,
+    request: Request,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """rename a run - set/clear its free-text label (blank falls back to the inspection label)."""
+    measurement = measurement_service.update_measurement(db, measurement_id, body.label)
+    airport_id = measurement_service.airport_id_for_inspection(db, measurement.inspection_id)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.UPDATE,
+        entity_type="Measurement",
+        entity_id=measurement.id,
+        entity_name=measurement.label,
+        details={"label": measurement.label},
+        ip_address=request.client.host if request.client else None,
+        airport_id=airport_id,
+    )
+    db.commit()
+    return measurement_service.to_response(measurement)
+
+
+@router.delete("/measurements/{measurement_id}", status_code=204)
+def delete_measurement(
+    measurement_id: UUID,
+    request: Request,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """delete a measurement run and drop its object-storage artifacts."""
+    inspection_id, label, object_keys = measurement_service.delete_measurement(db, measurement_id)
+    airport_id = measurement_service.airport_id_for_inspection(db, inspection_id)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.DELETE,
+        entity_type="Measurement",
+        entity_id=measurement_id,
+        entity_name=label,
+        details={"inspection_id": str(inspection_id), "object_keys": object_keys},
+        ip_address=request.client.host if request.client else None,
+        airport_id=airport_id,
+    )
+    db.commit()
+
+    # the row is gone for good - drop the artifacts after the commit so a failed
+    # commit can't orphan a deleted-row reference
+    for key in object_keys:
+        object_storage.delete_object(key)
 
 
 @router.get("/measurements/{measurement_id}/status", response_model=MeasurementStatusResponse)

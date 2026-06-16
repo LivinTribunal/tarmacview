@@ -49,6 +49,8 @@ const statusMock = vi.mocked(getMeasurementStatus);
 const previewMock = vi.mocked(getMeasurementPreview);
 const confirmMock = vi.mocked(confirmMeasurementLights);
 
+const BOX = { light_name: "PAPI_A", x: 50, y: 50, size: 8 };
+
 /** flush pending promise jobs (no timer advance). */
 async function flush() {
   await act(async () => {
@@ -56,120 +58,91 @@ async function flush() {
   });
 }
 
-/** advance past one poll interval, flushing the chained async work. */
-async function tick() {
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(3000);
-  });
-}
-
-function renderDialog() {
+function renderDialog(onClose: () => void = vi.fn()) {
   return render(
     <MeasurementFlowDialog
-      inspectionId="insp-1"
+      measurementId="m9"
       inspectionLabel="Inspection 1 · HORIZONTAL_RANGE"
-      onClose={vi.fn()}
+      onClose={onClose}
     />,
   );
+}
+
+/** seed the status + preview for a run waiting on confirmation. */
+function seedAwaitingConfirm() {
+  statusMock.mockResolvedValue({ id: "m9", status: "AWAITING_CONFIRM", error_message: null });
+  previewMock.mockResolvedValue({
+    id: "m9",
+    status: "AWAITING_CONFIRM",
+    first_frame_url: "http://localhost:9000/frame.jpg",
+    boxes: [BOX],
+  });
 }
 
 describe("MeasurementFlowDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    statusMock.mockResolvedValue({ id: "m1", status: "QUEUED", error_message: null });
   });
 
-  it("surfaces an error when the run can't start", async () => {
-    createMock.mockRejectedValueOnce(new Error("boom"));
+  it("opens at the confirm step from measurementId without creating a run", async () => {
+    seedAwaitingConfirm();
     renderDialog();
-    await flush();
-
-    expect(screen.getByText(en.mission.measurementFlow.startError)).toBeInTheDocument();
-    expect(createMock).toHaveBeenCalledWith("insp-1");
-    vi.useRealTimers();
-  });
-
-  it("runs start -> confirm -> process -> view results", async () => {
-    createMock.mockResolvedValueOnce({
-      id: "m1",
-      inspection_id: "insp-1",
-      status: "QUEUED",
-      error_message: null,
-    });
-    confirmMock.mockResolvedValueOnce({
-      id: "m1",
-      inspection_id: "insp-1",
-      status: "PROCESSING",
-      error_message: null,
-    });
-    previewMock.mockResolvedValueOnce({
-      id: "m1",
-      status: "AWAITING_CONFIRM",
-      first_frame_url: "http://localhost:9000/frame.jpg",
-      boxes: [{ light_name: "PAPI_A", x: 50, y: 50, size: 8 }],
-    });
-
-    renderDialog();
-    await flush();
-    expect(screen.getByText(en.mission.measurementFlow.phase.queued)).toBeInTheDocument();
-
-    // first poll lands on AWAITING_CONFIRM, then the preview loads the confirm UI
-    statusMock.mockResolvedValueOnce({
-      id: "m1",
-      status: "AWAITING_CONFIRM",
-      error_message: null,
-    });
-    await tick();
-    await flush();
-
-    expect(screen.getByTestId("light-box-PAPI_A")).toBeInTheDocument();
-    const confirmBtn = screen.getByTestId("confirm-lights-button");
-
-    fireEvent.click(confirmBtn);
-    await flush();
-    expect(confirmMock).toHaveBeenCalledWith("m1", [
-      { light_name: "PAPI_A", x: 50, y: 50, size: 8 },
-    ]);
-
-    // processing poll lands on DONE -> view-results appears
-    statusMock.mockResolvedValueOnce({ id: "m1", status: "DONE", error_message: null });
-    await tick();
-
-    const viewBtn = screen.getByTestId("view-results-button");
-    fireEvent.click(viewBtn);
-    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements/m1/results");
-    vi.useRealTimers();
-  });
-
-  it("resumes an existing run at the confirm step without creating one", async () => {
-    statusMock.mockResolvedValueOnce({
-      id: "m9",
-      status: "AWAITING_CONFIRM",
-      error_message: null,
-    });
-    previewMock.mockResolvedValueOnce({
-      id: "m9",
-      status: "AWAITING_CONFIRM",
-      first_frame_url: "http://localhost:9000/frame.jpg",
-      boxes: [{ light_name: "PAPI_A", x: 50, y: 50, size: 8 }],
-    });
-
-    render(
-      <MeasurementFlowDialog
-        inspectionId="insp-1"
-        inspectionLabel="Inspection 1 · HORIZONTAL_RANGE"
-        resumeMeasurementId="m9"
-        onClose={vi.fn()}
-      />,
-    );
-    // status fetch resolves -> AWAITING_CONFIRM, then the preview loads the confirm UI
+    // status seed resolves -> AWAITING_CONFIRM, then the preview loads the confirm UI
     await flush();
     await flush();
 
     expect(createMock).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith("m9");
     expect(screen.getByTestId("light-box-PAPI_A")).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("confirms the boxes and closes the dialog", async () => {
+    seedAwaitingConfirm();
+    confirmMock.mockResolvedValueOnce({
+      id: "m9",
+      inspection_id: "insp-1",
+      status: "PROCESSING",
+      label: null,
+      error_message: null,
+    });
+    const onClose = vi.fn();
+    renderDialog(onClose);
+    await flush();
+    await flush();
+
+    fireEvent.click(screen.getByTestId("confirm-lights-button"));
+    await flush();
+
+    expect(confirmMock).toHaveBeenCalledWith("m9", [BOX]);
+    expect(onClose).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("does not poll for status after the initial seed", async () => {
+    seedAwaitingConfirm();
+    renderDialog();
+    await flush();
+    await flush();
+    expect(statusMock).toHaveBeenCalledTimes(1);
+
+    // there is no status-watch poll - advancing the clock fetches nothing more
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    expect(statusMock).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("surfaces an error when the run can't be loaded", async () => {
+    statusMock.mockRejectedValueOnce(new Error("boom"));
+    renderDialog();
+    await flush();
+
+    expect(
+      screen.getByText(en.mission.measurementFlow.previewError),
+    ).toBeInTheDocument();
     vi.useRealTimers();
   });
 });

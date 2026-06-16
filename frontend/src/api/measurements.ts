@@ -9,6 +9,20 @@ import type {
 import client from "./client";
 import { parseContentDispositionFilename } from "./missions";
 
+/** rename a run - set or clear its free-text label (null/blank clears it). */
+export async function updateMeasurement(
+  measurementId: string,
+  label: string | null,
+): Promise<Measurement> {
+  const res = await client.patch(`/measurements/${measurementId}`, { label });
+  return res.data;
+}
+
+/** delete a run and its object-storage artifacts; resolves on 204. */
+export async function deleteMeasurement(measurementId: string): Promise<void> {
+  await client.delete(`/measurements/${measurementId}`);
+}
+
 /** start a measurement run for an inspection - server reads the inspection's uploaded media. */
 export async function createMeasurement(
   inspectionId: string,

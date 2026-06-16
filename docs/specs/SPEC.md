@@ -78,7 +78,7 @@ The verification half of the plan→fly→measure loop: scores an inspection's f
 
 | Enum | Values |
 |------|--------|
-| MissionStatus | DRAFT, PLANNED, VALIDATED, EXPORTED, COMPLETED, CANCELLED |
+| MissionStatus | DRAFT, PLANNED, VALIDATED, EXPORTED, MEASURED, COMPLETED, CANCELLED |
 | WaypointType | TAKEOFF, TRANSIT, MEASUREMENT, HOVER, LANDING |
 | CameraAction | NONE, PHOTO_CAPTURE, RECORDING_START, RECORDING_STOP |
 | ExportFormat | MAVLINK, KML, KMZ, JSON |
@@ -102,16 +102,25 @@ The verification half of the plan→fly→measure loop: scores an inspection's f
 ## Mission Status State Machine
 
 ```
-DRAFT → PLANNED → VALIDATED → EXPORTED → COMPLETED
-                                        → CANCELLED
+DRAFT → PLANNED → VALIDATED → EXPORTED → MEASURED → COMPLETED
+                       │          │          │     → CANCELLED
+                       └──────────┴→ MEASURED ┘
+        (VALIDATED and EXPORTED both jump to MEASURED on measurement kickoff;
+         VALIDATED → MEASURED skips EXPORTED)
 ```
 
 **Transitions:**
 - DRAFT → PLANNED: automatic after trajectory generation succeeds
 - PLANNED → VALIDATED: operator clicks Accept
 - VALIDATED → EXPORTED: operator triggers export
+- VALIDATED → MEASURED: measurement kickoff on a never-exported mission (skips EXPORTED)
+- EXPORTED → MEASURED: measurement kickoff after export
 - EXPORTED → COMPLETED: operator marks mission done
 - EXPORTED → CANCELLED: operator abandons mission
+- MEASURED → COMPLETED: operator marks mission done
+- MEASURED → CANCELLED: operator abandons mission
+
+**MEASURED trigger:** the transition fires on *measurement kickoff* — the moment a mission's first measurement run is created (`measurement_service.create_measurement` calls `Mission.mark_measured()` before the flush). It is idempotent: a multi-inspection mission hits create more than once and only the first call (while still VALIDATED/EXPORTED) transitions; later calls no-op. MEASURED is intentionally NOT in `TERMINAL_STATUSES` or `POST_PLAN_STATUSES` — it lives only in the state machine, so it is reachable but does not change any status-set gate.
 
 **Regression rules:**
 - Any waypoint edit (move, add, delete) → status regresses to PLANNED
@@ -408,6 +417,7 @@ Airport list, inspection template editor (AGL selector, per-AGL helper-mode togg
 ### Business Methods on Entities
 
 - `Mission.transition_to(target_status)` — enforces state machine
+- `Mission.mark_measured()` — VALIDATED/EXPORTED -> MEASURED on measurement kickoff; idempotent, no-ops outside `POST_PLAN_STATUSES` so repeat create-measurement calls (multi-inspection missions) neither re-transition nor raise
 - `Mission.invalidate_trajectory()` — PLANNED/VALIDATED/EXPORTED -> DRAFT on trajectory changes; sets `has_unsaved_map_changes = True` and resets computation status. Raises on terminal statuses. The existing flight plan row is intentionally kept as a stale reference; deletion is wired at the DB level via the CASCADE on `flight_plan.mission_id` (relationship uses `passive_deletes=True`).
 - `Mission.has_trajectory_changes(data)` — returns True when `data` touches a `TRAJECTORY_FIELDS` member
 - `Mission.regress_if_trajectory_changed(data)` — invalidates trajectory when needed; returns True on regression. Does NOT apply field values — callers still own field assignment via `apply_schema_update` / `setattr`.

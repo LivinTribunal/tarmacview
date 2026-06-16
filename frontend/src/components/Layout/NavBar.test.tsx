@@ -108,7 +108,7 @@ describe("NavBar role-switch group", () => {
 });
 
 describe("NavBar pill label layout", () => {
-  /** test suite for single-line, centered pills and graceful narrow-width degradation. */
+  /** test suite for centered pill labels that may wrap without clipping. */
   function renderNav(props: { roleSwitchItems?: NavItem[]; items: NavItem[]; role: "operator" | "coordinator" | "admin" }) {
     return render(
       <MemoryRouter initialEntries={["/coordinator-center/airports"]}>
@@ -117,45 +117,43 @@ describe("NavBar pill label layout", () => {
     );
   }
 
-  it("keeps multi-word role-switch labels on one centered line", () => {
-    /** role-switch pills get whitespace-nowrap + centering so labels never wrap left-aligned. */
+  it("centers multi-word role-switch labels", () => {
+    /** role-switch pills center the label so wrapped lines are centered, not left-aligned. */
     renderNav({
       roleSwitchItems: [{ label: "Mission Center", to: "/operator-center/dashboard" }],
       items: [{ label: "Airports", to: "/coordinator-center/airports" }],
       role: "admin",
     });
     const mission = screen.getByTestId("navbar-role-switch-/operator-center/dashboard");
-    expect(mission.className).toMatch(/whitespace-nowrap/);
     expect(mission.className).toMatch(/justify-center/);
     expect(mission.className).toMatch(/text-center/);
-    expect(mission.className).toMatch(/flex-shrink-0/);
+    // labels may wrap to two lines - we do not force single-line or non-shrinking
+    expect(mission.className).not.toMatch(/whitespace-nowrap/);
+    expect(mission.className).not.toMatch(/flex-shrink-0/);
   });
 
-  it("keeps multi-word in-role labels on one centered line", () => {
-    /** in-role pills share the same single-line, centered, non-shrinking styling. */
+  it("centers multi-word in-role labels", () => {
+    /** in-role pills share the same centered styling and may wrap. */
     renderNav({
       items: [{ label: "Audit Log", to: "/super-admin/audit" }],
       role: "admin",
     });
     const audit = screen.getByText("Audit Log");
-    expect(audit.className).toMatch(/whitespace-nowrap/);
     expect(audit.className).toMatch(/justify-center/);
     expect(audit.className).toMatch(/text-center/);
-    expect(audit.className).toMatch(/flex-shrink-0/);
+    expect(audit.className).not.toMatch(/whitespace-nowrap/);
+    expect(audit.className).not.toMatch(/flex-shrink-0/);
   });
 
-  it("lets the pills bar scroll horizontally when space is tight", () => {
-    /** the navbar-pills container degrades to horizontal scroll instead of squeezing pills. */
+  it("centers the pills within the bar without clipping", () => {
+    /** the navbar-pills container centers its pills and does not overflow-scroll/clip. */
     renderNav({
       items: [{ label: "Airports", to: "/coordinator-center/airports" }],
       role: "admin",
     });
     const pills = screen.getByTestId("navbar-pills");
-    expect(pills.className).toMatch(/overflow-x-auto/);
-    expect(pills.className).toMatch(/min-w-0/);
-    // safe centering so overflow falls back to start-alignment - leftmost pill stays reachable
-    expect(pills.className).toMatch(/\[justify-content:safe_center\]/);
-    expect(pills.className).not.toMatch(/(^|\s)justify-center(\s|$)/);
+    expect(pills.className).toMatch(/justify-center/);
+    expect(pills.className).not.toMatch(/overflow-x-auto/);
   });
 
   it("does not regress the active-pill highlight", () => {

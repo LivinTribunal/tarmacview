@@ -92,7 +92,14 @@ docker compose exec -T postgres psql -U "$DB_USER" -d postgres -c \
 # postgis is no longer required - spatial computation moved in-process to
 # Shapely. geometry is stored as WKT strings in sa.String columns.
 
-VERIFY_DB_URL="postgresql://$DB_USER:$DB_PASS@localhost:5432/$VERIFY_DB"
+# host-side connections (alembic, seed, uvicorn) reach postgres on the
+# published host port. docker-compose maps that off the default 5432 to
+# avoid colliding with a local dev postgres, so read the actual mapping
+# instead of assuming a port - the compose default can be overridden.
+PG_HOST_PORT="$(docker compose port postgres 5432 2>/dev/null | sed 's/.*://')"
+PG_HOST_PORT="${PG_HOST_PORT:-${POSTGRES_HOST_PORT:-55432}}"
+
+VERIFY_DB_URL="postgresql://$DB_USER:$DB_PASS@localhost:$PG_HOST_PORT/$VERIFY_DB"
 export DATABASE_URL="$VERIFY_DB_URL"
 # alembic loads backend/migrations/env.py which does `import app.models`.
 # the backend/ dir must be on sys.path or that import fails.

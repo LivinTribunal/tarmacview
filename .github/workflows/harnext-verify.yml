@@ -123,7 +123,7 @@ jobs:
             - **Backend (uvicorn)** — `$VERIFY_BACKEND_URL` (i.e. `http://localhost:8001`). The frontend's `/api` requests proxy here.
             - **Database** — ephemeral `tarmacview_verify` Postgres database, freshly migrated (`alembic upgrade head`) and seeded (`python -m app.seed`). Has the default users from `backend/.env`: admin `admin@tmv.com / adminadmin`, coordinator `coord@tmv.com / coordinator`, operator `operator@tmv.com / operator`. Ground-truth credentials live in `backend/.env`; do not hardcode different ones.
 
-            Logs from stack startup are at `.harnext/verify-logs/{alembic,seed,backend,frontend}.log` if you need to debug something the browser surfaces.
+            Stack-startup logs: alembic + seed output is in the workflow log above this prompt (they run in the foreground); the daemonized servers write to `.harnext/backend.out` and `.harnext/frontend.out`. Read those if the browser surfaces a 502 or a blank page.
 
             ## 1. Post a stub running comment FIRST (before any work)
             ```
@@ -136,14 +136,8 @@ jobs:
             ```
             Keep `$COMMENT_ID` and `$RUN_ID` for later. Do NOT create a second comment. The post-run anti-fabrication gates (Layer A static lint, Layer B sanity floors) read these files to append failure sections to the same comment.
 
-            ## 2. Gates (run all, capture exit codes)
-            - Backend lint: `cd backend && ruff check . && ruff format --check .`
-            - Backend tests: `cd backend && pytest`
-            - Frontend lint: `cd frontend && npm run lint`
-            - Frontend typecheck: `cd frontend && npx tsc --noEmit`
-            - Frontend tests: `cd frontend && npx vitest run`
-            - Frontend build: `cd frontend && npm run build`
-            Commit ONLY mechanical fixes (ruff format, import order, generated types). Push if you commit.
+            ## 2. Gates run in CI, not here
+            Do NOT re-run lint / tests / typecheck / build. The `CI` workflow (`.github/workflows/ci.yml`) already runs all of those on every PR push on GitHub-hosted runners — re-running them here is pure duplication. Verify's sole job is the browser UI check below. You may glance at `gh pr checks <pr>` for context, but making those gates pass is CI's responsibility, not yours; spend your turns on UI verification.
 
             ## 3. UI verification — MANDATORY when the change has user-visible effects
 
@@ -171,7 +165,7 @@ jobs:
             - **Evidence-grade assertions (MANDATORY).** For any displayed value (panel text, badge, toast, computed number, error message), the final assertion MUST call `assertRenderedValue(page, locator, { expected, label, runDir: RUN_DIR })` from the skill's capture-lib. That helper (a) scrolls the element into view, (b) verifies its bounding box is inside the viewport, (c) saves an element-screenshot AND a fullPage screenshot under `<runDir>/snapshots/`, (d) string-compares rendered text against `expected`. Plain `Locator.isVisible()` / `toBeVisible()` is FORBIDDEN as a final assertion — it returns true for off-screen elements, so it does not prove the screenshot shows the asserted UI.
             - **Cite the element screenshot, not `final.png`.** In the final report, the cited image must be `<runDir>/snapshots/<label>.element.png` (or `.fullpage.png` for layout claims). Citing only `final.png` does not prove the asserted thing was on screen.
             - If the app redirects to `/sign-in`, `/login`, or `/auth`, log in first using the seeded admin user (`admin@tmv.com / adminadmin` from `backend/.env`). Do NOT accept the auth page as the end state.
-            - Network calls to `/api/*` will succeed because the frontend's vite proxy is configured to forward to `$VERIFY_BACKEND_URL`. If you see a 502/connection-refused, the backend died — read `.harnext/verify-logs/backend.log` and FAIL the stage.
+            - Network calls to `/api/*` will succeed because the frontend's vite proxy is configured to forward to `$VERIFY_BACKEND_URL`. If you see a 502/connection-refused, the backend died — read `.harnext/backend.out` and FAIL the stage.
 
             Artifact handling:
             - Copy the four artifacts (video, HAR, trace, final screenshot) out of the ephemeral worktree into `~/harnext-artifacts/$RUN_ID/`. Do NOT leave them under `~/.harnext/artifacts/...` — snap-confined viewers (VLC snap, Firefox snap) cannot open dot-directories, so the comment's cited paths must resolve.
@@ -200,7 +194,7 @@ jobs:
             ```
             gh api -X PATCH repos/:owner/:repo/issues/comments/$COMMENT_ID --field body=@<final-report.md>
             ```
-            Final report includes: each gate name + exit code, UI verification verdict (PASS/FAIL/SKIPPED-NO-UI-SURFACE) with the asserted behavior in one sentence, cited artifact paths under `~/harnext-artifacts/$RUN_ID/` (must include the `<label>.element.png` for any rendered-value claim — NOT just `final.png`), the Dropbox `$VIDEO_URL` for the proof video when the upload succeeded, and any commits you pushed.
+            Final report includes: the UI verification verdict (PASS/FAIL/SKIPPED-NO-UI-SURFACE) with the asserted behavior in one sentence, cited artifact paths under `~/harnext-artifacts/$RUN_ID/` (must include the `<label>.element.png` for any rendered-value claim — NOT just `final.png`), and the Dropbox `$VIDEO_URL` for the proof video when the upload succeeded.
           # --dangerously-skip-permissions bypasses the tool allowlist and
           # per-call permission prompts. safe here because verify runs on the
           # self-hosted runner against an ephemeral stack, and the agent needs

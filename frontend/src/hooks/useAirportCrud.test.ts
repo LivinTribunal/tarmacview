@@ -166,6 +166,51 @@ describe("useAirportCrud handleSave", () => {
     expect(api.updateObstacle).not.toHaveBeenCalled();
     expect(clearAll).toHaveBeenCalledTimes(1);
   });
+
+  it("surfaces the backend detail on a failed save instead of swallowing it", async () => {
+    const detail = "sequence_number must be between 1 and 3";
+    vi.mocked(api.updateLHA).mockRejectedValueOnce({ response: { data: { detail } } });
+    const pending: PendingChange[] = [
+      { entityType: "lha", entityId: "lha-1", action: "update", data: { sequence_number: 4 } },
+    ];
+    const { view } = setup({
+      getPendingChanges: vi.fn<() => PendingChange[]>().mockReturnValue(pending),
+    });
+    await act(async () => {
+      await view.result.current.handleSave();
+    });
+    expect(view.result.current.saveError).toBe(detail);
+  });
+
+  it("reads the {message} object form of the backend detail", async () => {
+    vi.mocked(api.updateLHA).mockRejectedValueOnce({
+      response: { data: { detail: { message: "nope" } } },
+    });
+    const pending: PendingChange[] = [
+      { entityType: "lha", entityId: "lha-1", action: "update", data: { sequence_number: 4 } },
+    ];
+    const { view } = setup({
+      getPendingChanges: vi.fn<() => PendingChange[]>().mockReturnValue(pending),
+    });
+    await act(async () => {
+      await view.result.current.handleSave();
+    });
+    expect(view.result.current.saveError).toBe("nope");
+  });
+
+  it("falls back to the generic message when the error carries no detail", async () => {
+    vi.mocked(api.updateLHA).mockRejectedValueOnce(new Error("boom"));
+    const pending: PendingChange[] = [
+      { entityType: "lha", entityId: "lha-1", action: "update", data: { sequence_number: 4 } },
+    ];
+    const { view } = setup({
+      getPendingChanges: vi.fn<() => PendingChange[]>().mockReturnValue(pending),
+    });
+    await act(async () => {
+      await view.result.current.handleSave();
+    });
+    expect(view.result.current.saveError).toBe("coordinator.detail.saveError");
+  });
 });
 
 describe("useAirportCrud handleDeleteAirport", () => {

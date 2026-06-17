@@ -67,15 +67,15 @@ export default function AnnotatedVideoPlayer({
           {t("results.video.fullscreen")}
         </button>
       </div>
-      {/* fixed landscape box so the tall per-light crops letterbox inside the
-          same frame as the full "all PAPI lights" track instead of blowing up */}
+      {/* fixed landscape box - the video stretches to fill it; tall per-light
+          crops stretch to the same frame as the full "all PAPI lights" track */}
       <div className="mx-auto aspect-video w-full max-w-4xl overflow-hidden rounded-2xl bg-black">
         <video
           key={active}
           ref={videoRef}
           src={videoUrls[active]}
           controls
-          className="h-full w-full object-contain"
+          className="h-full w-full object-fill"
           data-testid="annotated-video-element"
         >
           <track kind="captions" />

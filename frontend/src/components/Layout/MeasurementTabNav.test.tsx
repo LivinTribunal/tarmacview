@@ -16,8 +16,10 @@ import en from "@/i18n/locales/en.json";
 import type { MeasurementListItem } from "@/types/measurement";
 import MeasurementTabNav from "./MeasurementTabNav";
 import {
+  deleteMeasurement,
   downloadMeasurementReport,
   listAirportMeasurements,
+  updateMeasurement,
 } from "@/api/measurements";
 
 /** resolve a dotted i18n key against the real en.json bundle. */
@@ -65,10 +67,14 @@ vi.mock("@/contexts/AirportContext", () => ({
 vi.mock("@/api/measurements", () => ({
   listAirportMeasurements: vi.fn(),
   downloadMeasurementReport: vi.fn(),
+  updateMeasurement: vi.fn(),
+  deleteMeasurement: vi.fn(),
 }));
 
 const listMock = vi.mocked(listAirportMeasurements);
 const downloadMock = vi.mocked(downloadMeasurementReport);
+const updateMock = vi.mocked(updateMeasurement);
+const deleteMock = vi.mocked(deleteMeasurement);
 
 function row(over: Partial<MeasurementListItem>): MeasurementListItem {
   return {
@@ -195,5 +201,93 @@ describe("MeasurementTabNav", () => {
     expect(createUrl).toHaveBeenCalled();
     revokeUrl.mockRestore();
     createUrl.mockRestore();
+  });
+
+  it("shows the operator label in the pill, falling back to the inspection label", async () => {
+    listMock.mockResolvedValueOnce([
+      row({ id: "m1", mission_id: "mission-a", label: "morning re-fly" }),
+    ]);
+    renderNav("m1");
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-selector")).toHaveTextContent(
+        "morning re-fly",
+      ),
+    );
+    expect(screen.getByTestId("measurement-selector")).not.toHaveTextContent(
+      "Inspection 1 · Horizontal Range",
+    );
+  });
+
+  it("renders the run status badge in the header", async () => {
+    listMock.mockResolvedValueOnce([
+      row({ id: "m1", mission_id: "mission-a", status: "DONE" }),
+    ]);
+    renderNav("m1");
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-status-chip")).toHaveTextContent(
+        "Done",
+      ),
+    );
+  });
+
+  it("renames the run from the picker and updates the pill name", async () => {
+    updateMock.mockResolvedValue({
+      id: "m1",
+      inspection_id: "i1",
+      status: "DONE",
+      label: "evening run",
+      error_message: null,
+    });
+    renderNav("m1");
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-selector")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("rename-measurement-btn"));
+    fireEvent.change(screen.getByTestId("measurement-rename-input"), {
+      target: { value: "evening run" },
+    });
+    fireEvent.click(screen.getByTestId("confirm-rename-measurement"));
+
+    await waitFor(() =>
+      expect(updateMock).toHaveBeenCalledWith("m1", "evening run"),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-selector")).toHaveTextContent(
+        "evening run",
+      ),
+    );
+  });
+
+  it("deletes the run from the picker and routes back to the list", async () => {
+    deleteMock.mockResolvedValue(undefined);
+    renderNav("m1");
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-selector")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("delete-measurement-btn"));
+    fireEvent.click(screen.getByTestId("confirm-delete-measurement"));
+
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("m1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe(
+        "/operator-center/measurements",
+      ),
+    );
+  });
+
+  it("deselects the run and routes back to the list", async () => {
+    renderNav("m1");
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-selector")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("deselect-measurement-btn"));
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe(
+        "/operator-center/measurements",
+      ),
+    );
   });
 });

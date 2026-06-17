@@ -1,15 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { FileText, List, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { useAirport } from "@/contexts/AirportContext";
 import {
+  deleteMeasurement,
   downloadMeasurementReport,
   listAirportMeasurements,
+  updateMeasurement,
 } from "@/api/measurements";
 import type { MeasurementListItem } from "@/types/measurement";
-import DetailSelector from "@/components/common/DetailSelector";
-import DetailSelectorItem from "@/components/common/DetailSelectorItem";
+import Button from "@/components/common/Button";
+import Input from "@/components/common/Input";
+import Modal from "@/components/common/Modal";
+import MeasurementStatusChip from "@/components/results/MeasurementStatusChip";
+import CompactMeasurementSelector from "./CompactMeasurementSelector";
 
 // report sections in the results tab strip - only "all" for now, extensible
 const REPORT_SECTIONS = [{ key: "all", labelKey: "measurement.tab.all" }] as const;
@@ -26,6 +31,17 @@ export default function MeasurementTabNav() {
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<string>(REPORT_SECTIONS[0].key);
   const [downloading, setDownloading] = useState(false);
+
+  // rename/delete state lifted here from the results page so the picker drives them
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // compact pill selector refs + portal anchor
+  const selectorRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const airportId = selectedAirport?.id;
 
@@ -77,17 +93,78 @@ export default function MeasurementTabNav() {
     [t],
   );
 
+  // the run's display name - operator label when set, else the inspection label
+  const displayLabel = useCallback(
+    (row: MeasurementListItem) => row.label || rowLabel(row),
+    [rowLabel],
+  );
+
   const rollupTotal = currentRow ? currentRow.pass_count + currentRow.fail_count : 0;
+
+  // close the picker dropdown on outside click
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (selectorRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setPickerOpen(false);
+      setSearch("");
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pickerOpen]);
+
+  const toggleDropdown = useCallback(() => {
+    setPickerOpen((open) => {
+      if (open) {
+        setSearch("");
+        return false;
+      }
+      if (selectorRef.current) {
+        const rect = selectorRef.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      }
+      return true;
+    });
+  }, []);
 
   const handleSelectMeasurement = useCallback(
     (id: string) => {
       setPickerOpen(false);
+      setSearch("");
       if (id !== measurementId) {
         navigate(`/operator-center/measurements/${id}/results`);
       }
     },
     [measurementId, navigate],
   );
+
+  const handleDeselect = useCallback(() => {
+    setPickerOpen(false);
+    navigate("/operator-center/measurements");
+  }, [navigate]);
+
+  const handleRenameConfirm = useCallback(async () => {
+    if (!measurementId) return;
+    // a blank label clears the run name back to the inspection fallback
+    const updated = await updateMeasurement(measurementId, renameValue.trim() || null);
+    setRows((prev) =>
+      prev.map((r) => (r.id === measurementId ? { ...r, label: updated.label } : r)),
+    );
+    setRenameOpen(false);
+  }, [measurementId, renameValue]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!measurementId) return;
+    setDeleting(true);
+    try {
+      await deleteMeasurement(measurementId);
+      navigate("/operator-center/measurements");
+    } catch {
+      setDeleting(false);
+    }
+  }, [measurementId, navigate]);
 
   const handleDownload = useCallback(async () => {
     if (!measurementId) return;
@@ -115,67 +192,40 @@ export default function MeasurementTabNav() {
     }
   }, [measurementId]);
 
-  const measurementSelectorBlock = (
-    <DetailSelector
-      title={t("measurement.label")}
-      count={missionMeasurements.length}
-      actions={[
-        {
-          icon: List,
-          onClick: () => navigate("/operator-center/measurements"),
-          title: t("measurementsList.title"),
-        },
-      ]}
-      renderSelected={() => (
-        <span className="flex-1 min-w-0 truncate text-sm font-medium text-tv-text-primary">
-          {currentRow ? rowLabel(currentRow) : t("measurement.selectMeasurement")}
-        </span>
-      )}
-      isOpen={pickerOpen}
-      onToggle={() => setPickerOpen((o) => !o)}
-      searchValue={search}
-      onSearchChange={setSearch}
-      searchPlaceholder={t("measurement.searchPlaceholder")}
-      noResultsText={t("common.noResults")}
-      usePortal
-      renderDropdownItems={() =>
-        filteredMeasurements.length === 0
-          ? null
-          : filteredMeasurements.map((m) => (
-              <DetailSelectorItem
-                key={m.id}
-                isSelected={m.id === measurementId}
-                onClick={() => handleSelectMeasurement(m.id)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm">{rowLabel(m)}</span>
-                  <span className="ml-2 flex-shrink-0 text-xs text-tv-text-muted">
-                    {t("measurementsList.passFail", {
-                      pass: m.pass_count,
-                      fail: m.fail_count,
-                    })}
-                  </span>
-                </div>
-              </DetailSelectorItem>
-            ))
-      }
-    />
-  );
-
   return (
     <div className="flex flex-col h-[calc(100vh-5.25rem)] px-4 pt-2">
       {/* header row - mirrors the navbar 30/70 split */}
       <div
-        className="flex items-start flex-shrink-0 pb-3"
+        className="flex items-center flex-shrink-0 pb-3"
         data-testid="measurement-tab-nav"
       >
-        {/* left 30% - measurements picker */}
+        {/* left 30% - measurements picker pill */}
         <div className="w-[30%] flex-shrink-0 flex">
-          <div className="flex-1 min-w-0">{measurementSelectorBlock}</div>
+          <CompactMeasurementSelector
+            selectorRef={selectorRef}
+            dropdownRef={dropdownRef}
+            dropdownPos={dropdownPos}
+            currentRow={currentRow}
+            count={missionMeasurements.length}
+            selectedId={measurementId}
+            filteredMeasurements={filteredMeasurements}
+            dropdownOpen={pickerOpen}
+            search={search}
+            displayLabel={displayLabel}
+            onToggleDropdown={toggleDropdown}
+            onRename={() => {
+              setRenameValue(currentRow?.label ?? "");
+              setRenameOpen(true);
+            }}
+            onDelete={() => setDeleteOpen(true)}
+            onDeselect={handleDeselect}
+            onSearchChange={setSearch}
+            onSelect={handleSelectMeasurement}
+          />
           <div className="w-6 flex-shrink-0" />
         </div>
 
-        {/* right 70% - section tabs, pass rollup, download */}
+        {/* right 70% - section tabs, download, pass rollup, status (aligned to the navbar columns) */}
         <div className="flex-1 flex items-center gap-4 min-w-0">
           <div
             className="flex flex-1 items-center justify-center gap-1 rounded-full bg-tv-surface p-1 h-11"
@@ -197,6 +247,23 @@ export default function MeasurementTabNav() {
             ))}
           </div>
 
+          {/* download - aligns under the navbar airport picker */}
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex items-center justify-center gap-2 w-[280px] flex-shrink-0 h-11 rounded-full px-4 text-sm font-semibold transition-colors border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="download-pdf-btn"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            {downloading ? t("results.generatingPdf") : t("results.downloadPdf")}
+          </button>
+
+          {/* pass rollup - aligns under the navbar theme toggle */}
           {currentRow && (
             <span
               className="flex items-center justify-center rounded-full px-4 h-11 bg-tv-surface text-sm font-medium text-tv-text-primary whitespace-nowrap"
@@ -209,20 +276,10 @@ export default function MeasurementTabNav() {
             </span>
           )}
 
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading}
-            className="flex items-center justify-center gap-2 flex-shrink-0 h-11 rounded-full px-4 text-sm font-semibold transition-colors border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
-            data-testid="download-pdf-btn"
-          >
-            {downloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FileText className="h-4 w-4" />
-            )}
-            {downloading ? t("results.generatingPdf") : t("results.downloadPdf")}
-          </button>
+          {/* status - aligns under the navbar user menu */}
+          <div className="w-[140px] flex-shrink-0 flex items-center justify-center">
+            {currentRow && <MeasurementStatusChip status={currentRow.status} />}
+          </div>
         </div>
       </div>
 
@@ -230,6 +287,64 @@ export default function MeasurementTabNav() {
       <div className="flex-1 min-h-0 overflow-y-auto">
         <Outlet />
       </div>
+
+      <Modal
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={t("common.delete")}
+      >
+        <p className="text-sm text-tv-text-primary mb-6">
+          {t("measurementsList.deleteConfirm", {
+            name: currentRow ? displayLabel(currentRow) : "",
+          })}
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteConfirm}
+            disabled={deleting}
+            data-testid="confirm-delete-measurement"
+          >
+            {t("common.delete")}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        title={t("measurementsList.renameTitle")}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleRenameConfirm();
+          }}
+        >
+          <Input
+            id="measurement-rename-input"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder={t("measurementsList.renamePlaceholder")}
+            data-testid="measurement-rename-input"
+          />
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setRenameOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" data-testid="confirm-rename-measurement">
+              {t("common.save")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

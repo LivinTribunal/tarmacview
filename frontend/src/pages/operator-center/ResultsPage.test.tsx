@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { MeasurementResults } from "@/types/measurement";
 import ResultsPage from "./ResultsPage";
 
 vi.mock("@/api/measurements", () => ({
   getMeasurementResults: vi.fn(),
-  updateMeasurement: vi.fn(),
-  deleteMeasurement: vi.fn(),
 }));
 
 // stub the heavy chart / map / video children - exercised by their own tests
@@ -30,11 +28,7 @@ vi.mock("@/components/results/AnnotatedVideoPlayer", () => ({
   default: () => <div data-testid="mock-video-player" />,
 }));
 
-import {
-  deleteMeasurement,
-  getMeasurementResults,
-  updateMeasurement,
-} from "@/api/measurements";
+import { getMeasurementResults } from "@/api/measurements";
 
 const baseResults: MeasurementResults = {
   id: "m1",
@@ -82,7 +76,7 @@ describe("ResultsPage", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the table and charts for a finished run", async () => {
+  it("renders the table (in the per-light grid) and charts for a finished run", async () => {
     vi.mocked(getMeasurementResults).mockResolvedValue(baseResults);
     renderPage();
 
@@ -96,7 +90,22 @@ describe("ResultsPage", () => {
     expect(screen.getByTestId("mock-drone-path-map")).toBeInTheDocument();
     expect(screen.getByTestId("mock-climb-profile")).toBeInTheDocument();
     expect(screen.getByTestId("mock-video-player")).toBeInTheDocument();
-    // download moved to MeasurementTabNav (the results header)
+  });
+
+  it("no longer renders the duplicate name/status/rename/delete header block", async () => {
+    vi.mocked(getMeasurementResults).mockResolvedValue({
+      ...baseResults,
+      label: "morning re-fly",
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-page")).toBeInTheDocument(),
+    );
+    // name + status + rename/delete moved to the results header (MeasurementTabNav)
+    expect(screen.queryByTestId("results-run-name")).toBeNull();
+    expect(screen.queryByTestId("rename-measurement-btn")).toBeNull();
+    expect(screen.queryByTestId("delete-measurement-btn")).toBeNull();
     expect(screen.queryByTestId("download-pdf-btn")).toBeNull();
   });
 
@@ -122,73 +131,6 @@ describe("ResultsPage", () => {
 
     await waitFor(() =>
       expect(screen.getByTestId("results-error")).toBeInTheDocument(),
-    );
-  });
-
-  it("renders the run label in the header when set", async () => {
-    vi.mocked(getMeasurementResults).mockResolvedValue({
-      ...baseResults,
-      label: "morning re-fly",
-    });
-    renderPage();
-
-    await waitFor(() =>
-      expect(screen.getByTestId("results-run-name")).toHaveTextContent(
-        "morning re-fly",
-      ),
-    );
-  });
-
-  it("deletes the run and navigates back to the measurements list", async () => {
-    vi.mocked(getMeasurementResults).mockResolvedValue(baseResults);
-    vi.mocked(deleteMeasurement).mockResolvedValue(undefined);
-    renderPage();
-
-    await waitFor(() =>
-      expect(screen.getByTestId("results-page")).toBeInTheDocument(),
-    );
-
-    fireEvent.click(screen.getByTestId("delete-measurement-btn"));
-    fireEvent.click(screen.getByTestId("confirm-delete-measurement"));
-
-    await waitFor(() =>
-      expect(deleteMeasurement).toHaveBeenCalledWith("m1"),
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByTestId("measurements-list-landing"),
-      ).toBeInTheDocument(),
-    );
-  });
-
-  it("renames the run through the header rename modal", async () => {
-    vi.mocked(getMeasurementResults).mockResolvedValue(baseResults);
-    vi.mocked(updateMeasurement).mockResolvedValue({
-      id: "m1",
-      inspection_id: "i1",
-      status: "DONE",
-      label: "evening run",
-      error_message: null,
-    });
-    renderPage();
-
-    await waitFor(() =>
-      expect(screen.getByTestId("results-page")).toBeInTheDocument(),
-    );
-
-    fireEvent.click(screen.getByTestId("rename-measurement-btn"));
-    fireEvent.change(screen.getByTestId("measurement-rename-input"), {
-      target: { value: "evening run" },
-    });
-    fireEvent.click(screen.getByTestId("confirm-rename-measurement"));
-
-    await waitFor(() =>
-      expect(updateMeasurement).toHaveBeenCalledWith("m1", "evening run"),
-    );
-    await waitFor(() =>
-      expect(screen.getByTestId("results-run-name")).toHaveTextContent(
-        "evening run",
-      ),
     );
   });
 });

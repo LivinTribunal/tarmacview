@@ -41,17 +41,35 @@ class TestMissionTransitions:
         m.transition_to("EXPORTED")
         assert m.status == "EXPORTED"
 
-    def test_exported_to_completed(self):
-        """valid transition EXPORTED -> COMPLETED."""
+    def test_exported_to_measured(self):
+        """valid transition EXPORTED -> MEASURED."""
         m = self._make_mission("EXPORTED")
+        m.transition_to("MEASURED")
+        assert m.status == "MEASURED"
+
+    def test_measured_to_completed(self):
+        """valid transition MEASURED -> COMPLETED."""
+        m = self._make_mission("MEASURED")
         m.transition_to("COMPLETED")
         assert m.status == "COMPLETED"
 
-    def test_exported_to_cancelled(self):
-        """valid transition EXPORTED -> CANCELLED."""
-        m = self._make_mission("EXPORTED")
+    def test_measured_to_cancelled(self):
+        """valid transition MEASURED -> CANCELLED."""
+        m = self._make_mission("MEASURED")
         m.transition_to("CANCELLED")
         assert m.status == "CANCELLED"
+
+    def test_invalid_exported_to_completed(self):
+        """EXPORTED cannot complete directly - only a measured mission can."""
+        m = self._make_mission("EXPORTED")
+        with pytest.raises(ValueError, match="cannot transition"):
+            m.transition_to("COMPLETED")
+
+    def test_invalid_exported_to_cancelled(self):
+        """EXPORTED cannot cancel directly - only a measured mission can."""
+        m = self._make_mission("EXPORTED")
+        with pytest.raises(ValueError, match="cannot transition"):
+            m.transition_to("CANCELLED")
 
     def test_invalid_draft_to_validated(self):
         """invalid transition DRAFT -> VALIDATED raises ValueError."""

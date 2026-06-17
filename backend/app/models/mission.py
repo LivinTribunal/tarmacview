@@ -26,12 +26,14 @@ MAX_INSPECTIONS = 10
 
 # status state machine - valid transitions.
 # MEASURED sits between EXPORTED and the terminal states; a mission measured
-# straight from VALIDATED skips EXPORTED.
+# straight from VALIDATED skips EXPORTED. a mission can only be completed or
+# cancelled once it has been measured - the terminal states are reachable only
+# from MEASURED.
 TRANSITIONS = {
     "DRAFT": ["PLANNED"],
     "PLANNED": ["VALIDATED"],
     "VALIDATED": ["EXPORTED", "MEASURED"],
-    "EXPORTED": ["MEASURED", "COMPLETED", "CANCELLED"],
+    "EXPORTED": ["MEASURED"],
     "MEASURED": ["COMPLETED", "CANCELLED"],
     "COMPLETED": [],
     "CANCELLED": [],

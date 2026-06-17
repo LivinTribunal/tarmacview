@@ -2182,7 +2182,7 @@
     "status": "Status: {{status}}",
     "loadError": "Could not load measurement results.",
     "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",
-    "downloadPdf": "Download PDF",
+    "downloadPdf": "Download PDF Report",
     "generatingPdf": "Generating…",
     "passRollup": "{{pass}}/{{total}} pass",
     "noData": "No data for this chart.",

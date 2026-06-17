@@ -2186,7 +2186,7 @@
     "status": "Stav: {{status}}",
     "loadError": "Výsledky merania sa nepodarilo načítať.",
     "notReady": "Toto meranie ešte nedokončilo spracovanie. Výsledky sa zobrazia po dokončení behu.",
-    "downloadPdf": "Stiahnuť PDF",
+    "downloadPdf": "Stiahnuť PDF report",
     "generatingPdf": "Generuje sa…",
     "passRollup": "{{pass}}/{{total}} vyhovuje",
     "noData": "Pre tento graf nie sú dáta.",

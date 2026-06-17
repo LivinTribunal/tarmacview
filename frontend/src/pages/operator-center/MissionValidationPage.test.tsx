@@ -273,9 +273,16 @@ describe("ExportPanel", () => {
     expect(screen.getByTestId("complete-btn")).toBeDisabled();
   });
 
-  it("complete button enabled for EXPORTED status", () => {
+  it("complete button disabled for EXPORTED status", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("EXPORTED")} />,
+    );
+    expect(screen.getByTestId("complete-btn")).toBeDisabled();
+  });
+
+  it("complete button enabled for MEASURED status", () => {
+    render(
+      <ExportPanel {...defaultProps} mission={makeMission("MEASURED")} />,
     );
     expect(screen.getByTestId("complete-btn")).not.toBeDisabled();
   });
@@ -285,9 +292,16 @@ describe("ExportPanel", () => {
     expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
   });
 
-  it("cancel button enabled for EXPORTED status", () => {
+  it("cancel button disabled for EXPORTED status", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("EXPORTED")} />,
+    );
+    expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+  });
+
+  it("cancel button enabled for MEASURED status", () => {
+    render(
+      <ExportPanel {...defaultProps} mission={makeMission("MEASURED")} />,
     );
     expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
   });

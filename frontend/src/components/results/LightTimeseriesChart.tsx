@@ -62,8 +62,8 @@ export default function LightTimeseriesChart({
     >
       <h3 className="text-sm font-medium text-tv-text-primary mb-3">{title}</h3>
       {hasData ? (
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart margin={{ top: 5, right: 16, bottom: 16, left: 0 }}>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart margin={{ top: 5, right: 16, bottom: 24, left: 0 }}>
             <CartesianGrid stroke={CHART_COLORS.GRID} strokeDasharray="3 3" />
             <XAxis
               type="number"
@@ -93,7 +93,8 @@ export default function LightTimeseriesChart({
               contentStyle={{ fontSize: 12 }}
               labelFormatter={(v) => `${Number(v).toFixed(2)} s`}
             />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            {/* paddingTop drops the legend clear of the x-axis label below it */}
+            <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 12, paddingTop: 16 }} />
             {showTransitionZones &&
               lights.filter(hasTransitionBand).flatMap((light) => [
                 <ReferenceArea

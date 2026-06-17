@@ -4,13 +4,14 @@ import { createPortal } from "react-dom";
 import { Pencil, Trash2, X, ChevronDown, Search } from "lucide-react";
 import type { MeasurementListItem } from "@/types/measurement";
 import DetailSelectorItem from "@/components/common/DetailSelectorItem";
+import MeasurementStatusChip from "@/components/results/MeasurementStatusChip";
+import { formatDate } from "@/utils/format";
 
 interface CompactMeasurementSelectorProps {
   selectorRef: RefObject<HTMLDivElement>;
   dropdownRef: RefObject<HTMLDivElement>;
   dropdownPos: { top: number; left: number; width: number } | null;
   currentRow: MeasurementListItem | null;
-  count: number;
   selectedId: string | undefined;
   filteredMeasurements: MeasurementListItem[];
   dropdownOpen: boolean;
@@ -30,7 +31,6 @@ export default function CompactMeasurementSelector({
   dropdownRef,
   dropdownPos,
   currentRow,
-  count,
   selectedId,
   filteredMeasurements,
   dropdownOpen,
@@ -65,50 +65,47 @@ export default function CompactMeasurementSelector({
           <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-tv-bg border border-tv-border text-tv-text-primary mr-2">
             {t("measurement.label")}
           </span>
-          <span className="flex-shrink-0 flex items-center justify-center min-w-[1.5rem] h-6 rounded-full px-1.5 text-xs font-semibold bg-tv-accent text-tv-accent-text mr-2">
-            {count}
-          </span>
           <span className="flex-1 min-w-0 truncate text-sm font-medium">
             {currentRow ? displayLabel(currentRow) : t("measurement.selectMeasurement")}
           </span>
           {currentRow && (
-            <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onRename(); }}
-                className="flex items-center justify-center h-5 w-5 rounded-full bg-tv-surface-hover text-tv-text-secondary hover:text-tv-text-primary transition-colors"
+                className="flex items-center justify-center h-7 w-7 rounded-full bg-tv-surface-hover text-tv-text-secondary hover:text-tv-text-primary transition-colors"
                 title={t("measurementsList.actions.rename")}
                 data-testid="rename-measurement-btn"
               >
-                <Pencil className="h-3 w-3" />
+                <Pencil className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="flex items-center justify-center h-5 w-5 rounded-full bg-tv-surface-hover text-tv-text-secondary hover:text-tv-error transition-colors"
+                className="flex items-center justify-center h-7 w-7 rounded-full bg-tv-surface-hover text-tv-text-secondary hover:text-tv-error transition-colors"
                 title={t("measurementsList.actions.delete")}
                 data-testid="delete-measurement-btn"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onDeselect(); }}
-                className="flex items-center justify-center h-5 w-5 rounded-full bg-tv-surface-hover text-tv-text-secondary hover:text-tv-text-primary transition-colors"
+                className="flex items-center justify-center h-7 w-7 rounded-full bg-tv-surface-hover text-tv-text-secondary hover:text-tv-text-primary transition-colors"
                 title={t("common.close")}
                 data-testid="deselect-measurement-btn"
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           )}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleDropdown(); }}
-            className="p-1.5 ml-0.5 flex-shrink-0 rounded-full hover:bg-tv-surface-hover transition-colors text-tv-text-primary"
+            className="flex items-center justify-center h-7 w-7 ml-1 flex-shrink-0 rounded-full hover:bg-tv-surface-hover transition-colors text-tv-text-primary"
             aria-label={t("measurement.label")}
           >
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
         </div>
       </div>
@@ -145,8 +142,13 @@ export default function CompactMeasurementSelector({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm">{displayLabel(m)}</span>
-                    <span className="ml-2 flex-shrink-0 text-xs text-tv-text-muted">
-                      {t("measurementsList.passFail", { pass: m.pass_count, fail: m.fail_count })}
+                    <span className="ml-2 flex-shrink-0 flex items-center gap-2">
+                      {m.created_at && (
+                        <span className="text-xs text-tv-text-muted whitespace-nowrap">
+                          {formatDate(m.created_at)}
+                        </span>
+                      )}
+                      <MeasurementStatusChip status={m.status} />
                     </span>
                   </div>
                 </DetailSelectorItem>

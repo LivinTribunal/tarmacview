@@ -206,7 +206,6 @@ export default function MeasurementTabNav() {
             dropdownRef={dropdownRef}
             dropdownPos={dropdownPos}
             currentRow={currentRow}
-            count={missionMeasurements.length}
             selectedId={measurementId}
             filteredMeasurements={filteredMeasurements}
             dropdownOpen={pickerOpen}
@@ -263,22 +262,34 @@ export default function MeasurementTabNav() {
             {downloading ? t("results.generatingPdf") : t("results.downloadPdf")}
           </button>
 
-          {/* pass rollup - aligns under the navbar theme toggle */}
-          {currentRow && (
-            <span
-              className="flex items-center justify-center rounded-full px-4 h-11 bg-tv-surface text-sm font-medium text-tv-text-primary whitespace-nowrap"
-              data-testid="pass-rollup"
-            >
-              {t("results.passRollup", {
-                pass: currentRow.pass_count,
-                total: rollupTotal,
-              })}
-            </span>
-          )}
-
-          {/* status - aligns under the navbar user menu */}
-          <div className="w-[140px] flex-shrink-0 flex items-center justify-center">
-            {currentRow && <MeasurementStatusChip status={currentRow.status} />}
+          {/* pass rollup + status merged into one bubble - spans the navbar
+              theme-toggle's left edge (81px) to the user menu's right edge
+              (140px): 81 + 16 gap + 140 = 237px. download still lines up under
+              the airport picker because that trailing span matches the navbar's */}
+          <div className="w-[237px] flex-shrink-0 flex items-center">
+            {currentRow && (
+              <div className="flex w-full items-center rounded-full h-11 bg-tv-surface">
+                <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+                  <span
+                    className="text-sm font-medium text-tv-text-primary whitespace-nowrap truncate"
+                    data-testid="pass-rollup"
+                  >
+                    {t("results.passRollup", {
+                      pass: currentRow.pass_count,
+                      total: rollupTotal,
+                    })}
+                  </span>
+                </div>
+                <span className="h-5 w-px bg-tv-border flex-shrink-0" aria-hidden="true" />
+                <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+                  <MeasurementStatusChip
+                    status={currentRow.status}
+                    size="md"
+                    variant="inline"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

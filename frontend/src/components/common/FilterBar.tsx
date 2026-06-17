@@ -217,19 +217,16 @@ export default function FilterBar<T>({
 
   return (
     <div
-      className="flex items-center rounded-full border border-tv-border bg-tv-surface px-3 py-2 gap-2 flex-wrap"
+      className="flex items-center rounded-2xl border border-tv-border bg-tv-surface px-3 py-2 gap-x-2 gap-y-2 flex-wrap"
       data-testid={testId}
     >
       {hasLeft && (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-1 items-center gap-1.5 flex-wrap">
           {leftIndices.map((i) => renderEntry(i))}
         </div>
       )}
-      {hasLeft && hasRight && (
-        <div className="w-px h-6 bg-tv-border mx-1" aria-hidden="true" />
-      )}
       {hasRight && (
-        <div className="flex items-center gap-2 ml-auto flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {rightIndices.map((i) => renderEntry(i))}
         </div>
       )}
@@ -238,9 +235,8 @@ export default function FilterBar<T>({
           type="button"
           onClick={onReset}
           aria-label={t("common.filters.reset")}
-          className={`rounded-full border border-tv-border bg-tv-bg px-3 py-1 text-xs font-semibold
-            text-tv-text-primary hover:bg-tv-surface-hover focus:outline-none focus:border-tv-accent
-            ${hasRight ? "" : "ml-auto"}`}
+          className="rounded-full border border-tv-border bg-tv-bg px-3 py-1 text-xs font-semibold
+            text-tv-text-primary hover:bg-tv-surface-hover focus:outline-none focus:border-tv-accent"
           data-testid="filter-bar-reset"
         >
           {t("common.reset")}

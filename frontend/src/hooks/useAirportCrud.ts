@@ -214,43 +214,80 @@ export default function useAirportCrud({
 
     try {
       const pending = getPendingChanges();
-      await Promise.all(
-        pending
-          .map((change) => {
-            if (change.action !== "update" || !change.data) return undefined;
-            switch (change.entityType) {
-              case "surface":
-                return updateSurface(id, change.entityId, change.data);
-              case "obstacle":
-                return updateObstacle(id, change.entityId, change.data);
-              case "safety_zone":
-                return updateSafetyZone(id, change.entityId, change.data);
-              case "agl": {
-                const surface = airport.surfaces.find((s) =>
-                  s.agls.some((a) => a.id === change.entityId),
-                );
-                if (surface) {
-                  return updateAGL(id, surface.id, change.entityId, change.data);
-                }
-                return undefined;
-              }
-              case "lha": {
-                const parentAgl = airport.surfaces
-                  .flatMap((s) => s.agls.map((a) => ({ surface: s, agl: a })))
-                  .find(({ agl }) => agl.lhas.some((l) => l.id === change.entityId));
-                if (parentAgl) {
-                  return updateLHA(id, parentAgl.surface.id, parentAgl.agl.id, change.entityId, change.data);
-                }
-                return undefined;
-              }
-              case "airport":
-                return updateAirport(id, change.data);
-              default:
-                return undefined;
+
+      // non-lha updates fan out concurrently; same-agl lha reorders must
+      // dispatch sequentially in ascending target order. each lha update's
+      // sequence_number was computed against the original order, so firing
+      // them concurrently lets a multi-light reorder land in the wrong order.
+      const concurrent: Promise<unknown>[] = [];
+      const lhaGroups = new Map<string, { surfaceId: string; changes: PendingChange[] }>();
+
+      for (const change of pending) {
+        if (change.action !== "update" || !change.data) continue;
+        switch (change.entityType) {
+          case "surface":
+            concurrent.push(updateSurface(id, change.entityId, change.data));
+            break;
+          case "obstacle":
+            concurrent.push(updateObstacle(id, change.entityId, change.data));
+            break;
+          case "safety_zone":
+            concurrent.push(updateSafetyZone(id, change.entityId, change.data));
+            break;
+          case "agl": {
+            const surface = airport.surfaces.find((s) =>
+              s.agls.some((a) => a.id === change.entityId),
+            );
+            if (surface) {
+              concurrent.push(updateAGL(id, surface.id, change.entityId, change.data));
             }
-          })
-          .filter((p): p is NonNullable<typeof p> => p !== undefined),
+            break;
+          }
+          case "lha": {
+            const parentAgl = airport.surfaces
+              .flatMap((s) => s.agls.map((a) => ({ surface: s, agl: a })))
+              .find(({ agl }) => agl.lhas.some((l) => l.id === change.entityId));
+            if (parentAgl) {
+              const group = lhaGroups.get(parentAgl.agl.id);
+              if (group) {
+                group.changes.push(change);
+              } else {
+                lhaGroups.set(parentAgl.agl.id, {
+                  surfaceId: parentAgl.surface.id,
+                  changes: [change],
+                });
+              }
+            }
+            break;
+          }
+          case "airport":
+            concurrent.push(updateAirport(id, change.data));
+            break;
+        }
+      }
+
+      // one serial chain per agl: order by ascending target sequence_number so
+      // each move locks its final slot before the next applies. edits without a
+      // sequence_number (position/tolerance only) sort stably last and don't reorder.
+      const lhaChains = Array.from(lhaGroups.entries()).map(([aglId, group]) =>
+        (async () => {
+          const ordered = group.changes
+            .map((change, idx) => ({ change, idx }))
+            .sort((a, b) => {
+              const sa = a.change.data?.sequence_number;
+              const sb = b.change.data?.sequence_number;
+              if (typeof sa === "number" && typeof sb === "number") return sa - sb;
+              if (typeof sa === "number") return -1;
+              if (typeof sb === "number") return 1;
+              return a.idx - b.idx;
+            });
+          for (const { change } of ordered) {
+            await updateLHA(id, group.surfaceId, aglId, change.entityId, change.data!);
+          }
+        })(),
       );
+
+      await Promise.all([...concurrent, ...lhaChains]);
       clearAll();
       const freshAirport = await fetchAirport();
 

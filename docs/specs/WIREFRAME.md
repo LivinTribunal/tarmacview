@@ -402,15 +402,15 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 - **Send to Drone card** — below the export section; pushes the mission KMZ into the field hub's wayline library so DJI Pilot 2 picks it up in its route list (`POST /api/v1/missions/{id}/dispatch`). Header carries the card title plus the same field-link status chip. "Send to drone" button disabled while the hub or every device is offline (tooltip "Field link is offline") or status is outside VALIDATED/EXPORTED (tooltip "Mission must be validated first"). Sending shows a spinner; success shows "Mission sent – it will appear in Pilot's route library"; failure surfaces the backend `detail` message inline. A DJI altitude-clamp 409 shows a warning line and relabels the button "Acknowledge clamps and send" — clicking again re-fires the dispatch with `acknowledge_altitude_clamps: true`. The page refetches after a successful dispatch (dispatch side-effects VALIDATED → EXPORTED); re-dispatch from EXPORTED updates the same wayline in place. The card header carries a **"Field Hub" button** (QR icon) beside the status chip that opens the Field Hub connection dialog. EN + SK strings under `mission.sendToDrone.*`. See SPEC.md "Send to drone (mission dispatch)" and `docs/specs/FIELD-HUB.md` §4.2.
 - **Field Hub connection dialog** — modal opened from the "Field Hub" button on the Send to Drone card header; helps the operator point DJI Pilot 2 at the hub without reading the address off a terminal. Shows the device-facing **connect address** (`https://<host>:8443`) with a copy button, an **inline-rendered QR** of that address for scanning on the RC (vendored dependency-free encoder `@/utils/qrcode`, no npm dep so `package-lock.json` stays untouched), live **hub online** + **MQTT broker connected** badges, the **connected-device list** (model + serial + online state; empty state "no devices"), and a **CA-certificate download** (operator-gated `GET /api/v1/field-link/ca-cert` via the JWT client) with an "install on each RC once" hint. Graceful states: hub offline → troubleshooting hint; online but no host configured → "hub address not configured"; before the first poll → a connecting state. It consumes `ExportPanel`'s single `useFieldLinkStatus` poll result (no second poll). EN + SK strings under `mission.fieldHub.*`. See SPEC.md "Field hub connection dialog" and `docs/specs/FIELD-HUB.md` §6.
 - **Complete / Cancel / Delete:**
-  - Complete: sets COMPLETED (terminal state). Available once EXPORTED or MEASURED.
-  - Cancel: sets CANCELLED (terminal state). Available once EXPORTED or MEASURED.
+  - Complete: sets COMPLETED (terminal state). Available once MEASURED.
+  - Cancel: sets CANCELLED (terminal state). Available once MEASURED.
   - Delete: removes from database entirely. Available at any status. Confirmation dialog required.
-  - Complete and Cancel grayed out / disabled until EXPORTED or MEASURED.
+  - Complete and Cancel grayed out / disabled until MEASURED.
 
 **Status gating summary:**
 - DRAFT/PLANNED: Accept button available. Export grayed out. Complete/Cancel grayed out.
 - VALIDATED: Accept not clickable. Export available. Complete/Cancel grayed out.
-- EXPORTED: Accept not clickable. Export available. Complete/Cancel available.
+- EXPORTED: Accept not clickable. Export available. Complete/Cancel grayed out (available only once MEASURED).
 - MEASURED: Accept not clickable. Export grayed out. Complete/Cancel available. Config edit controls locked (see Page 07).
 - COMPLETED/CANCELLED: all actions disabled (terminal states).
 

@@ -5,7 +5,6 @@ Single-pass and two-pass video processing handlers
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List
 
 import cv2
@@ -17,8 +16,8 @@ from ..gps import GPSExtractor
 from ..tracking import PAPILightTracker
 from ..utils import (
     BatchFrameProcessor,
+    FfmpegH264Writer,
     FrameProcessingCache,
-    convert_to_h264,
 )
 from .measurement_collector import MeasurementCollector
 
@@ -95,9 +94,8 @@ class TwoPassProcessor:
         combined_width = settings.VIDEO_GEN_PAPI_WIDTH * 4
         combined_height = settings.VIDEO_GEN_PAPI_HEIGHT
 
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(output_path, fourcc, fps, (combined_width, combined_height))
+        # Create video writer (direct H.264, no mp4v intermediate)
+        out = FfmpegH264Writer(output_path, fps, combined_width, combined_height)
 
         if not out.isOpened():
             logger.error(f"Failed to create combined video writer: {output_path}")
@@ -247,9 +245,8 @@ class TwoPassProcessor:
         panel_height = 350  # Must match panel_height in InfoOverlayRenderer.add_angle_overlay
         extended_height = frame_height + panel_height
         enhanced_path = os.path.join(self.output_dir, f"{session_id}_enhanced_main_video.mp4")
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        enhanced_writer = cv2.VideoWriter(
-            enhanced_path, fourcc, video_fps, (frame_width, extended_height)
+        enhanced_writer = FfmpegH264Writer(
+            enhanced_path, video_fps, frame_width, extended_height
         )
 
         if not enhanced_writer.isOpened():
@@ -265,11 +262,11 @@ class TwoPassProcessor:
         papi_paths = {}
         for light_name in ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]:
             papi_path = os.path.join(self.output_dir, f"{session_id}_{light_name}_video.mp4")
-            papi_writer = cv2.VideoWriter(
+            papi_writer = FfmpegH264Writer(
                 papi_path,
-                fourcc,
                 video_fps,
-                (settings.VIDEO_GEN_PAPI_WIDTH, settings.VIDEO_GEN_PAPI_HEIGHT),
+                settings.VIDEO_GEN_PAPI_WIDTH,
+                settings.VIDEO_GEN_PAPI_HEIGHT,
             )
             if papi_writer.isOpened():
                 papi_writers[light_name] = papi_writer
@@ -758,12 +755,8 @@ class TwoPassProcessor:
         logger.info(f"Video generation complete: {frame_number} frames in {elapsed_time:.1f}s")
         logger.info(f"Average FPS: {frame_number / elapsed_time:.1f}")
 
-        # Convert videos to H.264 - the enhanced + per-PAPI encodes are independent files,
-        # so run them concurrently instead of serially
-        logger.info("Converting videos to H.264...")
-        encode_targets = [enhanced_path, *papi_paths.values()]
-        with ThreadPoolExecutor(max_workers=min(len(encode_targets), os.cpu_count() or 4)) as pool:
-            list(pool.map(convert_to_h264, encode_targets))
+        # videos are already H.264 - the writers encode straight from raw frames, so there is
+        # no separate mp4v-then-transcode pass any more
 
         # Create combined all_papi_lights video
         logger.info("Creating combined PAPI lights video...")
@@ -773,7 +766,6 @@ class TwoPassProcessor:
         )
 
         if all_papi_lights_path:
-            convert_to_h264(all_papi_lights_path)
             logger.info(f"Combined PAPI video: {all_papi_lights_path}")
         else:
             logger.warning("Failed to create combined PAPI video")

@@ -12,6 +12,9 @@ const EXECUTABLE_PATH = process.env.EXECUTABLE_PATH;
 const BROWSER_MODE = (process.env.BROWSER_MODE ?? 'persistent').toLowerCase();
 const HEADLESS = process.env.HEADLESS === '1' || process.env.CI === '1';
 const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 30000);
+// dwell between playwright actions so the proof video shows each state long
+// enough to read instead of flickering past in a few frames. 0 disables.
+const SLOWMO_MS = Number(process.env.SLOWMO_MS ?? 350);
 const RUN_ID = process.env.RUN_ID ?? null;
 const MODE = process.env.MODE ?? null;
 
@@ -50,7 +53,7 @@ if (BROWSER_MODE === 'bundled') {
   // silicon, no rosetta), fresh context per run, no profile carryover.
   // for verify against a hermetic local stack we don't need real
   // cookies/SSO, so this is strictly better than persistent.
-  const browser = await chromium.launch({ headless: HEADLESS, args: launchArgs });
+  const browser = await chromium.launch({ headless: HEADLESS, slowMo: SLOWMO_MS, args: launchArgs });
   context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
@@ -61,6 +64,7 @@ if (BROWSER_MODE === 'bundled') {
   context = await chromium.launchPersistentContext(USER_DATA_DIR, {
     executablePath: EXECUTABLE_PATH,
     headless: HEADLESS,
+    slowMo: SLOWMO_MS,
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
     recordVideo: { dir: join(RUN_DIR, 'video') },

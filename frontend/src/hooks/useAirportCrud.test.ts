@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { AirportDetailResponse } from "@/types/airport";
 import type { MapFeature } from "@/types/map";
@@ -29,6 +29,37 @@ const airport = {
     {
       id: "srf-1",
       agls: [{ id: "agl-1", lhas: [{ id: "lha-1" }] }],
+    },
+  ],
+  obstacles: [],
+  safety_zones: [],
+} as unknown as AirportDetailResponse;
+
+// one agl with three lhas - exercises the same-agl reorder chain
+const multiLhaAirport = {
+  id: "apt-1",
+  elevation: 100,
+  surfaces: [
+    {
+      id: "srf-1",
+      agls: [{ id: "agl-1", lhas: [{ id: "lha-1" }, { id: "lha-2" }, { id: "lha-3" }] }],
+    },
+  ],
+  obstacles: [],
+  safety_zones: [],
+} as unknown as AirportDetailResponse;
+
+// two agls, one lha each - exercises cross-group concurrency
+const multiAglAirport = {
+  id: "apt-1",
+  elevation: 100,
+  surfaces: [
+    {
+      id: "srf-1",
+      agls: [
+        { id: "agl-1", lhas: [{ id: "lha-1" }] },
+        { id: "agl-2", lhas: [{ id: "lha-4" }] },
+      ],
     },
   ],
   obstacles: [],
@@ -162,9 +193,108 @@ describe("useAirportCrud handleSave", () => {
     expect(api.updateSurface).toHaveBeenCalledWith("apt-1", "srf-1", { width: 50 });
     expect(api.updateAGL).toHaveBeenCalledWith("apt-1", "srf-1", "agl-1", { name: "x" });
     expect(api.updateLHA).toHaveBeenCalledWith("apt-1", "srf-1", "agl-1", "lha-1", { tolerance: 1 });
+    expect(api.updateLHA).toHaveBeenCalledTimes(1);
     expect(api.updateAirport).toHaveBeenCalledWith("apt-1", { name: "y" });
     expect(api.updateObstacle).not.toHaveBeenCalled();
     expect(clearAll).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useAirportCrud handleSave lha reorder dispatch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // restore the shared resolved-value stub for the other describes
+    vi.mocked(api.updateLHA).mockReset();
+    vi.mocked(api.updateLHA).mockResolvedValue({} as never);
+  });
+
+  // mock updateLHA so each call resolves a microtask later and tracks how many
+  // requests overlap. one-at-a-time => maxInFlight 1; a concurrent fan-out spikes higher.
+  function trackInFlight() {
+    /** install an in-flight-counting updateLHA mock and return its trackers. */
+    const callOrder: string[] = [];
+    const callSeq: Array<number | undefined> = [];
+    const tracker = { inFlight: 0, maxInFlight: 0 };
+    vi.mocked(api.updateLHA).mockImplementation(((
+      _apt: string,
+      _sid: string,
+      _agl: string,
+      lhaId: string,
+      data: { sequence_number?: number },
+    ) => {
+      tracker.inFlight += 1;
+      tracker.maxInFlight = Math.max(tracker.maxInFlight, tracker.inFlight);
+      callOrder.push(lhaId);
+      callSeq.push(data.sequence_number);
+      return Promise.resolve().then(() => {
+        tracker.inFlight -= 1;
+        return {};
+      });
+    }) as unknown as typeof api.updateLHA);
+    return { callOrder, callSeq, tracker };
+  }
+
+  it("dispatches same-agl lha reorders sequentially in ascending target order", async () => {
+    const { callOrder, callSeq, tracker } = trackInFlight();
+    const pending: PendingChange[] = [
+      { entityType: "lha", entityId: "lha-1", action: "update", data: { sequence_number: 3 } },
+      { entityType: "lha", entityId: "lha-2", action: "update", data: { sequence_number: 1 } },
+      { entityType: "lha", entityId: "lha-3", action: "update", data: { sequence_number: 2 } },
+    ];
+    const { view } = setup({
+      airport: multiLhaAirport,
+      getPendingChanges: vi.fn<() => PendingChange[]>().mockReturnValue(pending),
+    });
+    await act(async () => {
+      await view.result.current.handleSave();
+    });
+    // never two puts in flight at once
+    expect(tracker.maxInFlight).toBe(1);
+    // applied in ascending target order, not the staged order
+    expect(callOrder).toEqual(["lha-2", "lha-3", "lha-1"]);
+    expect(callSeq).toEqual([1, 2, 3]);
+  });
+
+  it("keeps distinct-agl lha updates and non-lha changes concurrent", async () => {
+    const { tracker } = trackInFlight();
+    const pending: PendingChange[] = [
+      { entityType: "lha", entityId: "lha-1", action: "update", data: { sequence_number: 2 } },
+      { entityType: "lha", entityId: "lha-4", action: "update", data: { sequence_number: 1 } },
+      { entityType: "surface", entityId: "srf-1", action: "update", data: { width: 30 } },
+    ];
+    const { view } = setup({
+      airport: multiAglAirport,
+      getPendingChanges: vi.fn<() => PendingChange[]>().mockReturnValue(pending),
+    });
+    await act(async () => {
+      await view.result.current.handleSave();
+    });
+    // separate agls dispatch in parallel - not serialized across groups
+    expect(tracker.maxInFlight).toBe(2);
+    expect(api.updateLHA).toHaveBeenCalledTimes(2);
+    expect(api.updateSurface).toHaveBeenCalledWith("apt-1", "srf-1", { width: 30 });
+  });
+
+  it("sorts seq-less lha edits stably after sequenced ones in the same chain", async () => {
+    const { callOrder, tracker } = trackInFlight();
+    const pending: PendingChange[] = [
+      { entityType: "lha", entityId: "lha-1", action: "update", data: { tolerance: 5 } },
+      { entityType: "lha", entityId: "lha-2", action: "update", data: { sequence_number: 1 } },
+      { entityType: "lha", entityId: "lha-3", action: "update", data: { tolerance: 7 } },
+    ];
+    const { view } = setup({
+      airport: multiLhaAirport,
+      getPendingChanges: vi.fn<() => PendingChange[]>().mockReturnValue(pending),
+    });
+    await act(async () => {
+      await view.result.current.handleSave();
+    });
+    expect(tracker.maxInFlight).toBe(1);
+    // sequenced edit first, seq-less edits keep their staged order behind it
+    expect(callOrder).toEqual(["lha-2", "lha-1", "lha-3"]);
   });
 });
 

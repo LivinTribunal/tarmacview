@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import cesium from 'vite-plugin-cesium'
 import path from 'path'
@@ -74,5 +75,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
+    // playwright specs live in e2e/ and run via `npm run test:e2e`, not vitest
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 })

@@ -22,6 +22,11 @@ frontend/dist/
 .vite/
 frontend/tsconfig.tsbuildinfo
 
+# Playwright e2e artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+
 # IDE
 .idea/
 *.iml

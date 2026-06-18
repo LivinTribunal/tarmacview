@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { useNavigate, Navigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,13 +44,25 @@ export default function LoginPage() {
     }
   }
 
+  // some browsers / password managers swallow the implicit enter-submit on
+  // login forms; submit explicitly so enter always matches the login button.
+  function handleKeyDown(e: KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) {
+      return;
+    }
+    if (e.target instanceof HTMLInputElement) {
+      e.preventDefault();
+      e.currentTarget.requestSubmit();
+    }
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-tv-bg">
       <div className="w-full max-w-sm p-6 rounded-2xl border border-tv-border bg-tv-surface">
         <h1 className="text-2xl font-semibold text-center mb-6 text-tv-text-primary">
           {t("auth.loginTitle")}
         </h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="flex flex-col gap-4">
           <div>
             <label
               htmlFor="email"
@@ -60,7 +72,9 @@ export default function LoginPage() {
             </label>
             <input
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -80,7 +94,9 @@ export default function LoginPage() {
             </label>
             <input
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

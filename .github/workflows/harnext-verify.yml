@@ -195,6 +195,8 @@ jobs:
             gh api -X PATCH repos/:owner/:repo/issues/comments/$COMMENT_ID --field body=@<final-report.md>
             ```
             Final report includes: the UI verification verdict (PASS/FAIL/SKIPPED-NO-UI-SURFACE) with the asserted behavior in one sentence, cited artifact paths under `~/harnext-artifacts/$RUN_ID/` (must include the `<label>.element.png` for any rendered-value claim — NOT just `final.png`), and the Dropbox `$VIDEO_URL` for the proof video when the upload succeeded.
+
+            **Trace the verdict to the diff (MANDATORY).** The report MUST quote at least one literal changed-file path from `/tmp/pr-files.txt` (the `gh pr diff <pr> --name-only` output) verbatim — e.g. the component file behind the UI you asserted (`frontend/src/components/.../Foo.tsx`) or the route/service the change touches (`backend/app/api/routes/.../bar.py`). Naming the route, button label, or component in prose is NOT enough: write the exact repo path. The post-run Layer B sanity floor (`scripts/verify-sanity-floors.sh`) fixed-string-greps each diff path against this comment and fails the whole stage if none match — a passing UI verdict that cites no changed file is rejected as incomplete evidence.
           # --dangerously-skip-permissions bypasses the tool allowlist and
           # per-call permission prompts. safe here because verify runs on the
           # self-hosted runner against an ephemeral stack, and the agent needs

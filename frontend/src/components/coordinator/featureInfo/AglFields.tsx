@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeftRight } from "lucide-react";
 import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
 import type { SurfaceResponse, AGLResponse } from "@/types/airport";
 import type { PointZ } from "@/types/common";
+import { reverseLHAs } from "@/api/airports";
 import QuickLhaSetup from "../QuickLhaSetup";
 import PointCoordEditor from "./PointCoordEditor";
 
@@ -40,6 +42,30 @@ export default function AglFields({
 }: AglFieldsProps) {
   /** agl-type fields for the feature info panel. */
   const { t } = useTranslation();
+  const [reversing, setReversing] = useState(false);
+  const [reverseError, setReverseError] = useState<string | null>(null);
+
+  // reverse is a PAPI-only, whole-row flip and needs at least two lights to flip
+  const canReverse = agl.agl_type === "PAPI" && agl.lhas.length >= 2;
+
+  async function handleReverse() {
+    /** flip the PAPI agl numbering A,B,C,D -> D,C,B,A, then refetch. */
+    if (!airportId) return;
+    setReverseError(null);
+    setReversing(true);
+    try {
+      await reverseLHAs(airportId, agl.surface_id, agl.id);
+      if (onLhasGenerated) await onLhasGenerated();
+    } catch (e) {
+      setReverseError(
+        e instanceof Error && e.message
+          ? e.message
+          : t("coordinator.detail.reverseNumberingError"),
+      );
+    } finally {
+      setReversing(false);
+    }
+  }
 
   return (
     <>
@@ -158,6 +184,24 @@ export default function AglFields({
           <Plus className="h-3 w-3" />
           {t("coordinator.detail.addLha")}
         </button>
+      )}
+      {airportId && canReverse && (
+        <>
+          <button
+            type="button"
+            onClick={handleReverse}
+            disabled={reversing}
+            className="flex items-center justify-center gap-1.5 w-full mt-1 px-3 py-1.5 rounded-full text-xs font-semibold border border-tv-accent text-tv-accent hover:bg-tv-surface-hover transition-colors disabled:opacity-50"
+            data-testid="reverse-lhas-button"
+          >
+            <ArrowLeftRight className="h-3 w-3" />
+            {t("coordinator.detail.reverseNumbering")}
+          </button>
+          <p className="text-[10px] text-tv-text-muted">
+            {t("coordinator.detail.reverseNumberingHint")}
+          </p>
+          {reverseError && <p className="text-[10px] text-tv-error">{reverseError}</p>}
+        </>
       )}
       {airportId && (
         <QuickLhaSetup

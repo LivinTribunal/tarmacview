@@ -57,4 +57,5 @@ export {
   updateLHA,
   deleteLHA,
   bulkCreateLHAs,
+  reverseLHAs,
 } from "./lhas";

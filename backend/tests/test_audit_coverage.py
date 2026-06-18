@@ -929,6 +929,58 @@ def test_bulk_generate_lhas_rolls_back_when_audit_fails(client, session, monkeyp
     assert listing["data"] == []
 
 
+def _reverse_setup(client, icao: str):
+    """create airport + surface + PAPI AGL with 4 LHAs (A-D) for reverse tests."""
+    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": icao}).json()
+    surface = client.post(f"/api/v1/airports/{apt['id']}/surfaces", json=SURFACE_PAYLOAD).json()
+    agl = client.post(
+        f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls",
+        json={**AGL_PAYLOAD, "agl_type": "PAPI", "name": "papi"},
+    ).json()
+    base = f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls/{agl['id']}/lhas"
+    for letter in ("A", "B", "C", "D"):
+        client.post(base, json={**LHA_PAYLOAD, "unit_designator": letter})
+    return apt["id"], surface["id"], agl["id"]
+
+
+def test_reverse_lhas_emits_aggregate_audit_row(client, session):
+    """reverse emits exactly one UPDATE LHA row scoped to the airport + agl."""
+    apt_id, surface_id, agl_id = _reverse_setup(client, "LARV")
+
+    r = client.post(f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/reverse")
+    assert r.status_code == 200
+    reordered = r.json()["data"]
+
+    rows = _audit_rows(session, action="UPDATE", entity_type="LHA", entity_id=UUID(agl_id))
+    assert len(rows) == 1
+    row = rows[0]
+    assert str(row.airport_id) == apt_id
+    assert row.details["count"] == len(reordered)
+    assert row.details["airport_id"] == apt_id
+    assert row.details["surface_id"] == surface_id
+    assert row.details["agl_id"] == agl_id
+    assert sorted(row.details["lha_ids"]) == sorted(lha["id"] for lha in reordered)
+
+
+def test_reverse_lhas_rolls_back_when_audit_fails(client, session, monkeypatch):
+    """if log_audit raises during reverse, the numbering is left untouched."""
+    from app.api.routes.airports import lhas as airports_route
+
+    apt_id, surface_id, agl_id = _reverse_setup(client, "LARW")
+    base = f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}/lhas"
+    before = {row["id"]: row["sequence_number"] for row in client.get(base).json()["data"]}
+
+    _force_log_audit_failure(monkeypatch, airports_route)
+
+    with pytest.raises(RuntimeError, match="audit-insert-failure"):
+        client.post(f"{base}/reverse")
+
+    monkeypatch.undo()
+
+    after = {row["id"]: row["sequence_number"] for row in client.get(base).json()["data"]}
+    assert after == before
+
+
 def test_download_terrain_dem_unlinks_file_on_audit_failure(client, session, monkeypatch, tmp_path):
     """if log_audit raises after API download, the new GeoTIFF is unlinked."""
     import types

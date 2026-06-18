@@ -151,6 +151,42 @@ def bulk_generate_lhas(
     return LHABulkGenerateResponse(generated=created)
 
 
+@router.post(
+    "/{airport_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/reverse",
+    response_model=LHAListResponse,
+)
+def reverse_lhas(
+    airport_id: UUID,
+    surface_id: UUID,
+    agl_id: UUID,
+    request: Request,
+    current_user: CoordinatorUser,
+    db: Session = Depends(get_db),
+):
+    """flip a PAPI AGL's LHA numbering A,B,C,D -> D,C,B,A in one step."""
+    check_airport_access(current_user, airport_id)
+    lhas = airport_service.reverse_lha_sequence(db, airport_id, surface_id, agl_id)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.UPDATE,
+        entity_type="LHA",
+        entity_id=agl_id,
+        details={
+            "airport_id": str(airport_id),
+            "surface_id": str(surface_id),
+            "agl_id": str(agl_id),
+            "count": len(lhas),
+            "lha_ids": [str(lha.id) for lha in lhas],
+        },
+        ip_address=request.client.host if request.client else None,
+        airport_id=airport_id,
+    )
+    db.commit()
+
+    return LHAListResponse(data=lhas, meta=ListMeta(total=len(lhas)))
+
+
 @router.delete(
     "/{airport_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/{lha_id}",
     response_model=DeleteResponse,

@@ -163,6 +163,63 @@ def _shift_lha_sequence(db: Session, agl_id: UUID, lha_id: UUID, target: int) ->
     _apply_papi_invariant(db, agl_id)
 
 
+def reverse_lha_sequence(
+    db: Session, airport_id: UUID, surface_id: UUID, agl_id: UUID
+) -> list[LHA]:
+    """flip a PAPI AGL's whole LHA numbering A,B,C,D -> D,C,B,A in one step.
+
+    every light gets new_sequence = (N + 1) - old_sequence, then the PAPI
+    invariant relabels letters to match. each physical light keeps its position,
+    setting_angle, lens heights, tolerance, and lamp type - only sequence_number
+    and the derived unit_designator flip. non-PAPI parents are rejected (422),
+    and fewer than 2 lights has nothing to flip (422).
+    """
+    surface = (
+        db.query(AirfieldSurface)
+        .filter(AirfieldSurface.id == surface_id, AirfieldSurface.airport_id == airport_id)
+        .first()
+    )
+    if not surface:
+        raise NotFoundError("surface not found")
+
+    agl = db.query(AGL).filter(AGL.id == agl_id, AGL.surface_id == surface_id).first()
+    if not agl:
+        raise NotFoundError("agl not found")
+
+    if agl.agl_type != "PAPI":
+        raise DomainError("reverse numbering is only available for PAPI agls", status_code=422)
+
+    # lock parent AGL row so a concurrent reorder cannot race the flip
+    db.query(AGL).filter(AGL.id == agl_id).with_for_update().first()
+
+    lhas = db.query(LHA).filter(LHA.agl_id == agl_id).all()
+    n = len(lhas)
+    if n < 2:
+        raise DomainError("need at least 2 lights to reverse numbering", status_code=422)
+
+    # capture each row's flipped target before parking it at a sentinel
+    targets = {lha.id: (n + 1) - lha.sequence_number for lha in lhas}
+
+    # two-pass sentinel renumber so the in-place flip never collides on the
+    # (agl_id, sequence_number) unique constraint mid-update. phase 1 parks
+    # every row above the current max - a distinct slot per row, all disjoint
+    # from the live 1..N range. the parent-row lock guarantees no second writer.
+    max_seq = max(lha.sequence_number for lha in lhas)
+    for offset, lha in enumerate(lhas, start=1):
+        lha.sequence_number = max_seq + offset
+    db.flush()
+
+    # phase 2: write the flipped sequence_number (back into 1..N)
+    for lha in lhas:
+        lha.sequence_number = targets[lha.id]
+    db.flush()
+
+    _apply_papi_invariant(db, agl_id)
+
+    db.flush()
+    return db.query(LHA).filter(LHA.agl_id == agl_id).order_by(LHA.sequence_number).all()
+
+
 def create_lha(
     db: Session, airport_id: UUID, surface_id: UUID, agl_id: UUID, schema: LHACreate
 ) -> LHA:

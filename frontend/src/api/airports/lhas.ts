@@ -72,3 +72,15 @@ export async function bulkCreateLHAs(
   );
   return res.data;
 }
+
+// flip a PAPI agl's whole numbering A,B,C,D -> D,C,B,A in one step
+export async function reverseLHAs(
+  airportId: string,
+  surfaceId: string,
+  aglId: string,
+): Promise<{ data: LHAResponse[]; meta: ListMeta }> {
+  const res = await client.post(
+    `/airports/${airportId}/surfaces/${surfaceId}/agls/${aglId}/lhas/reverse`,
+  );
+  return res.data;
+}

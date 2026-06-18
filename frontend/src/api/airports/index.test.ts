@@ -61,6 +61,7 @@ const EXPECTED = [
   "updateLHA",
   "deleteLHA",
   "bulkCreateLHAs",
+  "reverseLHAs",
 ] as const;
 
 describe("@/api/airports barrel", () => {
@@ -117,6 +118,13 @@ describe("@/api/airports url + params (mocked client)", () => {
     expect(post).toHaveBeenCalledWith(
       "/airports/apt-1/surfaces/s-1/agls/agl-1/lhas/bulk",
       {},
+    );
+  });
+
+  it("reverseLHAs posts to the /lhas/reverse path", async () => {
+    await airports.reverseLHAs("apt-1", "s-1", "agl-1");
+    expect(post).toHaveBeenCalledWith(
+      "/airports/apt-1/surfaces/s-1/agls/agl-1/lhas/reverse",
     );
   });
 

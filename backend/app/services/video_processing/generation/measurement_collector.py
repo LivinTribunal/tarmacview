@@ -4,7 +4,6 @@ Measurement collection and transition angle computation
 
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
 
 import cv2
@@ -221,8 +220,7 @@ class MeasurementCollector:
             )
 
             # Measure precise light dimensions for each PAPI light (using RED channel method)
-            # This will be cached and reused in PASS 2 to avoid duplicate computation
-            # OPTIMIZED: Process all 4 PAPI lights in parallel using ThreadPoolExecutor
+            # measured center/size is persisted into frame_data below so PASS 2 reuses it
             t0 = time.time()
             light_dimensions = {}
             light_rgb_values = {}  # Store RGB extracted from visualization ROI
@@ -277,11 +275,12 @@ class MeasurementCollector:
 
                 return light_name, dims, rgb_values, rgb_list
 
-            # Process all 4 PAPI lights in parallel
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                results = list(
-                    executor.map(process_single_light, ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"])
-                )
+            # process the 4 PAPI lights serially - the per-light work is small gil-bound
+            # cv2/numpy on tiny rois, so spinning up a 4-worker pool every frame cost more
+            # in thread churn than it saved
+            results = [
+                process_single_light(name) for name in ("PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D")
+            ]
 
             # Collect results
             for light_name, dims, rgb_values, rgb_list in results:
@@ -337,6 +336,14 @@ class MeasurementCollector:
                         dims = light_dimensions[light_key]
                         area_pixels = int(dims.get("width", 0) * dims.get("height", 0))
                         frame_data[f"{light_name}_area_pixels"] = area_pixels
+
+                        # persist the measured center/size so PASS 2 frames each PAPI crop on
+                        # the precise red-channel box instead of silently falling back to the
+                        # coarser tracker position (the keys PASS 2 reads were never written)
+                        frame_data[f"{light_name}_center_x"] = dims.get("center_x")
+                        frame_data[f"{light_name}_center_y"] = dims.get("center_y")
+                        frame_data[f"{light_name}_width"] = dims.get("width")
+                        frame_data[f"{light_name}_height"] = dims.get("height")
                     else:
                         frame_data[f"{light_name}_area_pixels"] = 0
 

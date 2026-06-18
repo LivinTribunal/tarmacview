@@ -4,7 +4,6 @@ PAPI light tracking module
 
 import logging
 import math
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple
 
 from app.services.video_processing.config import settings
@@ -500,10 +499,10 @@ class PAPILightTracker:
                 "eval_area": eval_area,
             }
 
-        # Process all 4 PAPI lights in parallel
+        # process the tracked lights serially - the per-roi work is small gil-bound
+        # cv2/numpy, so a per-frame 4-worker pool cost more in thread churn than it saved
         light_names = list(self.tracked_lights.keys())
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            results = list(executor.map(process_single_roi, light_names))
+        results = [process_single_roi(name) for name in light_names]
 
         # Collect results and update tracked lights (must be sequential for state updates)
         for light_name, data in results:

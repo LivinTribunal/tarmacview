@@ -5,6 +5,7 @@ Single-pass and two-pass video processing handlers
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List
 
 import cv2
@@ -25,6 +26,16 @@ from .measurement_collector import MeasurementCollector
 from .optimized_overlays import OptimizedOverlayRenderer
 
 logger = logging.getLogger(__name__)
+
+# coordinate opencv's internal thread pool with the celery prefork concurrency so two
+# concurrent jobs don't oversubscribe the cores. unset = opencv's default (all cores),
+# which is right for a single job; the worker sets VIDEO_CV_THREADS to cores / concurrency.
+_cv_threads = os.environ.get("VIDEO_CV_THREADS")
+if _cv_threads:
+    try:
+        cv2.setNumThreads(int(_cv_threads))
+    except (TypeError, ValueError):
+        logger.warning("ignoring invalid VIDEO_CV_THREADS=%r", _cv_threads)
 
 
 class TwoPassProcessor:
@@ -747,11 +758,12 @@ class TwoPassProcessor:
         logger.info(f"Video generation complete: {frame_number} frames in {elapsed_time:.1f}s")
         logger.info(f"Average FPS: {frame_number / elapsed_time:.1f}")
 
-        # Convert videos to H.264
+        # Convert videos to H.264 - the enhanced + per-PAPI encodes are independent files,
+        # so run them concurrently instead of serially
         logger.info("Converting videos to H.264...")
-        convert_to_h264(enhanced_path)
-        for papi_path in papi_paths.values():
-            convert_to_h264(papi_path)
+        encode_targets = [enhanced_path, *papi_paths.values()]
+        with ThreadPoolExecutor(max_workers=min(len(encode_targets), os.cpu_count() or 4)) as pool:
+            list(pool.map(convert_to_h264, encode_targets))
 
         # Create combined all_papi_lights video
         logger.info("Creating combined PAPI lights video...")

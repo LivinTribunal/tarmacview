@@ -117,8 +117,6 @@ DRAFT → PLANNED → VALIDATED → EXPORTED → MEASURED → COMPLETED
 - VALIDATED → EXPORTED: operator triggers export
 - VALIDATED → MEASURED: measurement kickoff on a never-exported mission (skips EXPORTED)
 - EXPORTED → MEASURED: measurement kickoff after export
-- EXPORTED → COMPLETED: operator marks mission done
-- EXPORTED → CANCELLED: operator abandons mission
 - MEASURED → COMPLETED: operator marks mission done
 - MEASURED → CANCELLED: operator abandons mission
 
@@ -141,7 +139,7 @@ DRAFT → PLANNED → VALIDATED → EXPORTED → MEASURED → COMPLETED
 
 **Status gating:**
 - Export button: disabled until VALIDATED
-- Complete/Cancel buttons: enabled once EXPORTED or MEASURED
+- Complete/Cancel buttons: enabled once MEASURED - a mission must be measured before it can be completed or cancelled
 - COMPLETED and CANCELLED are terminal states — no further actions
 
 ---
@@ -284,7 +282,7 @@ Full-screen MapLibre. Toolbar: undo/redo (10 max, per-session), save, recompute,
 Two-column layout. Left scrollable panel: MissionConfigForm (drone profile select, default speed, altitude offset, takeoff/landing CoordinateInputs with pick-on-map, operator notes), InspectionList (reorderable, add via TemplatePicker modal, remove, visibility toggle, count badge X/10), InspectionConfigForm (template name, method read-only, per-AGL LHA section collapsed by default under a clickable header with helper-mode toggle (All / Range / From-threshold / Custom) above the LHA checkboxes when expanded, method-specific fields for FLY_OVER, PARALLEL_SIDE_SWEEP, and APPROACH_DESCENT rendered before the direction section, altitudeOffset, speedOverride, measurementDensity, hoverDuration — with speed/framerate warning), StatsPanel (distance, duration, waypoint count, battery % — post-computation only), WarningsPanel (severity-grouped: Violations / Warnings / Suggestions sections, each collapsible with a count badge, rows deduped by `violation_kind` — falling back to `constraint_name` then message for legacy null-kind rows — post-computation only). Right: AirportMap with flight path visualization (direction arrows on path segments, blue transit paths #7eb8e5, per-inspection colored measurement segments, overlapping paths offset ~5m left of heading for visibility, blue ring around the selected inspection's measurement waypoints), WaypointListPanel (sortable list), PoiInfoPanel (the single feature-info panel for any clicked feature, waypoints included). "Compute Trajectory" button in MissionTabNav bar. Schema uses `config` (not `config_override`) in InspectionCreate/InspectionUpdate.
 
 ### Page 08 — Validation & Export (`/operator-center/missions/:id/validation-export`)
-Left: per-constraint breakdown (pass/fail/warning), "Edit Configuration" → Config tab, "Accept" → VALIDATED. Right: map + export section (KML/KMZ/JSON/MAVLink checkboxes, download button). Export disabled until VALIDATED. Complete/Cancel enabled once EXPORTED or MEASURED. Delete available always. The *Upload Drone Media* button in the MissionTabNav header opens the drone-media dialog — see "Drone media matching + upload dialog" below.
+Left: per-constraint breakdown (pass/fail/warning), "Edit Configuration" → Config tab, "Accept" → VALIDATED. Right: map + export section (KML/KMZ/JSON/MAVLink checkboxes, download button). Export disabled until VALIDATED. Complete/Cancel enabled once MEASURED. Delete available always. The *Upload Drone Media* button in the MissionTabNav header opens the drone-media dialog — see "Drone media matching + upload dialog" below.
 
 #### Geozone bundle option
 
@@ -406,7 +404,7 @@ Airport list, inspection template editor (AGL selector, per-AGL helper-mode togg
 
 ### Aggregate Roots
 
-- **Mission** — owns inspections, controls status transitions via `transition_to()`. Inspection add/remove/reorder works from any non-terminal status (auto-regresses to DRAFT). Max 10 inspections. Trajectory-affecting field changes (drone, speed, coordinates, transit_agl, direction) regress the mission to DRAFT and set `has_unsaved_map_changes = True`. The existing flight plan row is intentionally kept so the frontend can render it as a stale reference until the operator triggers a fresh recompute. Terminal statuses are `COMPLETED` and `CANCELLED` only — `EXPORTED` is non-terminal and can still be deleted, transitioned to COMPLETED/CANCELLED, or duplicated.
+- **Mission** — owns inspections, controls status transitions via `transition_to()`. Inspection add/remove/reorder works from any non-terminal status (auto-regresses to DRAFT). Max 10 inspections. Trajectory-affecting field changes (drone, speed, coordinates, transit_agl, direction) regress the mission to DRAFT and set `has_unsaved_map_changes = True`. The existing flight plan row is intentionally kept so the frontend can render it as a stale reference until the operator triggers a fresh recompute. Terminal statuses are `COMPLETED` and `CANCELLED` only — `EXPORTED` is non-terminal and can still be deleted, measured (-> MEASURED), or duplicated; completion/cancellation is reachable only from MEASURED, never directly from EXPORTED.
 - **Airport** — owns surfaces, obstacles, safety zones via `add_surface()`, `add_obstacle()`, `add_safety_zone()`. Sets `airport_id` on child entities.
 - **Measurement** (`backend/app/domain/measurement/entities.py`, NOT the ORM model) — persistence-agnostic aggregate for one measurement run. Owns the status machine via `transition_to()` / `fail(msg)`, snapshots reference points off the inspection's LHAs at create, confirms operator light boxes (`confirm_boxes()`), and rolls measured transition angles up to PASS/FAIL (`score_light()` / `with_summaries_from()`). Persisted behind the `MeasurementRepository` port; the heavy per-frame results blob lives in object storage, referenced only by `object_key`.
 

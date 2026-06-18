@@ -106,8 +106,8 @@ describe("FieldLinkStatusChip", () => {
     expect(rc.textContent).toBe("RC offline");
   });
 
-  it("MQTT reflects a real device online, not just the broker link or rc session", () => {
-    // pilot session + broker up, but NO drone on mqtt -> MQTT disconnected
+  it("Telemetry reflects a real device online, not the broker link or rc session", () => {
+    // pilot session + broker up, but NO drone live -> Telemetry offline
     const { rerender } = render(
       <FieldLinkStatusChip
         status={makeStatus({
@@ -117,12 +117,12 @@ describe("FieldLinkStatusChip", () => {
         })}
       />,
     );
-    expect(screen.getByTestId("field-link-mqtt")).toHaveAttribute("data-state", "off");
-    expect(screen.getByTestId("field-link-mqtt").textContent).toBe("MQTT disconnected");
+    expect(screen.getByTestId("field-link-telemetry")).toHaveAttribute("data-state", "off");
+    expect(screen.getByTestId("field-link-telemetry").textContent).toBe("Telemetry offline");
 
-    // a drone live on mqtt -> MQTT connected
+    // a drone live on mqtt -> Telemetry online
     rerender(<FieldLinkStatusChip status={makeStatus({ devices: [M350] })} />);
-    expect(screen.getByTestId("field-link-mqtt")).toHaveAttribute("data-state", "on");
-    expect(screen.getByTestId("field-link-mqtt").textContent).toBe("MQTT connected");
+    expect(screen.getByTestId("field-link-telemetry")).toHaveAttribute("data-state", "on");
+    expect(screen.getByTestId("field-link-telemetry").textContent).toBe("Telemetry online");
   });
 });

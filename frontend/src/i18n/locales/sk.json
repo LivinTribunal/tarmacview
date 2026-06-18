@@ -1105,8 +1105,8 @@
       "noHub": "Field hub nepripojený",
       "rcConnected": "RC pripojené",
       "rcOffline": "RC offline",
-      "mqttConnected": "MQTT pripojené",
-      "mqttDisconnected": "MQTT odpojené"
+      "telemetryOnline": "Telemetria online",
+      "telemetryOffline": "Telemetria offline"
     },
     "fieldHub": {
       "open": "Field Hub",
@@ -1122,8 +1122,15 @@
       "hubOnline": "Hub online",
       "hubOffline": "Hub offline",
       "offlineHint": "Zapnite cestovný router a uistite sa, že RC je na Wi-Fi hubu, potom počkajte na opätovné pripojenie Pilota 2.",
-      "brokerConnected": "MQTT broker pripojený",
-      "brokerDisconnected": "MQTT broker odpojený",
+      "brokerConnected": "Broker pripojený",
+      "brokerDisconnected": "Broker odpojený",
+      "rcConnected": "RC pripojené",
+      "rcOffline": "RC offline",
+      "telemetryOnline": "Telemetria online",
+      "telemetryOffline": "Telemetria offline",
+      "heartbeatCheck": "Kontrola spojenia",
+      "checking": "Kontroluje sa…",
+      "lastChecked": "Naposledy overené {{time}}",
       "devices": "Pripojené zariadenia",
       "noDevices": "Žiadne pripojené zariadenia",
       "deviceOnline": "Online",

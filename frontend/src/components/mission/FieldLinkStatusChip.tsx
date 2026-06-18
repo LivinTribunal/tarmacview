@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 
 type RcState = "noHub" | "offline" | "online";
-type MqttState = "on" | "off";
+type TelemetryState = "on" | "off";
 
 const RC_DOT: Record<RcState, string> = {
   noHub: "bg-[var(--tv-text-secondary)]",
@@ -10,7 +10,7 @@ const RC_DOT: Record<RcState, string> = {
   online: "bg-[var(--tv-success)]",
 };
 
-const MQTT_DOT: Record<MqttState, string> = {
+const TELEMETRY_DOT: Record<TelemetryState, string> = {
   on: "bg-[var(--tv-success)]",
   off: "bg-[var(--tv-text-secondary)]",
 };
@@ -24,14 +24,13 @@ export interface FieldLinkStatusChipProps {
 }
 
 export default function FieldLinkStatusChip({ status }: FieldLinkStatusChipProps) {
-  /** two independent field-hub signals: the RC's http link and live MQTT telemetry. */
+  /** two glance signals: the RC's http link and live drone telemetry. */
   const { t } = useTranslation();
 
   if (!status) return null;
 
-  // RC: pilot's http session with the hub - true once pilot has connected and
-  // can receive missions. NOT mqtt: a controller is "connected" over http long
-  // before (or without) any drone publishing telemetry.
+  // RC: pilot's http session with the hub - connected once pilot logs in and
+  // can receive missions, independent of any drone telemetry.
   const rcState: RcState = !status.hub_online
     ? "noHub"
     : status.rc_connected
@@ -44,13 +43,13 @@ export default function FieldLinkStatusChip({ status }: FieldLinkStatusChipProps
         ? t("mission.fieldLink.rcConnected")
         : t("mission.fieldLink.rcOffline");
 
-  // MQTT: a drone/RC is actually live on the broker (telemetry flowing). the
-  // hub's own broker attachment isn't enough - this needs a device online.
-  const mqttState: MqttState = status.devices.some((d) => d.online) ? "on" : "off";
-  const mqttLabel =
-    mqttState === "on"
-      ? t("mission.fieldLink.mqttConnected")
-      : t("mission.fieldLink.mqttDisconnected");
+  // Telemetry: a drone is actually live on the broker. distinct from the hub's
+  // own broker link (shown separately in the field-hub dialog).
+  const telemetryState: TelemetryState = status.devices.some((d) => d.online) ? "on" : "off";
+  const telemetryLabel =
+    telemetryState === "on"
+      ? t("mission.fieldLink.telemetryOnline")
+      : t("mission.fieldLink.telemetryOffline");
 
   return (
     <span
@@ -61,9 +60,12 @@ export default function FieldLinkStatusChip({ status }: FieldLinkStatusChipProps
         <span className={`h-2 w-2 rounded-full ${RC_DOT[rcState]}`} aria-hidden="true" />
         {rcLabel}
       </span>
-      <span data-testid="field-link-mqtt" data-state={mqttState} className={PILL_CLASS}>
-        <span className={`h-2 w-2 rounded-full ${MQTT_DOT[mqttState]}`} aria-hidden="true" />
-        {mqttLabel}
+      <span data-testid="field-link-telemetry" data-state={telemetryState} className={PILL_CLASS}>
+        <span
+          className={`h-2 w-2 rounded-full ${TELEMETRY_DOT[telemetryState]}`}
+          aria-hidden="true"
+        />
+        {telemetryLabel}
       </span>
     </span>
   );

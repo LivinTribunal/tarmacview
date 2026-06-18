@@ -1101,8 +1101,8 @@
       "noHub": "Field hub not connected",
       "rcConnected": "RC connected",
       "rcOffline": "RC offline",
-      "mqttConnected": "MQTT connected",
-      "mqttDisconnected": "MQTT disconnected"
+      "telemetryOnline": "Telemetry online",
+      "telemetryOffline": "Telemetry offline"
     },
     "fieldHub": {
       "open": "Field Hub",
@@ -1118,8 +1118,15 @@
       "hubOnline": "Hub online",
       "hubOffline": "Hub offline",
       "offlineHint": "Power the travel router and make sure the RC is on the hub Wi-Fi, then wait for Pilot 2 to reconnect.",
-      "brokerConnected": "MQTT broker connected",
-      "brokerDisconnected": "MQTT broker disconnected",
+      "brokerConnected": "Broker connected",
+      "brokerDisconnected": "Broker disconnected",
+      "rcConnected": "RC connected",
+      "rcOffline": "RC offline",
+      "telemetryOnline": "Telemetry online",
+      "telemetryOffline": "Telemetry offline",
+      "heartbeatCheck": "Heartbeat check",
+      "checking": "Checking…",
+      "lastChecked": "Last checked {{time}}",
       "devices": "Connected devices",
       "noDevices": "No devices connected",
       "deviceOnline": "Online",

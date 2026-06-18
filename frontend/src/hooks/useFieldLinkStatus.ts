@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getFieldLinkStatus } from "@/api/fieldLink";
 import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 import { FIELD_LINK_POLL_INTERVAL_MS } from "@/constants/ui";
@@ -12,32 +12,51 @@ const NO_HUB: FieldLinkStatusResponse = {
   public_host: null,
 };
 
+export interface FieldLinkPoll {
+  /** latest status; null until the first response. */
+  status: FieldLinkStatusResponse | null;
+  /** epoch ms of the last completed check (poll or manual), null until first. */
+  lastChecked: number | null;
+  /** a check is in flight (drives the heartbeat button's spinner). */
+  checking: boolean;
+  /** force an immediate re-check now (the heartbeat button). */
+  refresh: () => Promise<void>;
+}
+
 /**
- * polls the field-link status while mounted. null until the first
- * response; a failed poll degrades to the no-hub shape.
+ * polls the field-link status while mounted (and on demand via refresh).
+ * status is null until the first response; a failed check degrades to the
+ * no-hub shape. consumers share one poll - don't call this twice on a page.
  */
-export function useFieldLinkStatus(): FieldLinkStatusResponse | null {
+export function useFieldLinkStatus(): FieldLinkPoll {
   const [status, setStatus] = useState<FieldLinkStatusResponse | null>(null);
+  const [lastChecked, setLastChecked] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
+  const mounted = useRef(true);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function poll() {
-      try {
-        const next = await getFieldLinkStatus();
-        if (!cancelled) setStatus(next);
-      } catch {
-        if (!cancelled) setStatus(NO_HUB);
-      }
+  const refresh = useCallback(async () => {
+    setChecking(true);
+    let next: FieldLinkStatusResponse;
+    try {
+      next = await getFieldLinkStatus();
+    } catch {
+      next = NO_HUB;
     }
-
-    poll();
-    const interval = setInterval(poll, FIELD_LINK_POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    if (!mounted.current) return;
+    setStatus(next);
+    setLastChecked(Date.now());
+    setChecking(false);
   }, []);
 
-  return status;
+  useEffect(() => {
+    mounted.current = true;
+    refresh();
+    const interval = setInterval(refresh, FIELD_LINK_POLL_INTERVAL_MS);
+    return () => {
+      mounted.current = false;
+      clearInterval(interval);
+    };
+  }, [refresh]);
+
+  return { status, lastChecked, checking, refresh };
 }

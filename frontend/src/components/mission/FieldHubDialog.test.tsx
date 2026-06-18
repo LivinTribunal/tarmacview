@@ -73,6 +73,21 @@ describe("FieldHubDialog", () => {
     expect(screen.queryByTestId("field-hub-dialog")).toBeNull();
   });
 
+  it("shows four distinct signals and runs an on-demand heartbeat check", () => {
+    const onRefresh = vi.fn();
+    renderDialog({ onRefresh, lastChecked: 1718000000000 });
+
+    // hub / rc / broker / telemetry - no overloaded "MQTT"
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute("data-online", "true");
+    expect(screen.getByTestId("field-hub-rc")).toHaveAttribute("data-online", "true");
+    expect(screen.getByTestId("field-hub-broker")).toHaveAttribute("data-online", "true");
+    expect(screen.getByTestId("field-hub-telemetry")).toHaveAttribute("data-online", "true");
+
+    fireEvent.click(screen.getByTestId("field-hub-heartbeat"));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("field-hub-last-checked")).toBeInTheDocument();
+  });
+
   it("shows the connect address, an inline QR, and the device list when online", () => {
     renderDialog();
 
@@ -81,7 +96,7 @@ describe("FieldHubDialog", () => {
     );
     const qr = screen.getByTestId("field-hub-qr");
     expect(qr.querySelector("path")?.getAttribute("d")).toBeTruthy();
-    expect(screen.getByTestId("field-hub-status")).toHaveAttribute(
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute(
       "data-online",
       "true",
     );
@@ -108,7 +123,7 @@ describe("FieldHubDialog", () => {
     expect(screen.getByTestId("field-hub-offline")).toBeInTheDocument();
     expect(screen.queryByTestId("field-hub-connect-url")).toBeNull();
     expect(screen.queryByTestId("field-hub-qr")).toBeNull();
-    expect(screen.getByTestId("field-hub-status")).toHaveAttribute(
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute(
       "data-online",
       "false",
     );

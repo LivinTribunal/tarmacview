@@ -5,13 +5,43 @@ import ExportPanel, { type ExportPanelProps } from "./ExportPanel";
 import { useFieldLinkStatus } from "@/hooks/useFieldLinkStatus";
 import type { MissionDetailResponse } from "@/types/mission";
 import type { DroneProfileResponse } from "@/types/droneProfile";
+import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 
 // the panel polls the backend through this hook (one poll shared by the chip
 // and the send-to-drone gate) - stub it so panel tests stay network-free;
 // chip behavior is covered in FieldLinkStatusChip.test.tsx
 vi.mock("@/hooks/useFieldLinkStatus", () => ({
-  useFieldLinkStatus: vi.fn(() => null),
+  useFieldLinkStatus: vi.fn(() => ({
+    status: null,
+    lastChecked: null,
+    checking: false,
+    refresh: vi.fn(),
+  })),
 }));
+
+// wraps a status into the useFieldLinkStatus poll shape for the mock
+function poll(status: FieldLinkStatusResponse | null) {
+  return { status, lastChecked: status ? 1 : null, checking: false, refresh: vi.fn() };
+}
+
+const ONLINE_M350: FieldLinkStatusResponse = {
+  hub_online: true,
+  rc_connected: true,
+  broker_connected: true,
+  connect_url: "https://192.168.8.50:8443",
+  public_host: "192.168.8.50",
+  devices: [
+    {
+      sn: "1ZNBJ7R0010078",
+      model_name: "Matrice 350 RTK",
+      model_key: "0-89-0",
+      domain: 0,
+      online: true,
+      bound: true,
+      gateway_sn: "5YSZK1400B00A1",
+    },
+  ],
+};
 
 // the send-to-drone section dispatches through this call - stub it so the
 // panel tests never touch the axios client; section behavior is covered in
@@ -658,7 +688,7 @@ describe("ExportPanel - lifecycle gating", () => {
 // field-link chip + send-to-drone - both fed by the panel's single poll
 describe("ExportPanel - field link wiring", () => {
   afterEach(() => {
-    vi.mocked(useFieldLinkStatus).mockReturnValue(null);
+    vi.mocked(useFieldLinkStatus).mockReturnValue(poll(null));
   });
 
   it("renders no chip and a disabled send button before the first status response", () => {
@@ -669,24 +699,7 @@ describe("ExportPanel - field link wiring", () => {
   });
 
   it("feeds the shared link status to the chip and the send-to-drone gate", () => {
-    vi.mocked(useFieldLinkStatus).mockReturnValue({
-      hub_online: true,
-      rc_connected: true,
-      broker_connected: true,
-      connect_url: "https://192.168.8.50:8443",
-      public_host: "192.168.8.50",
-      devices: [
-        {
-          sn: "1ZNBJ7R0010078",
-          model_name: "Matrice 350 RTK",
-          model_key: "0-89-0",
-          domain: 0,
-          online: true,
-          bound: true,
-          gateway_sn: "5YSZK1400B00A1",
-        },
-      ],
-    });
+    vi.mocked(useFieldLinkStatus).mockReturnValue(poll(ONLINE_M350));
     renderPanel();
 
     const rc = screen.getByTestId("field-link-rc");
@@ -697,24 +710,7 @@ describe("ExportPanel - field link wiring", () => {
   });
 
   it("keeps the send button disabled for non-exportable missions even when online", () => {
-    vi.mocked(useFieldLinkStatus).mockReturnValue({
-      hub_online: true,
-      rc_connected: true,
-      broker_connected: true,
-      connect_url: "https://192.168.8.50:8443",
-      public_host: "192.168.8.50",
-      devices: [
-        {
-          sn: "1ZNBJ7R0010078",
-          model_name: "Matrice 350 RTK",
-          model_key: "0-89-0",
-          domain: 0,
-          online: true,
-          bound: true,
-          gateway_sn: "5YSZK1400B00A1",
-        },
-      ],
-    });
+    vi.mocked(useFieldLinkStatus).mockReturnValue(poll(ONLINE_M350));
     renderPanel({ mission: makeMission({ status: "DRAFT" }) });
 
     expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();

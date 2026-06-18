@@ -110,10 +110,12 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 - Login response includes user roles (Operator, Coordinator, Admin)
 
 **Behavior:**
+- Submit: click Login or press Enter in the email/password field — both run the same HTML5 validation and submit path
 - After successful login: loads last remembered airport, forwards to dashboard
 - If no airport remembered: forwards to Airport Selection
 - Wrong credentials: inline error message "Wrong login credentials. Try again."
 - Loading indicator shown during authentication
+- Inputs carry `autoComplete` (email / current-password) so password managers recognize the form
 
 **Out of Scope:**
 - Forgot password flow

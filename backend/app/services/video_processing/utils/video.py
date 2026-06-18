@@ -36,7 +36,7 @@ class FfmpegH264Writer:
             "-s",
             f"{self.width}x{self.height}",
             "-r",
-            str(int(fps) or 30),
+            str(fps or 30),
             "-i",
             "-",
             "-an",

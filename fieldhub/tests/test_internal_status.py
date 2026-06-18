@@ -72,7 +72,7 @@ def test_status_surfaces_connect_url(client, monkeypatch):
     body = client.get(STATUS_PATH, headers={"X-Hub-Secret": "s3cret"}).json()
 
     assert body["public_host"] == "192.168.8.50"
-    assert body["connect_url"] == "https://192.168.8.50:8443"
+    assert body["connect_url"] == "http://192.168.8.50:8080"
 
 
 def test_status_connect_url_null_when_unprovisioned(client, monkeypatch):

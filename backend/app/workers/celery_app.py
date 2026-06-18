@@ -13,6 +13,13 @@ from celery import Celery
 # native dev falls back to localhost
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+# per-task ttl - a job that hangs (or whose worker wedges) is killed instead of
+# running forever. soft raises SoftTimeLimitExceeded inside the task so the runner
+# routes the measurement to ERROR; hard SIGKILLs if soft handling can't unwind.
+# override via env for unusually long footage.
+soft_time_limit = int(os.getenv("MEASUREMENT_SOFT_TIME_LIMIT", "1800"))
+hard_time_limit = int(os.getenv("MEASUREMENT_TIME_LIMIT", "2100"))
+
 celery_app = Celery(
     "tarmacview",
     broker=redis_url,
@@ -29,6 +36,8 @@ celery_app.conf.update(
     accept_content=["json"],
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    task_soft_time_limit=soft_time_limit,
+    task_time_limit=hard_time_limit,
 )
 
 

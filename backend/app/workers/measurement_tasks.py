@@ -8,10 +8,34 @@ celery (which only ships in the worker image). each task owns its own db session
 import logging
 from uuid import UUID
 
+from celery.signals import worker_ready
+
 from app.core.enums import MeasurementStatus
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
+
+
+@worker_ready.connect
+def _reap_orphaned_runs(**_kwargs) -> None:
+    """on worker boot, fail runs a previous worker left mid-processing.
+
+    a docker recreate / crash kills the worker mid-job; the measurement is left
+    PROCESSING and the acks_late task gets redelivered. reaping on startup marks
+    those orphans ERROR so they stop looping and surface in the UI.
+    """
+    from app.core.database import SessionLocal
+    from app.services import measurement_service
+
+    db = SessionLocal()
+    try:
+        reaped = measurement_service.reap_stale_runs(db)
+        if reaped:
+            logger.warning("reaped %d orphaned measurement run(s) on worker start", reaped)
+    except Exception:
+        logger.exception("failed reaping orphaned measurement runs on startup")
+    finally:
+        db.close()
 
 
 def _run(runner_name: str, measurement_id: str) -> str:

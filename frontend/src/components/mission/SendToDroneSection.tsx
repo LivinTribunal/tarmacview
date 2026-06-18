@@ -39,12 +39,15 @@ export default function SendToDroneSection({
   const [isDispatching, setIsDispatching] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
-  const linkOnline =
-    !!linkStatus?.hub_online && linkStatus.devices.some((d) => d.online);
+  // sending only needs the hub reachable to register the wayline - it must NOT
+  // depend on a drone being online. pilot pulls the route library over http, so
+  // the rc picks up the mission whenever it next connects. the backend raises
+  // 502 when the hub is unconfigured/unreachable, so gate on hub_online only.
+  const hubReachable = !!linkStatus?.hub_online;
   const statusAllows = canDispatch(missionStatus);
   // a pending clamp warning turns the button into an explicit "dispatch anyway"
   const acknowledgeClamps = feedback?.kind === "clamps";
-  const disabled = !linkOnline || !statusAllows || isDispatching;
+  const disabled = !hubReachable || !statusAllows || isDispatching;
 
   async function handleDispatch() {
     setIsDispatching(true);
@@ -79,11 +82,11 @@ export default function SendToDroneSection({
       className="bg-tv-surface border border-tv-border rounded-2xl p-4"
       data-testid="send-to-drone-section"
     >
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="rounded-full px-3 py-1 bg-tv-bg border border-tv-border text-sm font-semibold text-tv-text-primary">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 bg-tv-bg border border-tv-border text-sm font-semibold text-tv-text-primary">
           {t("mission.sendToDrone.title")}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {onOpenFieldHub && (
             <button
               type="button"
@@ -108,8 +111,8 @@ export default function SendToDroneSection({
         onClick={handleDispatch}
         disabled={disabled}
         title={
-          !linkOnline
-            ? t("mission.sendToDrone.linkOffline")
+          !hubReachable
+            ? t("mission.sendToDrone.hubOffline")
             : !statusAllows
               ? t("mission.sendToDrone.statusGate")
               : undefined

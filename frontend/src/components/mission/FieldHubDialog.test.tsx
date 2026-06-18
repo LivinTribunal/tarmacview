@@ -25,14 +25,16 @@ const M350: FieldLinkDevice = {
 
 const ONLINE: FieldLinkStatusResponse = {
   hub_online: true,
+  rc_connected: true,
   broker_connected: true,
-  connect_url: "https://192.168.8.50:8443",
+  connect_url: "http://192.168.8.50:8080",
   public_host: "192.168.8.50",
   devices: [M350],
 };
 
 const OFFLINE: FieldLinkStatusResponse = {
   hub_online: false,
+  rc_connected: false,
   broker_connected: false,
   connect_url: null,
   public_host: null,
@@ -41,6 +43,7 @@ const OFFLINE: FieldLinkStatusResponse = {
 
 const NO_HOST: FieldLinkStatusResponse = {
   hub_online: true,
+  rc_connected: true,
   broker_connected: true,
   connect_url: null,
   public_host: null,
@@ -70,15 +73,30 @@ describe("FieldHubDialog", () => {
     expect(screen.queryByTestId("field-hub-dialog")).toBeNull();
   });
 
+  it("shows four distinct signals and runs an on-demand heartbeat check", () => {
+    const onRefresh = vi.fn();
+    renderDialog({ onRefresh, lastChecked: 1718000000000 });
+
+    // hub / rc / broker / telemetry - no overloaded "MQTT"
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute("data-online", "true");
+    expect(screen.getByTestId("field-hub-rc")).toHaveAttribute("data-online", "true");
+    expect(screen.getByTestId("field-hub-broker")).toHaveAttribute("data-online", "true");
+    expect(screen.getByTestId("field-hub-telemetry")).toHaveAttribute("data-online", "true");
+
+    fireEvent.click(screen.getByTestId("field-hub-heartbeat"));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("field-hub-last-checked")).toBeInTheDocument();
+  });
+
   it("shows the connect address, an inline QR, and the device list when online", () => {
     renderDialog();
 
     expect(screen.getByTestId("field-hub-connect-url").textContent).toBe(
-      "https://192.168.8.50:8443",
+      "http://192.168.8.50:8080",
     );
     const qr = screen.getByTestId("field-hub-qr");
     expect(qr.querySelector("path")?.getAttribute("d")).toBeTruthy();
-    expect(screen.getByTestId("field-hub-status")).toHaveAttribute(
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute(
       "data-online",
       "true",
     );
@@ -95,7 +113,7 @@ describe("FieldHubDialog", () => {
     fireEvent.click(screen.getByTestId("field-hub-copy-btn"));
 
     await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith("https://192.168.8.50:8443"),
+      expect(writeText).toHaveBeenCalledWith("http://192.168.8.50:8080"),
     );
   });
 
@@ -105,7 +123,7 @@ describe("FieldHubDialog", () => {
     expect(screen.getByTestId("field-hub-offline")).toBeInTheDocument();
     expect(screen.queryByTestId("field-hub-connect-url")).toBeNull();
     expect(screen.queryByTestId("field-hub-qr")).toBeNull();
-    expect(screen.getByTestId("field-hub-status")).toHaveAttribute(
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute(
       "data-online",
       "false",
     );

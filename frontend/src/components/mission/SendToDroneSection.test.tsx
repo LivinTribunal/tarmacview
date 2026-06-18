@@ -26,9 +26,10 @@ const M350: FieldLinkDevice = {
 
 const LINK_ONLINE: FieldLinkStatusResponse = {
   hub_online: true,
+  rc_connected: true,
   broker_connected: true,
   devices: [M350],
-  connect_url: "https://192.168.8.50:8443",
+  connect_url: "http://192.168.8.50:8080",
   public_host: "192.168.8.50",
 };
 
@@ -69,6 +70,7 @@ describe("SendToDroneSection", () => {
     renderSection({
       linkStatus: {
         hub_online: false,
+        rc_connected: false,
         broker_connected: false,
         devices: [],
         connect_url: null,
@@ -79,12 +81,14 @@ describe("SendToDroneSection", () => {
     expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();
   });
 
-  it("disables the button when no device is online", () => {
+  it("enables the button when the hub is online but no drone is connected", () => {
+    // sending only needs the hub - the rc pulls the route library whenever it
+    // next connects, so dispatch must not depend on a live drone link.
     renderSection({
       linkStatus: { ...LINK_ONLINE, devices: [{ ...M350, online: false }] },
     });
 
-    expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();
+    expect(screen.getByTestId("send-to-drone-btn")).not.toBeDisabled();
   });
 
   it("disables the button before the first poll response", () => {

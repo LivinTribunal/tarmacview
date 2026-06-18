@@ -33,6 +33,7 @@
   var STEP_API = "api";
   var STEP_MQTT = "mqtt";
   var STEP_MEDIA = "media";
+  var STEP_MISSION = "mission";
 
   function parseBridgeReturn(raw) {
     // bridge returns are bool-ish or json {code, message, data} envelopes
@@ -180,24 +181,44 @@
     }
     onStatus(STEP_LICENSE, "ok", "license verified");
 
-    // login - credentials come from the page form (or the test driver)
-    onStatus(STEP_LOGIN, "waiting", "enter credentials");
-    var credentials = await deps.getCredentials();
-    onStatus(STEP_LOGIN, "running", "logging in");
-    var login;
-    try {
-      login = await fetchEnvelope(fetchFn, "/manage/api/v1/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: credentials.username,
-          password: credentials.password,
-          flag: PILOT_LOGIN_FLAG,
-        }),
-      });
-    } catch (err) {
-      return fail(STEP_LOGIN, "login: " + err.message);
+    // login - resume a cached session when one is present (token/refresh both
+    // validates the cached token and rotates a fresh one; a refresh failure
+    // clears the cache and falls back to the credential form). this is what
+    // keeps a webview refresh from forcing a re-login every time.
+    var login = null;
+    var cached = deps.loadCachedLogin ? deps.loadCachedLogin() : null;
+    if (cached && cached.access_token) {
+      onStatus(STEP_LOGIN, "running", "resuming session");
+      try {
+        login = await fetchEnvelope(fetchFn, "/manage/api/v1/token/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-auth-token": cached.access_token },
+        });
+      } catch (err) {
+        if (deps.clearCachedLogin) deps.clearCachedLogin();
+        login = null;
+      }
     }
+    if (!login) {
+      // credentials come from the page form (or the test driver)
+      onStatus(STEP_LOGIN, "waiting", "enter credentials");
+      var credentials = await deps.getCredentials();
+      onStatus(STEP_LOGIN, "running", "logging in");
+      try {
+        login = await fetchEnvelope(fetchFn, "/manage/api/v1/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: credentials.username,
+            password: credentials.password,
+            flag: PILOT_LOGIN_FLAG,
+          }),
+        });
+      } catch (err) {
+        return fail(STEP_LOGIN, "login: " + err.message);
+      }
+    }
+    if (deps.saveLogin) deps.saveLogin(login);
     onStatus(STEP_LOGIN, "ok", "logged in as " + login.username);
 
     // api module - http host + token for pilot-initiated calls
@@ -267,6 +288,15 @@
       return fail(STEP_MEDIA, "media module: " + (media.message || "load failed"));
     }
     onStatus(STEP_MEDIA, "ok", "auto-upload on (originals + video)");
+
+    // mission module - syncs pilot's flight route library from the wayline
+    // library so dispatched missions appear. the demo gates this behind a live
+    // mqtt link; our ungated load syncs over http regardless.
+    var mission = callBridge(bridge, "platformLoadComponent", "mission", JSON.stringify({}));
+    if (!mission.ok) {
+      return fail(STEP_MISSION, "mission module: " + (mission.message || "load failed"));
+    }
+    onStatus(STEP_MISSION, "ok", "route library synced");
 
     result.completed = true;
     result.username = login.username;

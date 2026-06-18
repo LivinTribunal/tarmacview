@@ -74,13 +74,13 @@ def test_device_mqtt_addr_override_and_fallback(monkeypatch):
 
 
 def test_connect_url_prefers_public_host(monkeypatch):
-    """an explicit public host drives the https connect address."""
+    """an explicit public host drives the connect address."""
     monkeypatch.setenv("FIELDHUB_PUBLIC_HOST", "192.168.8.50")
 
     s = Settings(_env_file=None)
 
     assert s.connect_host() == "192.168.8.50"
-    assert s.connect_url() == "https://192.168.8.50:8443"
+    assert s.connect_url() == "http://192.168.8.50:8080"
 
 
 def test_connect_url_derives_host_from_mqtt_addr(monkeypatch):
@@ -91,7 +91,7 @@ def test_connect_url_derives_host_from_mqtt_addr(monkeypatch):
     s = Settings(_env_file=None)
 
     assert s.connect_host() == "192.168.8.50"
-    assert s.connect_url() == "https://192.168.8.50:8443"
+    assert s.connect_url() == "http://192.168.8.50:8080"
 
 
 def test_connect_url_honors_custom_port(monkeypatch):
@@ -99,7 +99,7 @@ def test_connect_url_honors_custom_port(monkeypatch):
     monkeypatch.setenv("FIELDHUB_PUBLIC_HOST", "hub.local")
     monkeypatch.setenv("FIELDHUB_CONNECT_PORT", "9443")
 
-    assert Settings(_env_file=None).connect_url() == "https://hub.local:9443"
+    assert Settings(_env_file=None).connect_url() == "http://hub.local:9443"
 
 
 def test_connect_url_empty_when_no_host(monkeypatch):

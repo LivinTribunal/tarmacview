@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Copy, Download, ShieldCheck } from "lucide-react";
+import { Check, Copy, Download, RefreshCw, ShieldCheck } from "lucide-react";
 import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 import { downloadCaCert } from "@/api/fieldLink";
 import { encodeQrMatrix, qrMatrixToPath } from "@/utils/qrcode";
@@ -15,6 +15,12 @@ export interface FieldHubDialogProps {
   onClose: () => void;
   /** poll result owned by the parent - the dialog never opens a second poll. */
   status: FieldLinkStatusResponse | null;
+  /** force an on-demand re-check now (the heartbeat button). */
+  onRefresh?: () => void | Promise<void>;
+  /** a check is in flight - drives the heartbeat spinner. */
+  checking?: boolean;
+  /** epoch ms of the last completed check. */
+  lastChecked?: number | null;
 }
 
 /** inline-rendered QR of the connect address, no canvas, no npm dependency. */
@@ -47,7 +53,14 @@ function ConnectQr({ url }: { url: string }) {
 }
 
 /** field hub connection dialog - connect address, QR, live status, CA cert. */
-export default function FieldHubDialog({ isOpen, onClose, status }: FieldHubDialogProps) {
+export default function FieldHubDialog({
+  isOpen,
+  onClose,
+  status,
+  onRefresh,
+  checking = false,
+  lastChecked = null,
+}: FieldHubDialogProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [downloadingCa, setDownloadingCa] = useState(false);
@@ -57,8 +70,35 @@ export default function FieldHubDialog({ isOpen, onClose, status }: FieldHubDial
 
   const hubOnline = !!status?.hub_online;
   const brokerConnected = !!status?.broker_connected;
+  const rcConnected = !!status?.rc_connected;
+  const telemetryOnline = !!status?.devices?.some((d) => d.online);
   const connectUrl = status?.connect_url ?? null;
   const devices = status?.devices ?? [];
+
+  function indicator(
+    testid: string,
+    on: boolean,
+    onLabel: string,
+    offLabel: string,
+    offTone: "error" | "muted",
+  ) {
+    // RC/Hub/Broker off is a problem (red); no telemetry is normal (muted)
+    const dot = on
+      ? "bg-[var(--tv-success)]"
+      : offTone === "error"
+        ? "bg-[var(--tv-error)]"
+        : "bg-[var(--tv-text-secondary)]";
+    return (
+      <span
+        data-testid={testid}
+        data-online={on}
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-tv-text-secondary"
+      >
+        <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
+        {on ? onLabel : offLabel}
+      </span>
+    );
+  }
 
   async function handleCopy() {
     if (!connectUrl) return;
@@ -94,35 +134,57 @@ export default function FieldHubDialog({ isOpen, onClose, status }: FieldHubDial
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t("mission.fieldHub.title")}>
       <div className="flex flex-col gap-4" data-testid="field-hub-dialog">
-        {/* hub + broker state */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-tv-text-primary"
-            data-testid="field-hub-status"
-            data-online={hubOnline}
-          >
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                hubOnline ? "bg-[var(--tv-success)]" : "bg-[var(--tv-error)]"
-              }`}
-              aria-hidden="true"
-            />
-            {hubOnline ? t("mission.fieldHub.hubOnline") : t("mission.fieldHub.hubOffline")}
-          </span>
-          <span
-            className="inline-flex items-center gap-1.5 text-xs text-tv-text-secondary"
-            data-testid="field-hub-broker"
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                brokerConnected ? "bg-[var(--tv-success)]" : "bg-[var(--tv-text-secondary)]"
-              }`}
-              aria-hidden="true"
-            />
-            {brokerConnected
-              ? t("mission.fieldHub.brokerConnected")
-              : t("mission.fieldHub.brokerDisconnected")}
-          </span>
+        {/* connection signals - same labels as the export chip */}
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3" data-testid="field-hub-signals">
+            {indicator(
+              "field-hub-hub",
+              hubOnline,
+              t("mission.fieldHub.hubOnline"),
+              t("mission.fieldHub.hubOffline"),
+              "error",
+            )}
+            {indicator(
+              "field-hub-rc",
+              rcConnected,
+              t("mission.fieldHub.rcConnected"),
+              t("mission.fieldHub.rcOffline"),
+              "error",
+            )}
+            {indicator(
+              "field-hub-broker",
+              brokerConnected,
+              t("mission.fieldHub.brokerConnected"),
+              t("mission.fieldHub.brokerDisconnected"),
+              "error",
+            )}
+            {indicator(
+              "field-hub-telemetry",
+              telemetryOnline,
+              t("mission.fieldHub.telemetryOnline"),
+              t("mission.fieldHub.telemetryOffline"),
+              "muted",
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => onRefresh?.()}
+              disabled={checking}
+              className="flex items-center gap-1.5"
+              data-testid="field-hub-heartbeat"
+            >
+              <RefreshCw className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
+              {checking ? t("mission.fieldHub.checking") : t("mission.fieldHub.heartbeatCheck")}
+            </Button>
+            {lastChecked != null && (
+              <span className="text-xs text-tv-text-muted" data-testid="field-hub-last-checked">
+                {t("mission.fieldHub.lastChecked", {
+                  time: new Date(lastChecked).toLocaleTimeString(),
+                })}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* connect address / QR, gated on the graceful states */}

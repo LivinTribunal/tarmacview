@@ -2,7 +2,7 @@
 
 Cert-free run-kit that drives **real DJI Pilot 2 (in BlueStacks)** against the
 **real fieldhub** — plain HTTP on `http://10.0.2.2:8080`, no postgres, no TLS.
-It is the BlueStacks counterpart to the production HTTPS `field` compose profile:
+It is the BlueStacks counterpart to the production `field` compose profile:
 Pilot's native Cloud Service flow connects over HTTP with **no certificate**, so
 it sidesteps the local-CA trust step that the emulator's WebView can't satisfy.
 
@@ -34,15 +34,15 @@ silently ignored for these vars.)
 
 | | `field` profile (production) | `emulator/` (this kit) |
 |---|---|---|
-| Transport | HTTPS `:8443` + MQTTS `:8883`, local CA | plain HTTP `:8080` + MQTT `:1883` |
-| Cert trust on device | CA installed on each RC | none needed |
+| Transport | plain HTTP `:8080` + MQTT `:1883` | plain HTTP `:8080` + MQTT `:1883` |
+| Cert trust on device | none needed | none needed |
 | Registry | postgres (`fieldhub` schema) | throwaway sqlite |
 | Brought up by | `./start-field.sh` | command above |
-| Reached at | `https://<lan-ip>:8443` | `http://10.0.2.2:8080` |
+| Reached at | `http://<lan-ip>:8080` | `http://10.0.2.2:8080` |
 
 They both build the same `fieldhub` image and are mutually exclusive (shared
 host ports). Use the emulator for BlueStacks connect/login validation; use the
-`field` profile for real RC hardware (where TLS + the installed CA are required).
+`field` profile for real RC hardware on the LAN.
 
 ## Teardown
 

@@ -228,3 +228,31 @@ def test_list_by_inspections_empty_returns_empty(session):
     s, _ = session
     repo = SqlAlchemyMeasurementRepository(s)
     assert repo.list_by_inspections([]) == []
+
+
+def test_list_by_statuses_empty_returns_empty(session):
+    """no statuses short-circuits to an empty list (no query)."""
+    s, _ = session
+    repo = SqlAlchemyMeasurementRepository(s)
+    assert repo.list_by_statuses([]) == []
+
+
+def test_list_by_statuses_filters_on_status(session, inspection_id):
+    """only rows in the requested statuses come back; others are excluded."""
+    s, created = session
+    repo = SqlAlchemyMeasurementRepository(s)
+
+    processing = repo.save(Measurement(inspection_id=inspection_id))
+    processing.transition_to(MeasurementStatus.FIRST_FRAME)
+    processing.transition_to(MeasurementStatus.PROCESSING)
+    repo.save(processing)
+    s.commit()
+    created.append(processing.id)
+
+    queued = repo.save(Measurement(inspection_id=inspection_id))
+    s.commit()
+    created.append(queued.id)
+
+    ids = {m.id for m in repo.list_by_statuses([MeasurementStatus.PROCESSING])}
+    assert processing.id in ids
+    assert queued.id not in ids

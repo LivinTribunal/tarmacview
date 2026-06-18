@@ -596,6 +596,11 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
     if measurement is None:
         raise NotFoundError("measurement not found")
 
+    # idempotent: a redelivered/duplicate task on a run that already advanced (or
+    # was reaped to ERROR) must not re-extract or trip an illegal FIRST_FRAME hop.
+    if measurement.status != MeasurementStatus.QUEUED:
+        return measurement
+
     measurement.transition_to(MeasurementStatus.FIRST_FRAME)
     repo.save(measurement)
     db.commit()
@@ -672,6 +677,11 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
     measurement = repo.get_by_id(measurement_id)
     if measurement is None:
         raise NotFoundError("measurement not found")
+
+    # idempotent: a redelivered/duplicate task on a finished or reaped run no-ops
+    # instead of reprocessing (the acks_late redelivery after a worker death).
+    if measurement.status in (MeasurementStatus.DONE, MeasurementStatus.ERROR):
+        return measurement
 
     if measurement.status != MeasurementStatus.PROCESSING:
         # confirm_lights moves the aggregate to PROCESSING before enqueue; tolerate a
@@ -781,3 +791,28 @@ def _mark_failed(db: Session, measurement_id: UUID, message: str) -> Measurement
         repo.save(measurement)
         db.commit()
     return measurement
+
+
+# in-progress states a live worker owns; on worker startup nothing is running yet,
+# so any run still in one of these is orphaned - its worker died mid-job.
+_IN_PROGRESS_STATUSES = (MeasurementStatus.FIRST_FRAME, MeasurementStatus.PROCESSING)
+
+
+def reap_stale_runs(db: Session) -> int:
+    """fail measurement runs orphaned by a worker crash/restart; return the count.
+
+    a run left in FIRST_FRAME/PROCESSING when its worker died would otherwise sit
+    "processing" forever, and the redelivered acks_late task could re-run it. on
+    worker startup nothing is in flight, so every such run is orphaned - fail it so
+    the UI shows the error and the operator can re-run. assumes a single worker
+    (the deployment shape); the per-task time limit is the complementary guard for
+    a job that hangs without the worker dying.
+    """
+    repo = _repo(db)
+    stale = repo.list_by_statuses(list(_IN_PROGRESS_STATUSES))
+    for measurement in stale:
+        measurement.fail("processing interrupted - the worker restarted; re-run the measurement")
+        repo.save(measurement)
+    if stale:
+        db.commit()
+    return len(stale)

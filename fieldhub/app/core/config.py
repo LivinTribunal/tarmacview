@@ -73,12 +73,15 @@ class Settings(BaseSettings):
     mqtt_device_username: str = ""
     mqtt_device_password: str = ""
 
-    # device-facing https host pilot 2 points its cloud-service mode at - the
-    # laptop's lan ip, never a compose hostname. empty falls back to the host
-    # derived from mqtt_device_addr so the connect address tracks one source.
+    # device-facing host pilot 2 points its cloud-service mode at - the laptop's
+    # lan ip (or 10.0.2.2 for an android emulator), never a compose hostname.
+    # empty falls back to the host derived from mqtt_device_addr so the connect
+    # address tracks one source.
     public_host: str = ""
-    # published https port the connect url advertises
-    connect_port: int = 8443
+    # published scheme + port the connect url advertises - the hub serves plain
+    # http behind the nginx proxy on :8080 (no tls, nothing to install on the rc)
+    connect_scheme: str = "http"
+    connect_port: int = 8080
 
     # pilot operator account - login is rejected while the password is empty
     pilot_username: str = "pilot"
@@ -128,11 +131,11 @@ class Settings(BaseSettings):
         return ""
 
     def connect_url(self) -> str:
-        """https address pilot 2 connects to - empty when no host is derivable."""
+        """address pilot 2 connects to - empty when no host is derivable."""
         host = self.connect_host()
         if not host:
             return ""
-        return f"https://{host}:{self.connect_port}"
+        return f"{self.connect_scheme}://{host}:{self.connect_port}"
 
 
 settings = Settings()

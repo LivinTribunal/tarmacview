@@ -18,8 +18,14 @@ router = APIRouter(tags=["pilot"])
 
 @router.get("/", include_in_schema=False)
 def connect_page() -> FileResponse:
-    """serve the connect page pilot 2 loads in its cloud-service webview."""
-    return FileResponse(STATIC_DIR / "index.html")
+    """serve the connect page pilot 2 loads in its cloud-service webview.
+
+    no-store so the webview always fetches the latest page/flow - a cached
+    connect page keeps running a stale flow after a hub update.
+    """
+    return FileResponse(
+        STATIC_DIR / "index.html", headers={"Cache-Control": "no-store, must-revalidate"}
+    )
 
 
 @router.get("/pilot/config")

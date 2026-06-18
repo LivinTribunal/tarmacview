@@ -53,9 +53,11 @@ services:
       # only needed for runtime "add airport by ICAO" lookups in the UI.
       # Provide via shell env or .env.docker; empty by default.
       OPENAIP_API_KEY: ${OPENAIP_API_KEY:-}
-      # Field hub proxy (compose profile "field"). Empty url means no hub -
-      # the field-link status endpoint reports offline without a network call.
-      FIELDHUB_URL: ${FIELDHUB_URL:-}
+      # Field hub proxy. Defaults to the in-compose fieldhub so the backend stays
+      # wired across recreates (the field profile brings the hub up alongside it);
+      # when the hub isn't running the status endpoint degrades to offline on a
+      # fast connection failure. Override/empty to fully detach.
+      FIELDHUB_URL: ${FIELDHUB_URL:-http://fieldhub:8800}
       FIELDHUB_SHARED_SECRET: ${FIELDHUB_SHARED_SECRET:-}
       FIELDHUB_CA: ${FIELDHUB_CA:-}
     restart: unless-stopped
@@ -104,12 +106,17 @@ services:
       dockerfile: Dockerfile
     container_name: tarmacview-fieldhub
     profiles: ["field"]
+    # plain http behind the nginx proxy on :8080 - overrides the image's tls cmd
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8800"]
     env_file:
       - path: .env.docker
         required: false
     environment:
+      # plain mqtt (no tls) to match the emqx tcp listener
+      FIELDHUB_MQTT_ENABLED: "true"
       FIELDHUB_MQTT_HOST: emqx
-      FIELDHUB_MQTT_PORT: "8883"
+      FIELDHUB_MQTT_PORT: "1883"
+      FIELDHUB_MQTT_TLS: "false"
       FIELDHUB_MINIO_ENDPOINT: http://minio:9000
       FIELDHUB_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-tarmacview}
       FIELDHUB_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-tarmacview-minio}
@@ -123,8 +130,6 @@ services:
       FIELDHUB_MINIO_DEVICE_ENDPOINT: ${FIELDHUB_MINIO_DEVICE_ENDPOINT:-}
       # backend base url for media-event reporting (compose-internal)
       FIELDHUB_BACKEND_URL: http://backend:8000
-      FIELDHUB_TLS_CERT: /certs/server.crt
-      FIELDHUB_TLS_KEY: /certs/server.key
       FIELDHUB_SHARED_SECRET: ${FIELDHUB_SHARED_SECRET:-}
       # device registry lives in the shared postgres, own "fieldhub" schema
       FIELDHUB_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-tarmacview}:${POSTGRES_PASSWORD:-tarmacview}@postgres:5432/${POSTGRES_DB:-tarmacview}
@@ -140,10 +145,9 @@ services:
       FIELDHUB_DJI_APP_KEY: ${FIELDHUB_DJI_APP_KEY:-}
       FIELDHUB_DJI_APP_LICENSE: ${FIELDHUB_DJI_APP_LICENSE:-}
     restart: unless-stopped
+    # loopback-only direct port for debugging; device traffic goes via nginx :8080
     ports:
-      - "8443:8443"
-    volumes:
-      - ./certs/fieldhub:/certs:ro
+      - "127.0.0.1:8800:8800"
     depends_on:
       postgres:
         condition: service_healthy
@@ -152,28 +156,22 @@ services:
       minio:
         condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import ssl, urllib.request; urllib.request.urlopen('https://localhost:8443/healthz', context=ssl.create_default_context(cafile='/certs/ca.crt'))"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8800/healthz')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
 
+  # plain mqtt broker (no tls, anonymous) - pilot's thing module connects via
+  # <host>:1883. device auth + tls are real-rc concerns, out of scope here.
   emqx:
     image: emqx/emqx:5.8.9
     container_name: tarmacview-emqx
     profiles: ["field"]
     restart: unless-stopped
-    environment:
-      EMQX_LISTENERS__SSL__DEFAULT__BIND: "0.0.0.0:8883"
-      EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CERTFILE: /certs/server.crt
-      EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__KEYFILE: /certs/server.key
-      EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__CACERTFILE: /certs/ca.crt
-      # server-side tls only for now - per-device auth lands with the dji protocol work
-      EMQX_LISTENERS__SSL__DEFAULT__SSL_OPTIONS__VERIFY: verify_none
     ports:
-      - "8883:8883"
+      - "1883:1883"
     volumes:
-      - ./certs/emqx:/certs:ro
       - emqx-data:/opt/emqx/data
     healthcheck:
       test: ["CMD", "emqx", "ctl", "status"]
@@ -181,6 +179,22 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  # single device-facing http port - routes pilot traffic to the fieldhub api +
+  # connect page, and object-store bucket paths to minio (preserving the signed
+  # Host so presigned downloads validate). pilot connects to http://<host>:8080.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tarmacview-nginx
+    profiles: ["field"]
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./fieldhub/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - fieldhub
+      - minio
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z

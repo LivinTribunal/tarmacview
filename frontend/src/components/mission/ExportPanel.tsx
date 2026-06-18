@@ -78,8 +78,13 @@ export default function ExportPanel({
 }: ExportPanelProps) {
   /** flight-plan export, report download, and mission lifecycle controls. */
   const { t } = useTranslation();
-  // one poll shared by the status chip and the send-to-drone gate
-  const fieldLinkStatus = useFieldLinkStatus();
+  // one poll shared by the status chip, the send-to-drone gate, and the dialog
+  const {
+    status: fieldLinkStatus,
+    refresh: refreshFieldLink,
+    checking: fieldLinkChecking,
+    lastChecked: fieldLinkChecked,
+  } = useFieldLinkStatus();
   const [exportCollapsed, setExportCollapsed] = useState(false);
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(
     new Set(["KML"]),
@@ -313,6 +318,9 @@ export default function ExportPanel({
         isOpen={fieldHubOpen}
         onClose={() => setFieldHubOpen(false)}
         status={fieldLinkStatus}
+        onRefresh={refreshFieldLink}
+        checking={fieldLinkChecking}
+        lastChecked={fieldLinkChecked}
       />
 
       <MissionReportSection

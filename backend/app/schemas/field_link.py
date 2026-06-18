@@ -28,6 +28,9 @@ class FieldLinkStatusResponse(BaseModel):
     """hub reachability plus the device snapshot."""
 
     hub_online: bool
+    # pilot's http session is live (RC connected); distinct from broker_connected
+    # (hub<->broker link) and from a drone being online over mqtt
+    rc_connected: bool = False
     broker_connected: bool = False
     devices: list[FieldLinkDevice] = []
     # device-facing connect address proxied from the hub - null when no host set

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core import pilot_session
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import require_hub_secret
@@ -23,6 +24,7 @@ def status(
     """broker attachment plus the device registry with live online state."""
     return InternalStatusResponse(
         broker_connected=mqtt_listener.listener.connected,
+        rc_connected=pilot_session.session.is_connected(),
         devices=[InternalDeviceStatus(**e) for e in device_registry.snapshot(db)],
         connect_url=settings.connect_url() or None,
         public_host=settings.public_host or None,

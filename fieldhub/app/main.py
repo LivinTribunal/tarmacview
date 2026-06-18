@@ -22,6 +22,22 @@ from app.schemas.envelope import HttpResultResponse
 from app.services.mqtt_listener import listener
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """connect-page assets served no-store - pilot's android webview must never
+    cache the flow script, or it keeps running a stale connect flow after a hub
+    update (and never picks up e.g. the mission-module route-library sync)."""
+
+    def is_not_modified(self, response_headers, request_headers) -> bool:
+        """never answer 304 - always serve fresh so a rebuilt page reaches pilot."""
+        return False
+
+    async def get_response(self, path, scope):
+        """attach no-store to every static response."""
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """init the registry db and run the mqtt listener for the app's lifetime."""
@@ -59,7 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(media_router)
     app.include_router(internal_router)
     app.include_router(pilot_router)
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
     return app
 
 

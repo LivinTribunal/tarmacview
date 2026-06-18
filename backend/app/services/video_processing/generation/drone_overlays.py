@@ -62,12 +62,7 @@ class DroneOverlayRenderer:
                     "satellites": interpolated_gps.satellites,
                     "accuracy": interpolated_gps.accuracy,
                 }
-                logger.debug(
-                    f"Frame {frame_number}: Using real GPS data - "
-                    f"Lat: {interpolated_gps.latitude:.6f}, "
-                    f"Lon: {interpolated_gps.longitude:.6f}, "
-                    f"Elevation (WGS84): {interpolated_gps.elevation_wgs84:.1f}m"
-                )
+                logger.debug(f"Frame {frame_number}: Using real GPS data")
 
         # Priority 2: Use provided drone telemetry
         if not drone_data and drone_telemetry and frame_number < len(drone_telemetry):
@@ -173,9 +168,6 @@ class DroneOverlayRenderer:
                 + f"{'elevation_wgs84' if drone_elevation_wgs84 is None else ''}"
             )
 
-        # Log drone elevation for debugging
-        logger.debug(f"Calculating angles with drone elevation_wgs84: {drone_elevation_wgs84:.1f}m")
-
         for target_id, target_pos in reference_points.items():
             target_lat = target_pos.get("latitude")
             target_lon = target_pos.get("longitude")
@@ -197,13 +189,6 @@ class DroneOverlayRenderer:
 
                 # Calculate height difference (both elevations in WGS84)
                 height_diff = drone_elevation_wgs84 - target_elevation_wgs84
-
-                # Log height difference for debugging angle issues
-                logger.debug(
-                    f"{target_id}: drone_elevation_wgs84={drone_elevation_wgs84:.1f}m,"
-                    f" target_elevation_wgs84={target_elevation_wgs84:.1f}m, "
-                    f"height_diff={height_diff:.1f}m, ground_dist={ground_dist:.1f}m"
-                )
 
                 # Calculate vertical angle (elevation angle from horizontal)
                 if ground_dist > 0:

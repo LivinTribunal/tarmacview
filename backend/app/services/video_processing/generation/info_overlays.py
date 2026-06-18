@@ -128,21 +128,6 @@ class InfoOverlayRenderer:
         # Calculate angles to PAPI lights and touch point if reference points available
         if reference_points:
             try:
-                # Debug logging for first frame
-                if frame_number == 0:
-                    logger.info("=" * 80)
-                    logger.info("INFO_OVERLAYS DEBUG - FIRST FRAME:")
-                    logger.info(f"  drone_data: {drone_data}")
-                    logger.info(f"  reference_points keys: {list(reference_points.keys())}")
-                    logger.info(f"  frame_measurements type: {type(frame_measurements)}")
-                    if frame_measurements:
-                        logger.info(
-                            f"  frame_measurements keys: {list(frame_measurements.keys())[:20]}..."
-                        )  # First 20 keys
-                        for key in ["papi_a_angle", "papi_b_angle", "papi_c_angle", "papi_d_angle"]:
-                            logger.info(f"    {key}: {frame_measurements.get(key)}")
-                    logger.info("=" * 80)
-
                 # OPTIMIZATION: Use pre-computed PAPI angles from frame_measurements when available
                 papi_colors = {
                     "PAPI_A": (180, 130, 70),  # Steel blue (BGR)
@@ -410,12 +395,10 @@ class InfoOverlayRenderer:
                 error_msg = str(e)
                 logger.error(f"Error calculating angles: {error_msg}")
                 logger.error(f"Full traceback: {traceback.format_exc()}")
-                logger.error(f"drone_data: {drone_data}")
                 logger.error(
-                    f"reference_points keys:"
-                    f" {list(reference_points.keys()) if reference_points else 'None'}"
+                    f"reference_points count: {len(reference_points) if reference_points else 0}, "
+                    f"frame_measurements present: {frame_measurements is not None}"
                 )
-                logger.error(f"frame_measurements: {frame_measurements}")
                 # Render error message on the frame instead of crashing
                 cv2.putText(
                     frame,

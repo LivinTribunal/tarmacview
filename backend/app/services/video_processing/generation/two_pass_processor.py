@@ -245,9 +245,7 @@ class TwoPassProcessor:
         panel_height = 350  # Must match panel_height in InfoOverlayRenderer.add_angle_overlay
         extended_height = frame_height + panel_height
         enhanced_path = os.path.join(self.output_dir, f"{session_id}_enhanced_main_video.mp4")
-        enhanced_writer = FfmpegH264Writer(
-            enhanced_path, video_fps, frame_width, extended_height
-        )
+        enhanced_writer = FfmpegH264Writer(enhanced_path, video_fps, frame_width, extended_height)
 
         if not enhanced_writer.isOpened():
             raise ValueError(f"Failed to create enhanced video writer: {enhanced_path}")

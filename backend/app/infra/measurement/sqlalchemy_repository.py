@@ -154,6 +154,19 @@ class SqlAlchemyMeasurementRepository(MeasurementRepository):
         )
         return [_to_domain(r) for r in rows]
 
+    def list_by_statuses(self, statuses):
+        """all measurements currently in any of the given statuses (one read)."""
+        if not statuses:
+            return []
+        values = [s.value for s in statuses]
+        rows = (
+            self.db.query(MeasurementORM)
+            .filter(MeasurementORM.status.in_(values))
+            .order_by(MeasurementORM.created_at)
+            .all()
+        )
+        return [_to_domain(r) for r in rows]
+
     def save(self, measurement: Measurement) -> Measurement:
         """upsert one aggregate, flush, and return the persisted form."""
         row = self.db.query(MeasurementORM).filter(MeasurementORM.id == measurement.id).first()

@@ -9,6 +9,7 @@ TARMACVIEW-MERGE-PLAN.md D3/§6.
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from app.core.enums import MeasurementStatus
 from app.domain.measurement.entities import Measurement
 
 
@@ -26,6 +27,10 @@ class MeasurementRepository(ABC):
     @abstractmethod
     def list_by_inspections(self, inspection_ids: list[UUID]) -> list[Measurement]:
         """all measurements across many inspections, newest first (one batched read)."""
+
+    @abstractmethod
+    def list_by_statuses(self, statuses: list[MeasurementStatus]) -> list[Measurement]:
+        """all measurements currently in any of the given statuses (one read)."""
 
     @abstractmethod
     def save(self, measurement: Measurement) -> Measurement:

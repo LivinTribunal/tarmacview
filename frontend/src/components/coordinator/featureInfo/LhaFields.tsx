@@ -96,9 +96,15 @@ export default function LhaFields({
           const isPapi = parentAgl?.agl_type === "PAPI";
           if (isPapi) {
             // for PAPI the letter is a presentation of sequence_number
-            // (1=A, 2=B, 3=C, 4=D). show all four letters; picking one
-            // submits a sequence_number change so backend's shift logic
-            // reorders siblings (and relabels their letters).
+            // (1=A, 2=B, 3=C, 4=D). only offer as many letters as the agl
+            // has lights (capped at 4) so picking one can't submit a
+            // sequence_number past the backend's 1..N range. picking a
+            // letter submits a sequence_number change so backend's shift
+            // logic reorders siblings (and relabels their letters).
+            const lhaCount = parentAgl?.lhas?.length ?? 1;
+            const letters = Array.from({ length: Math.min(lhaCount, 4) }, (_, i) =>
+              String.fromCharCode(65 + i),
+            );
             const seq = Number(data.sequence_number);
             const currentLetter =
               Number.isFinite(seq) && seq >= 1 && seq <= 4
@@ -114,7 +120,7 @@ export default function LhaFields({
                 className="w-full px-3 py-1.5 rounded-full text-xs border border-tv-border bg-tv-bg text-tv-text-primary focus:outline-none focus:border-tv-accent transition-colors"
                 data-testid="feat-unit-designator"
               >
-                {["A", "B", "C", "D"].map((d) => (
+                {letters.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>

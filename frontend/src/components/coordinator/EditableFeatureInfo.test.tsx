@@ -450,12 +450,16 @@ describe("EditableFeatureInfo - PAPI unit designator", () => {
     // record is stale (server hasn't relabeled yet, or data has a pending
     // sequence patch but no letter patch)
     const lha = makeLha({
-      id: "p1",
+      id: "p3",
       agl_id: "agl-papi",
       unit_designator: "A",
       sequence_number: 3,
     });
-    const surface = makePapiSurface([lha]);
+    const surface = makePapiSurface([
+      makeLha({ id: "p1", agl_id: "agl-papi", unit_designator: "A", sequence_number: 1 }),
+      makeLha({ id: "p2", agl_id: "agl-papi", unit_designator: "B", sequence_number: 2 }),
+      lha,
+    ]);
     const feature: MapFeature = { type: "lha", data: lha };
 
     render(

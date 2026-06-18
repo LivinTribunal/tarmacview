@@ -19,6 +19,21 @@ import type { AirportDetailResponse } from "@/types/airport";
 import type { MapFeature } from "@/types/map";
 import type { PendingChange } from "@/hooks/useDirtyHistory";
 
+/** pull the FastAPI DomainError detail out of an axios error, string or {message} form. */
+function extractApiErrorMessage(err: unknown): string | null {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof (detail as { message: unknown }).message === "string"
+  ) {
+    return (detail as { message: string }).message;
+  }
+  return null;
+}
+
 interface UseAirportCrudParams {
   id: string | undefined;
   airport: AirportDetailResponse | null;
@@ -35,7 +50,7 @@ interface UseAirportCrudParams {
 
 interface AirportCrudReturn {
   deleteError: boolean;
-  saveError: boolean;
+  saveError: string | null;
   saving: boolean;
   deleteAirportError: string | null;
   setDeleteAirportError: React.Dispatch<React.SetStateAction<string | null>>;
@@ -64,7 +79,7 @@ export default function useAirportCrud({
   getMap,
 }: UseAirportCrudParams): AirportCrudReturn {
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
   const [deleteAirportError, setDeleteAirportError] = useState<string | null>(null);
 
@@ -201,7 +216,7 @@ export default function useAirportCrud({
     /** persist all pending changes to the backend, preserving map viewport. */
     if (!id || !airport) return;
     setSaving(true);
-    setSaveError(false);
+    setSaveError(null);
 
     // capture viewport before save
     const mapInst = getMap();
@@ -320,12 +335,14 @@ export default function useAirportCrud({
           mapInst.jumpTo(viewport);
         });
       }
-    } catch {
-      setSaveError(true);
+    } catch (err) {
+      // surface the backend's reason (e.g. "sequence_number must be between
+      // 1 and 3") instead of swallowing it; fall back to the generic banner.
+      setSaveError(extractApiErrorMessage(err) ?? t("coordinator.detail.saveError"));
     } finally {
       setSaving(false);
     }
-  }, [id, airport, getPendingChanges, clearAll, fetchAirport, selectedFeature, setSelectedFeature, getMap]);
+  }, [id, airport, getPendingChanges, clearAll, fetchAirport, selectedFeature, setSelectedFeature, getMap, t]);
 
   return {
     deleteError,

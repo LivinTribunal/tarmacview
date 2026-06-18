@@ -578,7 +578,7 @@ export default function AirportEditPage() {
           <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2">
             {(crud.saveError || crud.deleteError) && (
               <p className="text-xs text-tv-error">
-                {crud.saveError ? t("coordinator.detail.saveError") : t("coordinator.detail.deleteError")}
+                {crud.saveError || t("coordinator.detail.deleteError")}
               </p>
             )}
 

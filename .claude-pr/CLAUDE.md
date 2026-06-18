@@ -166,6 +166,7 @@ Changes to these paths:
 - **Frontend**: Vitest + React Testing Library
 - **Test location**: `backend/tests/test_{module}.py`, frontend co-located `{Component}.test.tsx`
 - **Fixtures**: shared in `conftest.py`, test data in `tests/data/` modules
+- **Unique airport ICAO codes per test file**: the backend test DB is **session-scoped** (one Postgres for the whole run, no per-test teardown - see `conftest.py::db_engine`), so every `icao_code` a test inserts must be unique across the *entire* suite, not just its own file. `icao_code` is `UNIQUE`, so a code reused by another module raises `duplicate key value violates unique constraint "airport_icao_code_key"` depending on collection order. Give each file its own distinctive prefix (e.g. `LZMB`, `MR**`/`MA**` counters) and never start a counter at `AAAA` - that range is already taken by `test_admin.py`. This has repeatedly bitten new test files; pick a prefix no other file uses.
 - **T3 paths** (trajectory, safety_validator, flight_plan, migrations) require thorough test coverage
 
 ## Security Constraints

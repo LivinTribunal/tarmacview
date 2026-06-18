@@ -135,6 +135,7 @@ def test_route_returns_degraded_payload(client, monkeypatch):
     assert response.status_code == 200
     assert response.json() == {
         "hub_online": False,
+        "rc_connected": False,
         "broker_connected": False,
         "devices": [],
         "connect_url": None,

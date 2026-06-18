@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.core.enums import MeasurementStatus
 from app.domain.measurement.entities import (
     LightBox,
     LightSummary,
@@ -83,8 +84,6 @@ def _summary_from_dict(d: dict) -> LightSummary:
 
 def _to_domain(row: MeasurementORM) -> Measurement:
     """map an orm row to the domain aggregate."""
-    from app.core.enums import MeasurementStatus
-
     return Measurement(
         id=row.id,
         inspection_id=row.inspection_id,
@@ -154,7 +153,7 @@ class SqlAlchemyMeasurementRepository(MeasurementRepository):
         )
         return [_to_domain(r) for r in rows]
 
-    def list_by_statuses(self, statuses):
+    def list_by_statuses(self, statuses: list[MeasurementStatus]) -> list[Measurement]:
         """all measurements currently in any of the given statuses (one read)."""
         if not statuses:
             return []

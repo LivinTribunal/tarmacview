@@ -28,7 +28,7 @@ class NoCacheStaticFiles(StaticFiles):
     update (and never picks up e.g. the mission-module route-library sync)."""
 
     def is_not_modified(self, response_headers, request_headers) -> bool:
-        # never answer 304 - always serve fresh so a rebuilt page reaches pilot
+        """never answer 304 - always serve fresh so a rebuilt page reaches pilot."""
         return False
 
     async def get_response(self, path, scope):

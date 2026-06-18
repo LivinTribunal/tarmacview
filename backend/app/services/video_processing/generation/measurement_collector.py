@@ -162,21 +162,6 @@ class MeasurementCollector:
                     "runway_heading": runway_heading,
                 }
 
-                # Log first frame's GPS data for debugging
-                if frame_num == 0:
-                    logger.info("=" * 80)
-                    logger.info("FIRST FRAME GPS DATA (all elevations in WGS84):")
-                    logger.info(f"  interpolated.elevation_wgs84 = {interpolated.elevation_wgs84}m")
-                    logger.info(f"  interpolated.latitude = {interpolated.latitude}")
-                    logger.info(f"  interpolated.longitude = {interpolated.longitude}")
-                    logger.info(
-                        f"  gps_cache[0]['elevation_wgs84'] = {gps_cache[0]['elevation_wgs84']}m"
-                    )
-                    logger.info(f"  reference_points keys = {list(reference_points.keys())}")
-                    for rp_name, rp_data in reference_points.items():
-                        logger.info(f"    {rp_name}: {rp_data}")
-                    logger.info("=" * 80)
-
         logger.info(f"Pre-computed GPS for {len(gps_cache)} frames")
 
         # Storage for measurements and cached data

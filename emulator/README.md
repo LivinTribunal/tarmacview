@@ -44,6 +44,26 @@ They both build the same `fieldhub` image and are mutually exclusive (shared
 host ports). Use the emulator for BlueStacks connect/login validation; use the
 `field` profile for real RC hardware (where TLS + the installed CA are required).
 
+## Rooted AVD (HTTPS / CA-trust testing)
+
+BlueStacks can only install a CA into the *user* store, which Pilot's webview
+won't trust - that is why this rig is HTTP-only. To exercise the HTTPS/MQTTS
+path (the V5 leg) without a real RC, use `avd-rc.sh`: a rootable Android Studio
+AVD (API 33, `google_apis`, arm64) where the local CA can be planted in the
+*system* store so Pilot trusts the hub's self-signed cert.
+
+```bash
+./emulator/avd-rc.sh setup       # installs cmdline-tools + image, creates the AVD (large download)
+./emulator/avd-rc.sh start       # boots with a writable system partition
+./emulator/avd-rc.sh trust-ca    # plants certs/fieldhub/ca.crt in the system store
+./emulator/avd-rc.sh install-apk <pilot2.apk>
+```
+
+Then point Pilot at the production HTTPS hub (`https://10.0.2.2:8443`, brought
+up by `./start-field.sh`). The system-store install is more permissive than a
+real RC - also test the *user* store (Settings -> Security -> Install a
+certificate) to predict actual RC behavior. See the header of `avd-rc.sh`.
+
 ## Teardown
 
 ```bash

@@ -13,7 +13,7 @@ DRIVER = Path(__file__).parent / "data" / "pilot_connect_driver.js"
 
 requires_node = pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
 
-# full happy-path order: license verify -> login -> api -> thing -> media
+# full happy-path order: license verify -> login -> api -> thing -> media -> mission
 HAPPY_EVENTS = [
     "fetch:GET:/pilot/config",
     "bridge:platformVerifyLicense",
@@ -26,6 +26,7 @@ HAPPY_EVENTS = [
     "bridge:platformSetInformation",
     "bridge:thingGetConnectState",
     "bridge:platformLoadComponent:media",
+    "bridge:platformLoadComponent:mission",
 ]
 
 

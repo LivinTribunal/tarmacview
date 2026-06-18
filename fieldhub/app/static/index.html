@@ -112,6 +112,9 @@
     <li id="status-media" data-state="pending">
       <span class="mark">&#9675;</span><span class="step">Media auto-upload</span><span class="state">waiting</span>
     </li>
+    <li id="status-mission" data-state="pending">
+      <span class="mark">&#9675;</span><span class="step">Route library</span><span class="state">waiting</span>
+    </li>
   </ul>
 
   <p id="error-line" hidden></p>
@@ -185,6 +188,37 @@
     });
   }
 
+  // session cache - keeps a webview refresh from forcing a re-login. the cached
+  // token is validated + rotated via token/refresh on resume (in pilot-connect.js),
+  // so a stale/expired token here just falls back to the credential form.
+  var LOGIN_CACHE_KEY = "tarmacview_fieldhub_login";
+
+  function loadCachedLogin() {
+    try {
+      var raw = localStorage.getItem(LOGIN_CACHE_KEY);
+      if (!raw) return null;
+      var login = JSON.parse(raw);
+      var token = login && login.access_token;
+      if (!token) return null;
+      var payload = JSON.parse(atob(token.split(".")[1]));
+      if (!payload.exp || payload.exp * 1000 <= Date.now()) {
+        localStorage.removeItem(LOGIN_CACHE_KEY);
+        return null;
+      }
+      return login;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveLogin(login) {
+    try { localStorage.setItem(LOGIN_CACHE_KEY, JSON.stringify(login)); } catch (e) {}
+  }
+
+  function clearCachedLogin() {
+    try { localStorage.removeItem(LOGIN_CACHE_KEY); } catch (e) {}
+  }
+
   function startFlow(credentials) {
     connect.runConnectFlow({
       bridge: window.djiBridge,
@@ -195,6 +229,9 @@
       getCredentials: credentials
         ? function () { return Promise.resolve(credentials); }
         : waitForCredentials,
+      loadCachedLogin: loadCachedLogin,
+      saveLogin: saveLogin,
+      clearCachedLogin: clearCachedLogin,
     }).then(function (result) {
       if (!result.completed) setFormEnabled(true);
     });

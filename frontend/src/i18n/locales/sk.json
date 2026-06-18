@@ -1103,9 +1103,10 @@
     },
     "fieldLink": {
       "noHub": "Field hub nepripojený",
-      "offline": "RC offline",
-      "online": "RC pripojené – {{model}}",
-      "onlineUnknownModel": "RC pripojené"
+      "rcConnected": "RC pripojené",
+      "rcOffline": "RC offline",
+      "mqttConnected": "MQTT pripojené",
+      "mqttDisconnected": "MQTT odpojené"
     },
     "fieldHub": {
       "open": "Field Hub",
@@ -1141,7 +1142,7 @@
       "success": "Misia odoslaná – zobrazí sa v knižnici trás Pilota",
       "error": "Odoslanie misie do drona zlyhalo",
       "clampWarning": "Niektoré výšky boli orezané na referenčnú výšku vzletu. Skontrolujte výškové upozornenie a potvrďte odoslanie.",
-      "linkOffline": "Field link je offline",
+      "hubOffline": "Field hub nepripojený",
       "statusGate": "Misia musí byť najskôr validovaná"
     },
     "uploadDroneMediaDialog": {

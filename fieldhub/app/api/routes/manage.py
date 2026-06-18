@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core import pilot_session
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import constant_time_equals, create_access_token, require_pilot_token
@@ -90,6 +91,8 @@ def login(body: LoginRequest) -> HttpResultResponse:
         body.password, settings.pilot_password
     ):
         return error("invalid username or password")
+    # mark the rc connected the moment pilot logs in (before its first poll)
+    pilot_session.session.touch()
     return ok(_login_data(body.username))
 
 

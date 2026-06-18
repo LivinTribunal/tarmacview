@@ -12,6 +12,7 @@ const mockedGet = vi.mocked(getFieldLinkStatus);
 
 const ONLINE: FieldLinkStatusResponse = {
   hub_online: true,
+  rc_connected: true,
   broker_connected: true,
   devices: [],
   connect_url: null,
@@ -48,6 +49,7 @@ describe("useFieldLinkStatus", () => {
     });
     expect(result.current).toEqual({
       hub_online: false,
+      rc_connected: false,
       broker_connected: false,
       devices: [],
       connect_url: null,

@@ -1,15 +1,22 @@
 import { useTranslation } from "react-i18next";
 import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 
-type LinkState = "noHub" | "offline" | "online";
+type RcState = "noHub" | "offline" | "online";
+type MqttState = "on" | "off";
 
-const DOMAIN_AIRCRAFT = 0;
-
-const DOT_CLASSES: Record<LinkState, string> = {
+const RC_DOT: Record<RcState, string> = {
   noHub: "bg-[var(--tv-text-secondary)]",
   offline: "bg-[var(--tv-error)]",
   online: "bg-[var(--tv-success)]",
 };
+
+const MQTT_DOT: Record<MqttState, string> = {
+  on: "bg-[var(--tv-success)]",
+  off: "bg-[var(--tv-text-secondary)]",
+};
+
+const PILL_CLASS =
+  "inline-flex items-center gap-1.5 rounded-full border border-[var(--tv-border)] bg-[var(--tv-surface)] px-2.5 py-0.5 text-xs font-semibold text-[var(--tv-text-secondary)]";
 
 export interface FieldLinkStatusChipProps {
   /** poll result owned by the parent so chip + send-to-drone share one poll. */
@@ -17,41 +24,47 @@ export interface FieldLinkStatusChipProps {
 }
 
 export default function FieldLinkStatusChip({ status }: FieldLinkStatusChipProps) {
-  /** rc link state from the field hub - hidden until the first poll response. */
+  /** two independent field-hub signals: the RC's http link and live MQTT telemetry. */
   const { t } = useTranslation();
 
   if (!status) return null;
 
-  const onlineDevices = status.devices.filter((d) => d.online);
-  const state: LinkState = !status.hub_online
+  // RC: pilot's http session with the hub - true once pilot has connected and
+  // can receive missions. NOT mqtt: a controller is "connected" over http long
+  // before (or without) any drone publishing telemetry.
+  const rcState: RcState = !status.hub_online
     ? "noHub"
-    : onlineDevices.length > 0
+    : status.rc_connected
       ? "online"
       : "offline";
+  const rcLabel =
+    rcState === "noHub"
+      ? t("mission.fieldLink.noHub")
+      : rcState === "online"
+        ? t("mission.fieldLink.rcConnected")
+        : t("mission.fieldLink.rcOffline");
 
-  // prefer the aircraft model in the label - the rc is the gateway, but the
-  // operator cares which drone is attached
-  const aircraft = onlineDevices.find((d) => d.domain === DOMAIN_AIRCRAFT);
-  const model = (aircraft ?? onlineDevices[0])?.model_name ?? null;
-
-  const label =
-    state === "online"
-      ? model
-        ? t("mission.fieldLink.online", { model })
-        : t("mission.fieldLink.onlineUnknownModel")
-      : t(`mission.fieldLink.${state}`);
+  // MQTT: a drone/RC is actually live on the broker (telemetry flowing). the
+  // hub's own broker attachment isn't enough - this needs a device online.
+  const mqttState: MqttState = status.devices.some((d) => d.online) ? "on" : "off";
+  const mqttLabel =
+    mqttState === "on"
+      ? t("mission.fieldLink.mqttConnected")
+      : t("mission.fieldLink.mqttDisconnected");
 
   return (
     <span
       data-testid="field-link-chip"
-      data-state={state}
-      className="inline-flex items-center gap-1.5 self-start rounded-full border border-[var(--tv-border)] bg-[var(--tv-surface)] px-2.5 py-0.5 text-xs font-semibold text-[var(--tv-text-secondary)]"
+      className="inline-flex flex-wrap items-center justify-end gap-2"
     >
-      <span
-        className={`h-2 w-2 rounded-full ${DOT_CLASSES[state]}`}
-        aria-hidden="true"
-      />
-      {label}
+      <span data-testid="field-link-rc" data-state={rcState} className={PILL_CLASS}>
+        <span className={`h-2 w-2 rounded-full ${RC_DOT[rcState]}`} aria-hidden="true" />
+        {rcLabel}
+      </span>
+      <span data-testid="field-link-mqtt" data-state={mqttState} className={PILL_CLASS}>
+        <span className={`h-2 w-2 rounded-full ${MQTT_DOT[mqttState]}`} aria-hidden="true" />
+        {mqttLabel}
+      </span>
     </span>
   );
 }

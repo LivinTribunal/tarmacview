@@ -671,6 +671,7 @@ describe("ExportPanel - field link wiring", () => {
   it("feeds the shared link status to the chip and the send-to-drone gate", () => {
     vi.mocked(useFieldLinkStatus).mockReturnValue({
       hub_online: true,
+      rc_connected: true,
       broker_connected: true,
       connect_url: "https://192.168.8.50:8443",
       public_host: "192.168.8.50",
@@ -688,9 +689,9 @@ describe("ExportPanel - field link wiring", () => {
     });
     renderPanel();
 
-    const chip = screen.getByTestId("field-link-chip");
-    expect(chip).toHaveAttribute("data-state", "online");
-    expect(chip.textContent).toContain("RC connected");
+    const rc = screen.getByTestId("field-link-rc");
+    expect(rc).toHaveAttribute("data-state", "online");
+    expect(rc.textContent).toContain("RC connected");
     // VALIDATED mission + online device -> dispatch allowed
     expect(screen.getByTestId("send-to-drone-btn")).not.toBeDisabled();
   });
@@ -698,6 +699,7 @@ describe("ExportPanel - field link wiring", () => {
   it("keeps the send button disabled for non-exportable missions even when online", () => {
     vi.mocked(useFieldLinkStatus).mockReturnValue({
       hub_online: true,
+      rc_connected: true,
       broker_connected: true,
       connect_url: "https://192.168.8.50:8443",
       public_host: "192.168.8.50",

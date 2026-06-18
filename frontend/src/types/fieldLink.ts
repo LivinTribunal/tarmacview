@@ -12,6 +12,9 @@ export interface FieldLinkDevice {
 
 export interface FieldLinkStatusResponse {
   hub_online: boolean;
+  // pilot's http session is live (RC connected); separate from broker_connected
+  // (hub<->broker link) and from a drone being online over MQTT (devices[].online)
+  rc_connected: boolean;
   broker_connected: boolean;
   devices: FieldLinkDevice[];
   connect_url: string | null;

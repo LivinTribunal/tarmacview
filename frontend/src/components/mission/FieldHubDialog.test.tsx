@@ -25,14 +25,16 @@ const M350: FieldLinkDevice = {
 
 const ONLINE: FieldLinkStatusResponse = {
   hub_online: true,
+  rc_connected: true,
   broker_connected: true,
-  connect_url: "https://192.168.8.50:8443",
+  connect_url: "http://192.168.8.50:8080",
   public_host: "192.168.8.50",
   devices: [M350],
 };
 
 const OFFLINE: FieldLinkStatusResponse = {
   hub_online: false,
+  rc_connected: false,
   broker_connected: false,
   connect_url: null,
   public_host: null,
@@ -41,6 +43,7 @@ const OFFLINE: FieldLinkStatusResponse = {
 
 const NO_HOST: FieldLinkStatusResponse = {
   hub_online: true,
+  rc_connected: true,
   broker_connected: true,
   connect_url: null,
   public_host: null,
@@ -74,7 +77,7 @@ describe("FieldHubDialog", () => {
     renderDialog();
 
     expect(screen.getByTestId("field-hub-connect-url").textContent).toBe(
-      "https://192.168.8.50:8443",
+      "http://192.168.8.50:8080",
     );
     const qr = screen.getByTestId("field-hub-qr");
     expect(qr.querySelector("path")?.getAttribute("d")).toBeTruthy();
@@ -95,7 +98,7 @@ describe("FieldHubDialog", () => {
     fireEvent.click(screen.getByTestId("field-hub-copy-btn"));
 
     await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith("https://192.168.8.50:8443"),
+      expect(writeText).toHaveBeenCalledWith("http://192.168.8.50:8080"),
     );
   });
 

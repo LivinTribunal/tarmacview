@@ -47,6 +47,7 @@ def get_field_link_status(
             body = response.json()
         return FieldLinkStatusResponse(
             hub_online=True,
+            rc_connected=bool(body.get("rc_connected", False)),
             broker_connected=bool(body.get("broker_connected", False)),
             devices=[FieldLinkDevice(**device) for device in body.get("devices", [])],
             connect_url=body.get("connect_url"),

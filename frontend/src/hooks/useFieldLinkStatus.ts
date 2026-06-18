@@ -5,6 +5,7 @@ import { FIELD_LINK_POLL_INTERVAL_MS } from "@/constants/ui";
 
 const NO_HUB: FieldLinkStatusResponse = {
   hub_online: false,
+  rc_connected: false,
   broker_connected: false,
   devices: [],
   connect_url: null,

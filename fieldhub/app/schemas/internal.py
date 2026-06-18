@@ -21,6 +21,9 @@ class InternalStatusResponse(BaseModel):
     """hub-side state for the backend proxy."""
 
     broker_connected: bool
+    # pilot's authenticated http session is alive (the 'RC connected' signal,
+    # distinct from a drone being online over mqtt)
+    rc_connected: bool = False
     devices: list[InternalDeviceStatus]
     # device-facing connect address pilot 2 points at - null when unprovisioned
     connect_url: str | None = None

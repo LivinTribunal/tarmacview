@@ -66,6 +66,7 @@ function makeStatus(
 ): FieldLinkStatusResponse {
   return {
     hub_online: true,
+    rc_connected: false,
     broker_connected: true,
     devices: [],
     connect_url: null,
@@ -81,43 +82,47 @@ describe("FieldLinkStatusChip", () => {
     expect(screen.queryByTestId("field-link-chip")).toBeNull();
   });
 
-  it("renders the no-hub state when the backend reports the hub offline", () => {
+  it("RC shows no-hub when the backend reports the hub offline", () => {
     render(<FieldLinkStatusChip status={makeStatus({ hub_online: false })} />);
 
-    const chip = screen.getByTestId("field-link-chip");
-    expect(chip).toHaveAttribute("data-state", "noHub");
-    expect(chip.textContent).toBe("Field hub not connected");
+    const rc = screen.getByTestId("field-link-rc");
+    expect(rc).toHaveAttribute("data-state", "noHub");
+    expect(rc.textContent).toBe("Field hub not connected");
   });
 
-  it("renders the offline state when the hub is up but no device is online", () => {
-    render(
+  it("RC shows connected from the pilot session, independent of MQTT devices", () => {
+    render(<FieldLinkStatusChip status={makeStatus({ rc_connected: true, devices: [] })} />);
+
+    const rc = screen.getByTestId("field-link-rc");
+    expect(rc).toHaveAttribute("data-state", "online");
+    expect(rc.textContent).toBe("RC connected");
+  });
+
+  it("RC shows offline when the hub is up but pilot has no session", () => {
+    render(<FieldLinkStatusChip status={makeStatus({ rc_connected: false })} />);
+
+    const rc = screen.getByTestId("field-link-rc");
+    expect(rc).toHaveAttribute("data-state", "offline");
+    expect(rc.textContent).toBe("RC offline");
+  });
+
+  it("MQTT reflects a real device online, not just the broker link or rc session", () => {
+    // pilot session + broker up, but NO drone on mqtt -> MQTT disconnected
+    const { rerender } = render(
       <FieldLinkStatusChip
-        status={makeStatus({ devices: [{ ...RC_PLUS, online: false }] })}
+        status={makeStatus({
+          rc_connected: true,
+          broker_connected: true,
+          devices: [{ ...RC_PLUS, online: false }],
+        })}
       />,
     );
+    expect(screen.getByTestId("field-link-mqtt")).toHaveAttribute("data-state", "off");
+    expect(screen.getByTestId("field-link-mqtt").textContent).toBe("MQTT disconnected");
 
-    const chip = screen.getByTestId("field-link-chip");
-    expect(chip).toHaveAttribute("data-state", "offline");
-    expect(chip.textContent).toBe("RC offline");
-  });
-
-  it("renders the online state preferring the aircraft model", () => {
-    render(<FieldLinkStatusChip status={makeStatus({ devices: [RC_PLUS, M350] })} />);
-
-    const chip = screen.getByTestId("field-link-chip");
-    expect(chip).toHaveAttribute("data-state", "online");
-    expect(chip.textContent).toBe("RC connected – Matrice 350 RTK");
-  });
-
-  it("falls back to model-less copy for unknown devices", () => {
-    render(
-      <FieldLinkStatusChip
-        status={makeStatus({ devices: [{ ...RC_PLUS, model_name: null }] })}
-      />,
-    );
-
-    const chip = screen.getByTestId("field-link-chip");
-    expect(chip).toHaveAttribute("data-state", "online");
-    expect(chip.textContent).toBe("RC connected");
+    // a drone live on mqtt -> MQTT connected
+    rerender(<FieldLinkStatusChip status={makeStatus({ devices: [M350] })} />);
+    expect(screen.getByTestId("field-link-mqtt")).toHaveAttribute("data-state", "on");
+    expect(screen.getByTestId("field-link-mqtt").textContent).toBe("MQTT connected");
   });
 });

@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 
 from app.core.config import settings
 from app.core.exceptions import HubApiError
+from app.core.pilot_session import session
 
 CODE_UNAUTHORIZED = 401
 
@@ -39,7 +40,11 @@ def require_pilot_token(x_auth_token: str | None = Header(default=None)) -> dict
     """dependency: validate the x-auth-token header, return claims."""
     if not x_auth_token:
         raise HubApiError(code=CODE_UNAUTHORIZED, message="missing x-auth-token", http_status=401)
-    return verify_token(x_auth_token)
+    claims = verify_token(x_auth_token)
+    # any authenticated pilot request refreshes the http-session heartbeat behind
+    # the 'RC connected' indicator (distinct from mqtt device-online telemetry)
+    session.touch()
+    return claims
 
 
 def constant_time_equals(value: str, expected: str) -> bool:

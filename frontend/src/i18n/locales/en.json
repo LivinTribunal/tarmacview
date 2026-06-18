@@ -1099,9 +1099,10 @@
     },
     "fieldLink": {
       "noHub": "Field hub not connected",
-      "offline": "RC offline",
-      "online": "RC connected – {{model}}",
-      "onlineUnknownModel": "RC connected"
+      "rcConnected": "RC connected",
+      "rcOffline": "RC offline",
+      "mqttConnected": "MQTT connected",
+      "mqttDisconnected": "MQTT disconnected"
     },
     "fieldHub": {
       "open": "Field Hub",
@@ -1137,7 +1138,7 @@
       "success": "Mission sent – it will appear in Pilot's route library",
       "error": "Failed to send the mission to the drone",
       "clampWarning": "Some altitudes were clamped to the takeoff reference. Review the altitude warning, then acknowledge to send.",
-      "linkOffline": "Field link is offline",
+      "hubOffline": "Field hub not connected",
       "statusGate": "Mission must be validated first"
     },
     "uploadDroneMediaDialog": {

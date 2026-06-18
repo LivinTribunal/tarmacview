@@ -56,6 +56,7 @@ EXPECTED_PUBLIC = {
     "recalculate_obstacle_dimensions",
     "recalculate_surface_dimensions",
     "renormalize_airport_altitudes",
+    "reverse_lha_sequence",
     "set_default_drone",
     "update_agl",
     "update_airport",

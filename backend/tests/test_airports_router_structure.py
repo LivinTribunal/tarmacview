@@ -10,7 +10,8 @@ from app.api.routes.airports import router as airports_router
 from app.main import app
 
 # (method, path, route function name) - 39 routes byte-identical to the
-# single-file router before decomposition, plus extract-photo-metadata.
+# single-file router before decomposition, plus extract-photo-metadata and the
+# PAPI reverse-numbering action.
 # a missing/extra/renamed route or a changed path breaks this on purpose.
 EXPECTED_ROUTES = {
     ("GET", "/api/v1/airports", "list_airports"),
@@ -83,6 +84,11 @@ EXPECTED_ROUTES = {
         "POST",
         "/api/v1/airports/{airport_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/bulk",
         "bulk_generate_lhas",
+    ),
+    (
+        "POST",
+        "/api/v1/airports/{airport_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/reverse",
+        "reverse_lhas",
     ),
     (
         "PUT",

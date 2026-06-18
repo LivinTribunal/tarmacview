@@ -2,7 +2,7 @@
 
 covers auto-assign on create, explicit-on-create shift, update shift up/down,
 no-op, out-of-range rejection, density after several reorderings, bulk-generate
-sequence assignment, and delete-keeps-dense.
+sequence assignment, delete-keeps-dense, and the full-row PAPI reverse flip.
 """
 
 from tests.data.airports import AGL_PAYLOAD, AIRPORT_PAYLOAD, LHA_PAYLOAD, SURFACE_PAYLOAD
@@ -271,3 +271,106 @@ def test_non_papi_unit_designator_still_freeform(client):
     body = r.json()
     assert body["unit_designator"] == "FOO"
     assert body["sequence_number"] == original_seq
+
+
+# PAPI reverse numbering (A,B,C,D -> D,C,B,A)
+
+
+def test_reverse_papi_flips_designators(client):
+    """reverse flips A,B,C,D -> D,C,B,A; sequence stays dense, letters aligned."""
+    base, lhas = _setup(client, "LRVA", count=4)
+    a_id = next(lha["id"] for lha in lhas if lha["unit_designator"] == "A")
+    d_id = next(lha["id"] for lha in lhas if lha["unit_designator"] == "D")
+
+    r = client.post(f"{base}/reverse")
+    assert r.status_code == 200
+    # the reverse response returns the reordered list, dense + aligned
+    data = r.json()["data"]
+    assert [(row["sequence_number"], row["unit_designator"]) for row in data] == [
+        (1, "A"),
+        (2, "B"),
+        (3, "C"),
+        (4, "D"),
+    ]
+
+    # refetch confirms the invariant holds in the db
+    assert _seqs(client, base) == [(1, "A"), (2, "B"), (3, "C"), (4, "D")]
+
+    rows = client.get(base).json()["data"]
+    by_id = {row["id"]: row for row in rows}
+    # the light that started as A (seq 1) is now D (seq 4) and vice versa
+    assert by_id[a_id]["sequence_number"] == 4
+    assert by_id[a_id]["unit_designator"] == "D"
+    assert by_id[d_id]["sequence_number"] == 1
+    assert by_id[d_id]["unit_designator"] == "A"
+
+
+def test_reverse_preserves_physical_attributes(client):
+    """reverse moves only sequence/designator; physical columns ride with the id."""
+    base, lhas = _setup(client, "LRVB", count=4)
+
+    # give each light a distinct setting_angle + tolerance so we can track it
+    attrs = {}
+    for i, lha in enumerate(lhas):
+        r = client.put(
+            f"{base}/{lha['id']}",
+            json={"setting_angle": 2.5 + i, "tolerance": 0.1 + i * 0.05},
+        )
+        assert r.status_code == 200
+        body = r.json()
+        attrs[lha["id"]] = {
+            "setting_angle": body["setting_angle"],
+            "tolerance": body["tolerance"],
+            "position": body["position"],
+            "lamp_type": body["lamp_type"],
+        }
+
+    r = client.post(f"{base}/reverse")
+    assert r.status_code == 200
+
+    rows = client.get(base).json()["data"]
+    by_id = {row["id"]: row for row in rows}
+    for lid, expected in attrs.items():
+        assert by_id[lid]["setting_angle"] == expected["setting_angle"]
+        assert by_id[lid]["tolerance"] == expected["tolerance"]
+        assert by_id[lid]["position"] == expected["position"]
+        assert by_id[lid]["lamp_type"] == expected["lamp_type"]
+
+
+def test_reverse_double_is_identity(client):
+    """reversing twice restores the original per-id numbering."""
+    base, lhas = _setup(client, "LRVD", count=4)
+    before = {lha["id"]: lha["sequence_number"] for lha in lhas}
+
+    assert client.post(f"{base}/reverse").status_code == 200
+    assert client.post(f"{base}/reverse").status_code == 200
+
+    rows = client.get(base).json()["data"]
+    after = {row["id"]: row["sequence_number"] for row in rows}
+    assert after == before
+    assert _seqs(client, base) == [(1, "A"), (2, "B"), (3, "C"), (4, "D")]
+
+
+def test_reverse_non_papi_rejected(client):
+    """reverse on a non-PAPI agl is rejected with 422."""
+    base, lhas = _setup(client, "LRVE", count=3, agl_type="RUNWAY_EDGE_LIGHTS")
+    r = client.post(f"{base}/reverse")
+    assert r.status_code == 422
+
+
+def test_reverse_two_lights(client):
+    """reverse works with exactly two lights: A,B -> the lights swap labels."""
+    base, lhas = _setup(client, "LRVF", count=2)
+    a_id = next(lha["id"] for lha in lhas if lha["unit_designator"] == "A")
+    b_id = next(lha["id"] for lha in lhas if lha["unit_designator"] == "B")
+
+    r = client.post(f"{base}/reverse")
+    assert r.status_code == 200
+
+    assert _seqs(client, base) == [(1, "A"), (2, "B")]
+    rows = client.get(base).json()["data"]
+    by_id = {row["id"]: row for row in rows}
+    assert by_id[a_id]["sequence_number"] == 2
+    assert by_id[a_id]["unit_designator"] == "B"
+    assert by_id[b_id]["sequence_number"] == 1
+    assert by_id[b_id]["unit_designator"] == "A"

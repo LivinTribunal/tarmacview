@@ -42,7 +42,7 @@ function renderLogin() {
   );
 }
 
-async function fillAndSubmit() {
+async function fillFields() {
   await waitFor(() => {
     expect(screen.getByTestId("email-input")).toBeInTheDocument();
   });
@@ -52,6 +52,10 @@ async function fillAndSubmit() {
   fireEvent.change(screen.getByTestId("password-input"), {
     target: { value: "password123" },
   });
+}
+
+async function fillAndSubmit() {
+  await fillFields();
   fireEvent.click(screen.getByTestId("login-button"));
 }
 
@@ -93,6 +97,53 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(screen.getByText("airport selection page")).toBeInTheDocument();
     });
+  });
+
+  it("submits on Enter in the password field, identical to clicking Login", async () => {
+    vi.mocked(client.post).mockResolvedValueOnce({
+      data: { access_token: "tok", user: MOCK_USER },
+    });
+
+    renderLogin();
+    await fillFields();
+    fireEvent.keyDown(screen.getByTestId("password-input"), { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText("airport selection page")).toBeInTheDocument();
+    });
+    expect(client.post).toHaveBeenCalledWith("/auth/login", {
+      email: "test@example.com",
+      password: "password123",
+    });
+  });
+
+  it("submits on Enter in the email field too", async () => {
+    vi.mocked(client.post).mockResolvedValueOnce({
+      data: { access_token: "tok", user: MOCK_USER },
+    });
+
+    renderLogin();
+    await fillFields();
+    fireEvent.keyDown(screen.getByTestId("email-input"), { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText("airport selection page")).toBeInTheDocument();
+    });
+  });
+
+  it("ignores Enter while composing (IME)", async () => {
+    renderLogin();
+    await fillFields();
+    fireEvent.keyDown(screen.getByTestId("password-input"), {
+      key: "Enter",
+      isComposing: true,
+    });
+
+    // only the mount-time refresh ran; no /auth/login submit
+    expect(client.post).not.toHaveBeenCalledWith(
+      "/auth/login",
+      expect.anything(),
+    );
   });
 
   it("shows the error on failure and clears it before the retry resolves", async () => {

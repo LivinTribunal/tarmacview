@@ -1,5 +1,6 @@
 """internal status endpoint - shared-secret gate and registry snapshot."""
 
+from app.core import pilot_session
 from app.core.config import settings
 from app.services.mqtt_listener import handle_message
 from tests.data.mqtt_messages import (
@@ -85,3 +86,28 @@ def test_status_connect_url_null_when_unprovisioned(client, monkeypatch):
 
     assert body["public_host"] is None
     assert body["connect_url"] is None
+
+
+def test_status_rc_disconnected_before_pilot_activity(client, monkeypatch):
+    """no pilot http traffic -> rc_connected false."""
+    monkeypatch.setattr(settings, "shared_secret", "s3cret")
+    pilot_session.session.reset()
+
+    body = client.get(STATUS_PATH, headers={"X-Hub-Secret": "s3cret"}).json()
+
+    assert body["rc_connected"] is False
+
+
+def test_status_rc_connected_after_pilot_login(client, monkeypatch):
+    """a pilot login touches the http-session heartbeat -> rc_connected true."""
+    monkeypatch.setattr(settings, "shared_secret", "s3cret")
+    pilot_session.session.reset()
+    login = client.post(
+        "/manage/api/v1/login",
+        json={"username": "pilot", "password": "field-test-password", "flag": 2},
+    )
+    assert login.json()["code"] == 0
+
+    body = client.get(STATUS_PATH, headers={"X-Hub-Secret": "s3cret"}).json()
+
+    assert body["rc_connected"] is True

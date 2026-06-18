@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
+from app.domain.measurement.entities import Measurement
 from app.schemas.measurement import LightBox
 from app.services import measurement_service
 from tests.data.airports import AGL_PAYLOAD, AIRPORT_PAYLOAD, LHA_PAYLOAD, SURFACE_PAYLOAD
@@ -332,6 +333,126 @@ def test_run_first_frame_missing_measurement_raises(session):
     s, _ = session
     with pytest.raises(NotFoundError):
         measurement_service.run_first_frame(s, uuid4())
+
+
+def test_run_first_frame_idempotent_on_non_queued(session, inspection_with_media, monkeypatch):
+    """a redelivered first-frame task on an already-advanced run no-ops, never re-extracts."""
+    s, created = session
+
+    def must_not_extract(*a, **k):
+        raise AssertionError("first-frame must not re-extract on a non-QUEUED run")
+
+    monkeypatch.setattr(measurement_service, "extract_first_frame_and_detect", must_not_extract)
+
+    m = measurement_service.create_measurement(s, inspection_with_media)
+    s.commit()
+    created.append(m.id)
+    m.transition_to(MeasurementStatus.FIRST_FRAME)
+    m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
+    measurement_service._repo(s).save(m)
+    s.commit()
+
+    result = measurement_service.run_first_frame(s, m.id)
+    assert result.status == MeasurementStatus.AWAITING_CONFIRM
+
+
+def test_run_processing_idempotent_on_done(session, inspection_with_media, monkeypatch):
+    """a redelivered processing task on a finished run no-ops, never re-runs the engine."""
+    s, created = session
+    _stub_storage(monkeypatch)
+    m = _drive_to_processing(s, created, inspection_with_media)
+
+    fresh = measurement_service._repo(s).get_by_id(m.id)
+    fresh.transition_to(MeasurementStatus.DONE)
+    measurement_service._repo(s).save(fresh)
+    s.commit()
+
+    def must_not_run(*a, **k):
+        raise AssertionError("engine must not re-run on a finished run")
+
+    monkeypatch.setattr(measurement_service, "extract_gps_data", must_not_run)
+    monkeypatch.setattr(measurement_service, "run_two_pass_processing", must_not_run)
+
+    result = measurement_service.run_processing(s, m.id)
+    assert result.status == MeasurementStatus.DONE
+
+
+def test_run_processing_idempotent_on_error(session, inspection_with_media, monkeypatch):
+    """a redelivered processing task on a reaped/errored run no-ops instead of reprocessing."""
+    s, created = session
+    _stub_storage(monkeypatch)
+    m = _drive_to_processing(s, created, inspection_with_media)
+
+    fresh = measurement_service._repo(s).get_by_id(m.id)
+    fresh.fail("processing interrupted - the worker restarted; re-run the measurement")
+    measurement_service._repo(s).save(fresh)
+    s.commit()
+
+    def must_not_run(*a, **k):
+        raise AssertionError("engine must not re-run on an errored run")
+
+    monkeypatch.setattr(measurement_service, "extract_gps_data", must_not_run)
+    monkeypatch.setattr(measurement_service, "run_two_pass_processing", must_not_run)
+
+    result = measurement_service.run_processing(s, m.id)
+    assert result.status == MeasurementStatus.ERROR
+
+
+def test_reap_stale_runs_fails_orphaned_in_progress(session, inspection_with_media):
+    """reap fails every FIRST_FRAME/PROCESSING run to ERROR and returns how many it moved."""
+    s, created = session
+    repo = measurement_service._repo(s)
+    in_progress = list(measurement_service._IN_PROGRESS_STATUSES)
+    before = len(repo.list_by_statuses(in_progress))
+
+    processing = repo.save(Measurement(inspection_id=inspection_with_media))
+    processing.transition_to(MeasurementStatus.FIRST_FRAME)
+    processing.transition_to(MeasurementStatus.PROCESSING)
+    repo.save(processing)
+    s.commit()
+    created.append(processing.id)
+
+    first_frame = repo.save(Measurement(inspection_id=inspection_with_media))
+    first_frame.transition_to(MeasurementStatus.FIRST_FRAME)
+    repo.save(first_frame)
+    s.commit()
+    created.append(first_frame.id)
+
+    count = measurement_service.reap_stale_runs(s)
+    assert count == before + 2
+
+    for mid in (processing.id, first_frame.id):
+        reaped = repo.get_by_id(mid)
+        assert reaped.status == MeasurementStatus.ERROR
+        assert "re-run" in reaped.error_message
+
+
+def test_reap_stale_runs_leaves_terminal_runs_untouched(session, inspection_with_media):
+    """a DONE or ERROR run is never reaped - only in-progress runs are orphans."""
+    s, created = session
+    repo = measurement_service._repo(s)
+    # clear any orphaned in-progress rows so the reap below is deterministic
+    measurement_service.reap_stale_runs(s)
+
+    done = repo.save(Measurement(inspection_id=inspection_with_media))
+    done.transition_to(MeasurementStatus.FIRST_FRAME)
+    done.transition_to(MeasurementStatus.PROCESSING)
+    done.transition_to(MeasurementStatus.DONE)
+    repo.save(done)
+    s.commit()
+    created.append(done.id)
+
+    errored = repo.save(Measurement(inspection_id=inspection_with_media))
+    errored.fail("earlier failure")
+    repo.save(errored)
+    s.commit()
+    created.append(errored.id)
+
+    count = measurement_service.reap_stale_runs(s)
+    assert count == 0
+    assert repo.get_by_id(done.id).status == MeasurementStatus.DONE
+    assert repo.get_by_id(errored.id).status == MeasurementStatus.ERROR
+    assert repo.get_by_id(errored.id).error_message == "earlier failure"
 
 
 def test_real_engine_first_frame_on_synthetic_clip(tmp_path):

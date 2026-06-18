@@ -17,7 +17,7 @@ export interface FieldLinkPoll {
   status: FieldLinkStatusResponse | null;
   /** epoch ms of the last completed check (poll or manual), null until first. */
   lastChecked: number | null;
-  /** a check is in flight (drives the heartbeat button's spinner). */
+  /** a manual (operator-initiated) check is in flight; background polls don't set this. */
   checking: boolean;
   /** force an immediate re-check now (the heartbeat button). */
   refresh: () => Promise<void>;
@@ -34,8 +34,9 @@ export function useFieldLinkStatus(): FieldLinkPoll {
   const [checking, setChecking] = useState(false);
   const mounted = useRef(true);
 
-  const refresh = useCallback(async () => {
-    setChecking(true);
+  // checking only flips for manual checks so the heartbeat button doesn't spin on every poll tick
+  const runCheck = useCallback(async (manual: boolean) => {
+    if (manual) setChecking(true);
     let next: FieldLinkStatusResponse;
     try {
       next = await getFieldLinkStatus();
@@ -45,18 +46,20 @@ export function useFieldLinkStatus(): FieldLinkPoll {
     if (!mounted.current) return;
     setStatus(next);
     setLastChecked(Date.now());
-    setChecking(false);
+    if (manual) setChecking(false);
   }, []);
+
+  const refresh = useCallback(() => runCheck(true), [runCheck]);
 
   useEffect(() => {
     mounted.current = true;
-    refresh();
-    const interval = setInterval(refresh, FIELD_LINK_POLL_INTERVAL_MS);
+    runCheck(false);
+    const interval = setInterval(() => runCheck(false), FIELD_LINK_POLL_INTERVAL_MS);
     return () => {
       mounted.current = false;
       clearInterval(interval);
     };
-  }, [refresh]);
+  }, [runCheck]);
 
   return { status, lastChecked, checking, refresh };
 }

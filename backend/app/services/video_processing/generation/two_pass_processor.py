@@ -16,8 +16,8 @@ from ..gps import GPSExtractor
 from ..tracking import PAPILightTracker
 from ..utils import (
     BatchFrameProcessor,
+    FfmpegH264Writer,
     FrameProcessingCache,
-    convert_to_h264,
 )
 from .measurement_collector import MeasurementCollector
 
@@ -25,6 +25,16 @@ from .measurement_collector import MeasurementCollector
 from .optimized_overlays import OptimizedOverlayRenderer
 
 logger = logging.getLogger(__name__)
+
+# coordinate opencv's internal thread pool with the celery prefork concurrency so two
+# concurrent jobs don't oversubscribe the cores. unset = opencv's default (all cores),
+# which is right for a single job; the worker sets VIDEO_CV_THREADS to cores / concurrency.
+_cv_threads = os.environ.get("VIDEO_CV_THREADS")
+if _cv_threads:
+    try:
+        cv2.setNumThreads(int(_cv_threads))
+    except (TypeError, ValueError):
+        logger.warning("ignoring invalid VIDEO_CV_THREADS=%r", _cv_threads)
 
 
 class TwoPassProcessor:
@@ -84,9 +94,8 @@ class TwoPassProcessor:
         combined_width = settings.VIDEO_GEN_PAPI_WIDTH * 4
         combined_height = settings.VIDEO_GEN_PAPI_HEIGHT
 
-        # Create video writer
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(output_path, fourcc, fps, (combined_width, combined_height))
+        # Create video writer (direct H.264, no mp4v intermediate)
+        out = FfmpegH264Writer(output_path, fps, combined_width, combined_height)
 
         if not out.isOpened():
             logger.error(f"Failed to create combined video writer: {output_path}")
@@ -236,10 +245,7 @@ class TwoPassProcessor:
         panel_height = 350  # Must match panel_height in InfoOverlayRenderer.add_angle_overlay
         extended_height = frame_height + panel_height
         enhanced_path = os.path.join(self.output_dir, f"{session_id}_enhanced_main_video.mp4")
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        enhanced_writer = cv2.VideoWriter(
-            enhanced_path, fourcc, video_fps, (frame_width, extended_height)
-        )
+        enhanced_writer = FfmpegH264Writer(enhanced_path, video_fps, frame_width, extended_height)
 
         if not enhanced_writer.isOpened():
             raise ValueError(f"Failed to create enhanced video writer: {enhanced_path}")
@@ -254,11 +260,11 @@ class TwoPassProcessor:
         papi_paths = {}
         for light_name in ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]:
             papi_path = os.path.join(self.output_dir, f"{session_id}_{light_name}_video.mp4")
-            papi_writer = cv2.VideoWriter(
+            papi_writer = FfmpegH264Writer(
                 papi_path,
-                fourcc,
                 video_fps,
-                (settings.VIDEO_GEN_PAPI_WIDTH, settings.VIDEO_GEN_PAPI_HEIGHT),
+                settings.VIDEO_GEN_PAPI_WIDTH,
+                settings.VIDEO_GEN_PAPI_HEIGHT,
             )
             if papi_writer.isOpened():
                 papi_writers[light_name] = papi_writer
@@ -747,11 +753,8 @@ class TwoPassProcessor:
         logger.info(f"Video generation complete: {frame_number} frames in {elapsed_time:.1f}s")
         logger.info(f"Average FPS: {frame_number / elapsed_time:.1f}")
 
-        # Convert videos to H.264
-        logger.info("Converting videos to H.264...")
-        convert_to_h264(enhanced_path)
-        for papi_path in papi_paths.values():
-            convert_to_h264(papi_path)
+        # videos are already H.264 - the writers encode straight from raw frames, so there is
+        # no separate mp4v-then-transcode pass any more
 
         # Create combined all_papi_lights video
         logger.info("Creating combined PAPI lights video...")
@@ -761,7 +764,6 @@ class TwoPassProcessor:
         )
 
         if all_papi_lights_path:
-            convert_to_h264(all_papi_lights_path)
             logger.info(f"Combined PAPI video: {all_papi_lights_path}")
         else:
             logger.warning("Failed to create combined PAPI video")

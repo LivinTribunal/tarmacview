@@ -64,10 +64,9 @@ def extract_color_from_brightest_pixels(
     area_pixels = np.sum(red_mask)
 
     if area_pixels > 0:
-        # Extract pixels that meet RED threshold
-        bright_pixels = roi[red_mask]
-        # Average the bright pixels (BGR)
-        mean_bgr = np.mean(bright_pixels, axis=0)
+        # average the bright pixels via a masked reduction - same result as gathering
+        # roi[red_mask] into a copy and np.mean-ing it, without the large temporary
+        mean_bgr = cv2.mean(roi, mask=red_mask.astype(np.uint8))[:3]
         # Convert BGR to RGB
         r, g, b = int(mean_bgr[2]), int(mean_bgr[1]), int(mean_bgr[0])
     else:
@@ -129,16 +128,14 @@ def measure_light_dimensions(
     threshold_value = max_red * brightness_threshold
     red_mask = (red_channel >= threshold_value).astype(np.uint8)
 
-    # Find bright pixels
-    coords = np.column_stack(np.where(red_mask > 0))
-    if coords.shape[0] == 0:
+    # Find bright pixels - np.where gives (rows, cols) directly, no Nx2 stack to allocate
+    y_coords, x_coords = np.where(red_mask > 0)
+    if x_coords.size == 0:
         return (center_x, center_y, initial_search_size, initial_search_size)
-
-    y_coords, x_coords = coords[:, 0], coords[:, 1]
 
     # Compute center of mass (weighted average of bright pixel positions)
     # Weight by RED channel intensity for better accuracy
-    bright_intensities = red_channel[red_mask > 0]
+    bright_intensities = red_channel[y_coords, x_coords]
     weighted_x = np.average(x_coords, weights=bright_intensities)
     weighted_y = np.average(y_coords, weights=bright_intensities)
 

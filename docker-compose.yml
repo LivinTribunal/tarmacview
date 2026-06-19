@@ -267,7 +267,18 @@ services:
       S3_REGION: ${S3_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-tarmacview}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-tarmacview-minio}
+      # cap the native math/opencv thread pools so the prefork worker (concurrency 2) doesn't
+      # oversubscribe cores - 2 jobs x 2 threads matches a 4-core docker desktop vm. raise
+      # together with the worker's --concurrency if the host has more cores.
+      OMP_NUM_THREADS: ${WORKER_OMP_THREADS:-2}
+      OPENBLAS_NUM_THREADS: ${WORKER_OMP_THREADS:-2}
+      MKL_NUM_THREADS: ${WORKER_OMP_THREADS:-2}
+      VIDEO_CV_THREADS: ${WORKER_CV_THREADS:-2}
     restart: unless-stopped
+    # decode the input + write the annotated outputs in a ram-backed scratch dir instead of
+    # the virtualized overlay fs (docker desktop). cap it so a large clip can't exhaust ram.
+    tmpfs:
+      - /tmp:size=4g
     depends_on:
       postgres:
         condition: service_healthy

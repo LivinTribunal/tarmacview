@@ -20,8 +20,9 @@ from dataclasses import dataclass
 class EngineConfig:
     """detection / tracking / video-generation thresholds for the PAPI engine."""
 
-    # ffmpeg h.264 transcode
-    FFMPEG_PRESET: str = "medium"
+    # ffmpeg h.264 transcode - veryfast trades a little file size for a large encode-time
+    # cut; these are review/proof videos, not archival masters
+    FFMPEG_PRESET: str = "veryfast"
     FFMPEG_CRF: str = "23"
     FFMPEG_PIX_FMT: str = "yuv420p"
     FFMPEG_TIMEOUT_SECONDS: int = 300

@@ -16,7 +16,7 @@ from .geometry import (
     calculate_horizontal_angle,
     haversine_distance,
 )
-from .video import convert_to_h264
+from .video import FfmpegH264Writer, convert_to_h264
 
 __all__ = [
     # Geometry
@@ -32,6 +32,7 @@ __all__ = [
     "classify_light_status",
     # Video
     "convert_to_h264",
+    "FfmpegH264Writer",
     # Cache
     "FrameProcessingCache",
     "BatchFrameProcessor",

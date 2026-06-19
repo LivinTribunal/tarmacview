@@ -153,3 +153,19 @@ gh api repos/LivinTribunal/tarmacview/code-scanning/alerts \
 ```
 
 Expected: empty output (no open `high`-severity alerts).
+
+---
+
+## Update - 2026-06-18 (#117)
+
+The acceptance check above only reaches "no open `high`-severity alerts" after #117.
+That PR cleared a separate, later wave of nine `py/clear-text-logging-sensitive-data`
+(High) alerts in the vendored engine - a *different* rule from alert #3's
+`py/clear-text-storage-sensitive-data`. These were resolved by **code fix**, not
+dismissal: the first-frame and per-frame debug logs in
+`backend/app/services/video_processing/generation/measurement_collector.py`,
+`info_overlays.py`, and `drone_overlays.py` were dumping raw drone
+`latitude` / `longitude` / `elevation_wgs84` (and whole `drone_data` dicts), so #117
+dropped the coordinate values - logging a reference-point count plus a present/absent
+bool instead. The three dismissals recorded above are unchanged and still stand. Net
+after merge: 0 open code-scanning alerts.

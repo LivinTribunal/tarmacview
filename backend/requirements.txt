@@ -13,7 +13,7 @@ asyncpg==0.31.0
 # Auth
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.27
+python-multipart==0.0.31
 
 # Validation
 pydantic==2.13.3

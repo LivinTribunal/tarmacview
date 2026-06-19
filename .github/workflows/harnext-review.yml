@@ -53,6 +53,14 @@ jobs:
             - Commits: conventional commit prefixes (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`) are required; messages stay short, lowercase, casual.
             - Migrations in `backend/migrations/versions/` are reversible and reference real models.
 
+            Over-engineering (ponytail lens) — flag as REQUEST_CHANGES when the diff is bloated, one line each as `path:line — tag — what to cut — replacement`:
+            - `stdlib:` a hand-rolled thing the standard library ships (name the function).
+            - `native:` a dependency or code doing what the platform already does (CSS, a DB constraint, `<input type=...>`).
+            - `yagni:` an abstraction with one implementation, config nobody sets, a layer with one caller — inline it until a second case exists.
+            - `delete:` dead code, unused flexibility, a speculative feature — nothing replaces it.
+            - `shrink:` same logic in fewer lines — show the shorter form.
+            A single smoke test or assert-based self-check is the ponytail minimum, never flag it as bloat. Keep correctness and security in the checks above; this lens is complexity only.
+
             OPSEC checks — flag as COMMENT (suggest the human edit before merge, do not block):
             - PR body that reads as obvious LLM output: emoji headers (✅, ✓, 🎉, 🚀), exhaustive checkmark lists, motivational closers, first-person phrasing like "I've implemented…" / "Let me…".
 

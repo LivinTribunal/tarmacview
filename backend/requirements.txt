@@ -13,7 +13,7 @@ asyncpg==0.31.0
 # Auth
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.27
+python-multipart==0.0.31
 
 # Validation
 pydantic==2.13.3
@@ -35,6 +35,10 @@ exifread==3.5.1
 
 # Object storage - presigned PUT/GET for drone media against S3-compatible bucket (MinIO/S3)
 boto3==1.42.16
+
+# security pins to keep transitive deps on patched releases - pillow (via matplotlib), requests
+pillow==12.2.0
+requests==2.33.0
 
 # Testing
 pytest==9.0.3

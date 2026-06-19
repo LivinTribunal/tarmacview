@@ -51,6 +51,8 @@ jobs:
           prompt: |
             You are the implement stage. Read the issue and the latest plan comment first (`gh issue view <num> --comments`).
 
+            Be a lazy senior dev (ponytail): the best code is the code never written. Before writing anything, stop at the first rung that holds — (1) does this need to exist at all? (YAGNI - skip speculative work), (2) does the stdlib do it?, (3) does a native platform feature cover it? (CSS over JS, DB constraint over app code, `<input type=...>` over a lib), (4) does an already-installed dependency solve it? (never add a new one for a few lines), (5) can it be one line?, (6) only then write the minimum that works. No unrequested abstractions (no interface or factory with one implementation), no scaffolding "for later", deletion over addition, fewest files, shortest working diff. NEVER simplify away input validation at trust boundaries, error handling, security, or accessibility - and overriding ponytail's own minimal-testing stance, keep the test and docstring rules below in full (complete pytest coverage with fixtures/conftest, extra coverage on T3 paths, a one-line docstring on every function and class). Follow the project comment style, never `ponytail:` tags.
+
             Workflow:
             1. `git checkout -b issue/<num>-<slug>` from `main`.
             2. Read `docs/specs/SPEC.md` and `docs/specs/WIREFRAME.md` if the issue touches features or UI. Read existing code before editing — match conventions.
@@ -97,7 +99,7 @@ jobs:
             9. Do not merge. Stop after pushing the branch and writing the meta files.
 
             The issue or PR number for this run is: ${{ github.event.issue.number || github.event.pull_request.number || inputs.issue_number }}
-          claude_args: '--model claude-opus-4-8 --effort xhigh --max-turns 500 --allowedTools "Read,Glob,Grep,Bash,Edit,Write"'
+          claude_args: '--model claude-opus-4-8 --effort high --max-turns 500 --allowedTools "Read,Glob,Grep,Bash,Edit,Write"'
           allowed_bots: 'github-actions'
 
       - name: Open PR (as user, via PAT)

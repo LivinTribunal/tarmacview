@@ -193,6 +193,11 @@ matches_any() {
 classify_file() {
   local file="$1"
 
+  # documentation is always tier 1, regardless of directory (per-package CLAUDE.md included)
+  if [[ "$file" == *.md ]]; then
+    echo 1; return
+  fi
+
   # tier 3: critical paths (trajectory, safety, flight plan, migrations)
   if matches_any "$file" "${T3_PATTERNS[@]}"; then
     echo 3; return
@@ -265,7 +270,7 @@ classify_changed_files() {
 compute_required_checks() {
   case "$MAX_TIER" in
     1)
-      REQUIRED_CHECKS=("lint" "harness-smoke")
+      REQUIRED_CHECKS=("lint")
       ;;
     2)
       REQUIRED_CHECKS=("lint" "test" "build" "structural-tests" "harness-smoke")

@@ -247,7 +247,9 @@ Every line of code passes through six gates before reaching `main`.
 Config: `.pre-commit-config.yaml`. Runs on `git commit`:
 - `ruff check --fix` - Python lint with auto-fix
 - `ruff-format` - Python formatting
-- `trailing-whitespace` - strip trailing whitespace
+- `semgrep` - local SAST (`p/python` + `p/typescript` + `p/react` + `p/security-audit`); replaces the deleted github-hosted CodeQL workflow, so static analysis costs zero CI minutes
+- `trailing-whitespace` / `end-of-file-fixer` - strip trailing whitespace, enforce final newline
+- `check-yaml` / `check-json` / `check-merge-conflict` - syntax-validate config, block stray conflict markers
 - `detect-private-key` - block accidental key commits
 - `check-added-large-files` - block files > 500KB
 
@@ -291,11 +293,11 @@ The verify stage (`harnext-verify.yml`) no longer re-runs lint/test/typecheck/bu
 4. Squash merge with a casual commit message
 5. Space merges out - morning and evening, not all at once
 
-### Gate 7 - Continuous security scanning (post-merge, scheduled)
+### Gate 7 - Continuous security scanning (post-merge)
 
-Config: `.github/workflows/codeql.yml`, `.github/workflows/codacy.yml`, `.codacy.yaml`.
+Config: `.codacy.yaml`. Bandit options live under `[tool.bandit]` in `backend/pyproject.toml`.
 
-CodeQL Advanced scans actions, JavaScript/TypeScript, and Python on push to `main` and weekly. Codacy runs the Codacy Analysis CLI (which wraps Bandit for Python; bandit options live under `[tool.bandit]` in `backend/pyproject.toml`) on push to `main` and weekly. Both upload SARIF to GitHub Advanced Security; findings show up under the Security tab. Tests, migrations, generated bundles, and docs are excluded via `.codacy.yaml`. These scans do not block PR merge - they surface issues for follow-up.
+SAST runs locally now - the Semgrep pre-commit hook (Gate 1) replaced the github-hosted CodeQL workflow, deleted in #121, so the 3-language scan costs zero CI minutes instead of running on every `main` push plus a weekly cron. Codacy still runs via its GitHub App, wrapping Bandit for Python and surfacing findings under the Security tab; tests, migrations, generated bundles, and docs are excluded via `.codacy.yaml`. Codacy does not block PR merge - it surfaces issues for follow-up.
 
 ---
 

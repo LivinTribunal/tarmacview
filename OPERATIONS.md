@@ -28,6 +28,34 @@ Daily local dumps of the PostgreSQL database run via `scripts/backup_db.sh`. See
 
 Military airports and restricted-network civilian aerodromes block outbound traffic. The system can run with every external endpoint replaced by self-hosted equivalents. Cloud parity is preserved when none of the override variables are set.
 
+### Tiered tile resolution (online → cache → offline)
+
+The 2D (MapLibre) and 3D (Cesium) maps resolve every tile through a three-tier fallback chain so the **same build** serves cloud, cached, pre-seeded, and fully air-gapped field deployments — no separate artefact:
+
+```
+request → [1] local bundle → [2] persistent cache → [3] network (online)
+```
+
+- **Tier 1 — local bundle.** Pre-seeded tiles served same-origin. For 2D + 3D imagery this is an MBTiles file in MinIO served by the backend tile route; for 3D terrain it is a quantised-mesh tileset in MinIO. The bundle is the air-gapped source of truth and is **never auto-evicted**.
+- **Tier 2 — persistent cache.** Previously-fetched tiles held on disk (backend proxy cache) or in the browser (service-worker cache). Bounded by a **7-day max-age + size cap**.
+- **Tier 3 — network.** Direct fetch from the upstream CDN (Esri / OSM / Cesium Ion). Cloud deployments run this exactly as today; air-gapped deployments disable it.
+
+The backend `TILE_MODE` flag is the field switch across the chain:
+
+| `TILE_MODE` | Behaviour |
+|---|---|
+| `online` (default) | bundle → cache → upstream; cloud parity, nothing changes |
+| `cached` | bundle → cache → upstream **once**, then served from the disk cache |
+| `offline` | bundle → cache only; a miss returns a clean `404`/`204` (no upstream, no hang) |
+
+The maps themselves never change — only the `VITE_TILE_*` / `VITE_CESIUM_*` build-time indirection (documented below) and the `TILE_MODE` switch.
+
+**Phased delivery** (tracked by #130):
+
+- Browser service-worker tile cache — tier 2 for the cloud path — #127.
+- Backend MBTiles tile route `GET /api/v1/tiles/{layer}/{z}/{x}/{y}` + MinIO bundle — tiers 1+2 for air-gapped 2D & 3D imagery — #128.
+- Cesium quantised-mesh terrain bundler — tier 1 for air-gapped 3D terrain — #129 (soft-depends on #128's MinIO serving path).
+
 ### Required services
 
 - **Self-hosted vector/raster tile server.** Suggested: [OpenMapTiles](https://openmaptiles.org/) data served by [tileserver-gl](https://github.com/maptiler/tileserver-gl) in Docker. One container exposes both the satellite-style and OSM-style raster endpoints used by the 2D map and the 3D viewer's "map" terrain mode.
@@ -92,6 +120,22 @@ These plug into the existing `VITE_TILE_*` / `VITE_CESIUM_IMAGERY_URL` indirecti
 
 Start from SRTM (or a higher-resolution per-airport-region DEM) and run it through Cesium Terrain Builder to produce a quantised-mesh tileset. Place the output behind your self-hosted terrain endpoint.
 
+### Building and seeding the field tile bundle
+
+Run once while online (staging laptop — `bundle-basemap.py` is stdlib + `httpx` only, no app install needed):
+
+1. **2D imagery + OSM raster** — `scripts/field-hub/bundle-basemap.py` fetches an airport bbox across a zoom range into an MBTiles SQLite file:
+   ```
+   scripts/field-hub/bundle-basemap.py \
+     --url "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" \
+     --bbox 14.20 50.06 14.32 50.14 --min-zoom 8 --max-zoom 16 \
+     --out prague-imagery.mbtiles
+   ```
+   Repeat with the OSM template (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`) to cover the 3D viewer's "map" terrain mode.
+2. **3D terrain mesh** — run the airport DEM (GLO-30 / SRTM) through the Cesium quantised-mesh bundler (#129, a script under `scripts/field-hub/`) to produce `layer.json` + `.terrain` tiles. This is a different artefact from the backend's `download_srtm_for_location` GLO-30 DEM, which feeds altitude math, not the render mesh.
+3. **Upload to MinIO** — push the `.mbtiles` and the terrain tileset into the MinIO bucket the `field` profile already runs (the `minio` service in `docker-compose.yml`, seeded by `minio-setup`). The backend tile route (#128) reads tiles from this bundle.
+4. **Point the build at the bundle** — for the field build set `VITE_TILE_IMAGERY_URL` / `VITE_TILE_OSM_URL` / `VITE_CESIUM_IMAGERY_URL` at `/api/v1/tiles/...`, `VITE_CESIUM_TERRAIN_URL` at the served terrain set, and `TILE_MODE=offline`. No map code changes — this is the same env indirection used today.
+
 ### Backend configuration
 
 - Place each airport's local DEM where its `dem_file_path` row points. `create_elevation_provider(airport)` in `backend/app/services/elevation_provider.py` picks `DEMElevationProvider` automatically when `terrain_source ∈ {DEM, DEM_UPLOAD, DEM_API}`, so no extra wiring is needed.
@@ -140,6 +184,8 @@ Changing `airport.elevation`, `terrain_source`, or `dem_file_path` runs `renorma
 
 `import.meta.env.*` is resolved at build time. One built artefact is bound to one set of endpoints — rebuild to change them.
 
+For the **field build** these point at the same-origin backend tile route (`/api/v1/tiles/...`) and the served terrain set rather than the public CDN; the cloud build leaves them unset.
+
 ### Runtime system settings (Super Admin → System)
 
 - Leave `cesium_ion_token` blank. Today the frontend reads `VITE_CESIUM_ION_TOKEN` only; the row is harmless but inert in closed-network deployments.
@@ -152,3 +198,5 @@ Build with all six `VITE_*` vars set, deploy to a host that has its outbound tra
 - The 2D map paints satellite imagery and labels.
 - The 3D viewer paints both terrain and satellite imagery.
 - The browser network panel shows no requests to `arcgisonline.com`, `tile.openstreetmap.org`, `assets.ion.cesium.com`, or `cesium.com`.
+- With `TILE_MODE=offline`, reloading a never-visited area returns a clean miss (no spinner hang) instead of waiting on a blocked upstream.
+- Repeat views / reloads of an already-seen area paint from cache with the network throttled or blocked.

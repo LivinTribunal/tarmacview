@@ -75,7 +75,7 @@ mc cp imagery.mbtiles local/tarmacview-media/basemaps/imagery.mbtiles
 | `cached` | identical to `online` — bundle → disk cache → upstream write-through |
 | `offline` | bundle → disk cache only; a miss returns a clean 204, never the network |
 
-The disk cache (under `TILE_CACHE_DIR`) honors `TILE_CACHE_MAX_BYTES` (default 512 MB) and `TILE_CACHE_MAX_AGE_DAYS` (default 30). Only proxied tiles are evicted — the MBTiles bundle is never evicted.
+The disk cache (under `TILE_CACHE_DIR`) honors `TILE_CACHE_MAX_BYTES` (default 512 MB) and `TILE_CACHE_MAX_AGE_DAYS` (default 7). Only proxied tiles are evicted — the MBTiles bundle is never evicted.
 
 **Field-build VITE values** (all `{z}/{x}/{y}` order — the backend re-substitutes per upstream template internally):
 

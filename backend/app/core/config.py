@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     tile_bundle_prefix: str = "basemaps"
     tile_cache_dir: Path = _PROJECT_ROOT / "data" / "tile-cache"
     tile_cache_max_bytes: int = 512 * 1024 * 1024  # 512 MB, proxied tiles only
-    tile_cache_max_age_days: int = 30
+    tile_cache_max_age_days: int = 7  # matches the browser sw cache-tier policy
     tile_upstream_timeout: float = 10.0
     # keys define the valid {layer} set; values are the upstream cdn templates used by
     # tier 3. {z}/{x}/{y} substituted in any path order (esri z/y/x, osm z/x/y both work).

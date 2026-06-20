@@ -72,9 +72,17 @@ jobs:
             fi
           fi
 
+          # fall back to the issue's OWN implementation pr, matched by harnext's
+          # issue/<num>-* head-branch convention against OPEN prs. do NOT scan the
+          # issue timeline for any cross-referenced pr: a bare #<num> mention from a
+          # sibling / epic / docs pr (e.g. an epic body listing its child issues)
+          # produced a false has_pr=true that parked the issue at awaiting-approval
+          # and misrouted plan onto the wrong pr before plan/implement ever ran here.
           if [ -z "$PR_NUMBER" ]; then
-            PR_NUMBER=$(gh api "repos/${{ github.repository }}/issues/$NUM/timeline" \
-              --jq '[.[] | select(.event == "cross-referenced") | .source.issue | select(.pull_request != null) | .number] | last' 2>/dev/null || echo "")
+            PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" --state open --limit 200 \
+              --json number,headRefName \
+              --jq "[.[] | select(.headRefName | startswith(\"issue/$NUM-\")) | .number] | first // empty" \
+              2>/dev/null || echo "")
           fi
 
           if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then

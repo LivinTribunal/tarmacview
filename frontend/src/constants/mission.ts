@@ -1,4 +1,4 @@
-import type { InspectionMethod } from "@/types/enums";
+import type { InspectionMethod, MissionStatus } from "@/types/enums";
 
 // mission-level limits mirrored from backend/app/models/mission.py.
 // keep in sync with MAX_INSPECTIONS - the backend enforces the same cap
@@ -28,3 +28,12 @@ export const STATUS_ORDER = [
 
 // terminal states - inspections cannot be modified once a mission is here.
 export const TERMINAL_STATUSES = ["COMPLETED", "CANCELLED"];
+
+// export/dispatch eligibility - mirrors backend Mission.EXPORT_ELIGIBLE_STATUSES.
+// MEASURED is post-validation: the plan + artifacts persist so re-download /
+// re-send stays allowed. COMPLETED / CANCELLED are terminal and excluded.
+export const EXPORT_ELIGIBLE_STATUSES = ["VALIDATED", "EXPORTED", "MEASURED"];
+
+export function isExportEligible(status: MissionStatus): boolean {
+  return EXPORT_ELIGIBLE_STATUSES.includes(status);
+}

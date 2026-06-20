@@ -230,6 +230,14 @@ class Mission(Base):
     # mission has been validated or already exported - export gate
     POST_PLAN_STATUSES = frozenset({MissionStatus.VALIDATED, MissionStatus.EXPORTED})
 
+    # export/dispatch gate - VALIDATED/EXPORTED plus the post-validation MEASURED
+    # state (a measured mission was already validated; its plan + artifacts persist,
+    # so re-download / re-send stays allowed). deliberately NOT POST_PLAN_STATUSES,
+    # which mark_measured / regress_to_planned / trajectory auto-regress also consume.
+    EXPORT_ELIGIBLE_STATUSES = frozenset(
+        {MissionStatus.VALIDATED, MissionStatus.EXPORTED, MissionStatus.MEASURED}
+    )
+
     # waypoint edits still allowed (regress to PLANNED), exports/completion are not
     PRE_EXPORT_EDITABLE_STATUSES = frozenset(
         {MissionStatus.DRAFT, MissionStatus.PLANNED, MissionStatus.VALIDATED}

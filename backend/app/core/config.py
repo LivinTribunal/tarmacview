@@ -92,6 +92,24 @@ class Settings(BaseSettings):
     # presigned url lifetime in seconds
     s3_presign_expiry: int = 3600
 
+    # offline base-map tiles. air-gapped field deployments serve raster tiles from a
+    # minio-stored mbtiles bundle, then a disk cache, then (when allowed) an upstream cdn.
+    # tile_mode governs whether the upstream tier runs: offline never reaches the network.
+    tile_mode: str = "online"  # online | cached | offline
+    # bundle object key in s3_bucket is "{tile_bundle_prefix}/{layer}.mbtiles"
+    tile_bundle_prefix: str = "basemaps"
+    tile_cache_dir: Path = _PROJECT_ROOT / "data" / "tile-cache"
+    tile_cache_max_bytes: int = 512 * 1024 * 1024  # 512 MB, proxied tiles only
+    tile_cache_max_age_days: int = 30
+    tile_upstream_timeout: float = 10.0
+    # keys define the valid {layer} set; values are the upstream cdn templates used by
+    # tier 3. {z}/{x}/{y} substituted in any path order (esri z/y/x, osm z/x/y both work).
+    tile_upstream_urls: dict[str, str] = {
+        "imagery": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "osm": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "reference": "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+    }
+
     # fernet symmetric encryption key for admin-managed secrets at rest.
     # accepts a 32-byte urlsafe-b64 fernet key or any string (sha256-derived).
     # required when SystemSettings stores an api key; unset -> startup hard-fail

@@ -174,6 +174,8 @@ Dependency rule: **routes → services → models**. Schemas are shared across r
 4. CesiumJS renders 3D flight plan with waypoint markers and trajectory lines
 ```
 
+In the cloud production build a Workbox service worker (wired through `vite-plugin-pwa`) sits underneath the network layer and `CacheFirst`-caches external map-tile GETs (ESRI imagery/reference, OSM raster, Cesium World Terrain) on disk via the Cache Storage API, so repeat views and reloads serve tiles without re-downloading them. The cache is bounded (7-day max-age, 5k-entry cap) and self-purges on quota error. The matcher and caps are a pure module, `frontend/src/sw/tileCacheConfig.ts`, imported by both `vite.config.ts` and a unit test. The map components are unaware of it - it is a transparent transport-layer cache. It is disabled entirely under `npm run dev`, and `api.cesium.com` is intentionally excluded (it returns short-lived Ion tokens, not tiles). When tile URLs are overridden to internal hosts for closed-network deployments the matcher simply doesn't match, so the cache no-ops - see [`OPERATIONS.md`](../OPERATIONS.md).
+
 ## External Dependencies
 
 | Dependency | Purpose | Abstraction |

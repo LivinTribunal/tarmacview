@@ -186,6 +186,8 @@ Changing `airport.elevation`, `terrain_source`, or `dem_file_path` runs `renorma
 
 For the **field build** these point at the same-origin backend tile route (`/api/v1/tiles/...`) and the served terrain set rather than the public CDN; the cloud build leaves them unset.
 
+**Service-worker tile cache.** The production build registers a Workbox service worker that `CacheFirst`-caches external map tiles (ESRI / OSM / Cesium hosts). Its matcher (`frontend/src/sw/tileCacheConfig.ts`) only recognises those public cloud hosts, so once the `VITE_TILE_*` / `VITE_CESIUM_*` URLs point at internal servers the cache no-ops and every tile fetch goes straight to your self-hosted endpoints. No extra configuration is needed, and the verification check below still holds.
+
 ### Runtime system settings (Super Admin → System)
 
 - Leave `cesium_ion_token` blank. Today the frontend reads `VITE_CESIUM_ION_TOKEN` only; the row is harmless but inert in closed-network deployments.

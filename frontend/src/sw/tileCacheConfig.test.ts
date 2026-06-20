@@ -14,7 +14,6 @@ describe("isTileRequest", () => {
     "https://tile.openstreetmap.org/3/4/5.png",
     "https://assets.cesium.com/1/0/0/0.terrain",
     "https://assets.ion.cesium.com/1/0/0/0.terrain",
-    "https://api.cesium.com/v1/assets/1/endpoint",
   ])("matches tile host %s", (url) => {
     expect(isTileRequest(url)).toBe(true);
   });
@@ -27,6 +26,8 @@ describe("isTileRequest", () => {
     "https://fonts.gstatic.com/s/inter/v1/font.woff2",
     "https://evil.example.com/server.arcgisonline.com/x",
     "http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/3/4/5",
+    // ion token endpoint - short-lived auth, must not be cached
+    "https://api.cesium.com/v1/assets/1/endpoint",
   ])("ignores non-tile request %s", (url) => {
     expect(isTileRequest(url)).toBe(false);
   });

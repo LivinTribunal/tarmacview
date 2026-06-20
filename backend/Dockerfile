@@ -7,9 +7,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # the backend enqueues celery tasks to the worker, so it needs the celery client
 # + redis broker at runtime (lazy-imported in measurement_service's enqueue seam).
+# boto3 is here too: the offline tile bundle is pulled from minio via object_storage
+# (lazy-imported), and the field profile needs it on the base backend image.
 # the opencv engine stays worker-only (Dockerfile.worker installs requirements-video.txt).
 # pins mirror requirements-video.txt; fold into requirements.txt when that absorbs the worker deps.
-RUN pip install --no-cache-dir celery==5.4.0 redis==5.2.1
+RUN pip install --no-cache-dir celery==5.4.0 redis==5.2.1 boto3==1.42.16
 
 # stage 2: runtime
 FROM python:3.12-slim

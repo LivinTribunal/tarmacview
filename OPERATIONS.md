@@ -37,6 +37,57 @@ Military airports and restricted-network civilian aerodromes block outbound traf
 
 Sources appropriate for the deployment region — for example [HOT Export Tool](https://export.hotosm.org/), [Geofabrik OSM extracts](https://download.geofabrik.de/), or in-house orthophoto stacks. Convert into the format your tile server expects (MBTiles for tileserver-gl).
 
+### Backend-served offline tiles (field profile)
+
+Instead of standing up a separate tile server, the backend can serve raster tiles itself from a pre-seeded MBTiles bundle in MinIO. This is the laziest path for the air-gapped `field` stack: the 2D map and 3D satellite imagery resolve same-origin (nginx already proxies `/api/`), so no extra container, CORS, or CSP changes are needed (`img-src 'self'` / `connect-src 'self'` stay clean).
+
+```
+GET /api/v1/tiles/{layer}/{z}/{x}/{y}
+```
+
+The endpoint resolves each tile through a three-tier chain:
+
+1. **bundle** — the pre-seeded `{layer}.mbtiles` in MinIO (air-gapped source of truth, never auto-evicted),
+2. **disk cache** — tiles previously proxied from upstream,
+3. **upstream** — fetch from the CDN and write through (only when `TILE_MODE != offline`).
+
+It is **unauthenticated** by design — MapLibre/Cesium fetch tiles directly and can't attach a JWT, and basemap raster tiles are public read-only. A clean miss returns **HTTP 204** (no hang, no console noise).
+
+**Valid `{layer}` values** are the keys of `TILE_UPSTREAM_URLS`: `imagery`, `osm`, `reference`.
+
+**Build a bundle while online**, then upload it under the `basemaps/` prefix in the media bucket:
+
+```bash
+scripts/field-hub/bundle-basemap.py \
+    --url "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" \
+    --bbox 14.20 50.06 14.32 50.14 --min-zoom 8 --max-zoom 16 \
+    --out imagery.mbtiles
+# upload to the media bucket (object key = {TILE_BUNDLE_PREFIX:-basemaps}/{layer}.mbtiles)
+mc cp imagery.mbtiles local/tarmacview-media/basemaps/imagery.mbtiles
+# or: aws s3 cp imagery.mbtiles s3://tarmacview-media/basemaps/imagery.mbtiles
+```
+
+**`TILE_MODE`** governs the upstream tier:
+
+| Mode | Behavior |
+|---|---|
+| `online` (default) | bundle → disk cache → upstream (fetch + write-through) |
+| `cached` | identical to `online` — bundle → disk cache → upstream write-through |
+| `offline` | bundle → disk cache only; a miss returns a clean 204, never the network |
+
+The disk cache (under `TILE_CACHE_DIR`) honors `TILE_CACHE_MAX_BYTES` (default 512 MB) and `TILE_CACHE_MAX_AGE_DAYS` (default 7). Only proxied tiles are evicted — the MBTiles bundle is never evicted.
+
+**Field-build VITE values** (all `{z}/{x}/{y}` order — the backend re-substitutes per upstream template internally):
+
+```
+VITE_TILE_IMAGERY_URL=/api/v1/tiles/imagery/{z}/{x}/{y}
+VITE_TILE_OSM_URL=/api/v1/tiles/osm/{z}/{x}/{y}
+VITE_TILE_REFERENCE_URL=/api/v1/tiles/reference/{z}/{x}/{y}
+VITE_CESIUM_IMAGERY_URL=/api/v1/tiles/imagery/{z}/{x}/{y}
+```
+
+These plug into the existing `VITE_TILE_*` / `VITE_CESIUM_IMAGERY_URL` indirection (no map code change) — set them as `frontend` `build.args` in `docker-compose.yml`.
+
 ### Pre-built terrain data
 
 Start from SRTM (or a higher-resolution per-airport-region DEM) and run it through Cesium Terrain Builder to produce a quantised-mesh tileset. Place the output behind your self-hosted terrain endpoint.

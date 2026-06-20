@@ -23,6 +23,7 @@ from app.api.routes.flight_plans import router as flight_plans_router
 from app.api.routes.inspection_templates import router as templates_router
 from app.api.routes.measurements import router as measurements_router
 from app.api.routes.missions import router as missions_router
+from app.api.routes.tiles import router as tiles_router
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.exceptions import DomainError
@@ -84,6 +85,7 @@ app.include_router(flight_plans_router)
 app.include_router(measurements_router)
 app.include_router(missions_router)
 app.include_router(templates_router)
+app.include_router(tiles_router)
 
 # static file serving for custom uploaded models
 _static_dir = Path(__file__).resolve().parent.parent / "static"

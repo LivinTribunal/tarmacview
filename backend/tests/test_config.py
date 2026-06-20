@@ -29,6 +29,17 @@ def test_development_with_default_jwt_secret_warns(caplog):
     assert any("jwt_secret" in r.message for r in caplog.records)
 
 
+def test_tile_mode_defaults_and_override():
+    """tile_mode defaults to online and accepts an env override."""
+    assert Settings().tile_mode == "online"
+    assert Settings(tile_mode="offline").tile_mode == "offline"
+
+
+def test_tile_upstream_urls_define_layer_set():
+    """the configured upstream layers cover the documented field layers."""
+    assert set(Settings().tile_upstream_urls) == {"imagery", "osm", "reference"}
+
+
 def test_settings_emits_no_pydantic_v1_deprecation_warning():
     """instantiating Settings does not surface PydanticDeprecatedSince20."""
     with warnings.catch_warnings(record=True) as caught:

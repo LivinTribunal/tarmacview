@@ -49,6 +49,10 @@ services:
       S3_REGION: ${S3_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-tarmacview}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-tarmacview-minio}
+      # offline base-map tiles served from the minio bundle (field profile).
+      # online|cached|offline; offline never reaches the cdn. bundle key is
+      # basemaps/{layer}.mbtiles in S3_BUCKET.
+      TILE_MODE: ${TILE_MODE:-online}
       # Optional. The bundled seed ships the 5 demo airports, so this is
       # only needed for runtime "add airport by ICAO" lookups in the UI.
       # Provide via shell env or .env.docker; empty by default.
@@ -83,6 +87,13 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
+        # field build points 2D map + 3D imagery at the same-origin tile endpoint;
+        # empty default = cloud parity (esri/osm/ion).
+        VITE_TILE_IMAGERY_URL: ${VITE_TILE_IMAGERY_URL:-}
+        VITE_TILE_OSM_URL: ${VITE_TILE_OSM_URL:-}
+        VITE_TILE_REFERENCE_URL: ${VITE_TILE_REFERENCE_URL:-}
+        VITE_TILE_IMAGERY_ATTRIBUTION: ${VITE_TILE_IMAGERY_ATTRIBUTION:-}
+        VITE_CESIUM_IMAGERY_URL: ${VITE_CESIUM_IMAGERY_URL:-}
     container_name: tarmacview-frontend
     restart: unless-stopped
     depends_on:

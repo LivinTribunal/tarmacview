@@ -2148,6 +2148,9 @@
     "searchPlaceholder": "Search measurements...",
     "tab": {
       "all": "All"
+    },
+    "iteration": {
+      "label": "Iteration {{index}}"
     }
   },
   "measurementsList": {
@@ -2163,6 +2166,8 @@
     "review": "Review",
     "watch": "View progress",
     "passFail": "{{pass}} PASS / {{fail}} FAIL",
+    "runCount": "{{count}} runs",
+    "expandRuns": "Show iterations",
     "columns": {
       "mission": "Mission",
       "inspection": "Inspection",
@@ -2179,7 +2184,8 @@
       "ERROR": "Failed"
     },
     "filters": {
-      "allMissions": "All Missions"
+      "allMissions": "All Missions",
+      "allInspections": "All Inspections"
     },
     "actions": {
       "rename": "Rename",
@@ -2197,6 +2203,13 @@
     "generatingPdf": "Generating…",
     "passRollup": "{{pass}}/{{total}} pass",
     "noData": "No data for this chart.",
+    "uploadIteration": "Upload Iteration",
+    "iterationSwitcher": {
+      "label": "Switch iteration"
+    },
+    "tab": {
+      "compare": "Compare"
+    },
     "table": {
       "title": "Transition angles",
       "light": "Light",
@@ -2235,6 +2248,33 @@
       "enhanced": "Enhanced",
       "combined": "All PAPI lights",
       "fullscreen": "Fullscreen"
+    }
+  },
+  "iterationUpload": {
+    "title": "Upload Iteration Drone Media",
+    "hint": "Upload re-flown footage of this inspection. A new measurement starts and is compared against the previous runs.",
+    "uploading": "Uploading…",
+    "confirm": "Start Iteration",
+    "cancel": "Cancel",
+    "error": "Could not start the iteration. Please try again."
+  },
+  "iterationCompare": {
+    "title": "Convergence",
+    "selectIterations": "Iterations",
+    "lightPicker": "Light",
+    "iterationN": "Iteration {{index}}",
+    "failToPass": "FAIL → PASS",
+    "loadError": "Could not load the comparison.",
+    "noData": "No data for this chart.",
+    "table": {
+      "light": "Light",
+      "setpoint": "Setpoint",
+      "tolerance": "Tolerance"
+    },
+    "charts": {
+      "angle": "Elevation angle",
+      "intensity": "Intensity",
+      "chromaticity": "Chromaticity (red fraction)"
     }
   }
 }

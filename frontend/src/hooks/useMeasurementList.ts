@@ -23,6 +23,16 @@ export type MeasurementSortKey =
   | "created_at"
   | "result";
 
+// one iteration group collapsed into a single expandable list row
+export interface MeasurementGroup {
+  groupId: string;
+  // the latest run (highest iteration_index) - the row shown when collapsed
+  representative: MeasurementListItem;
+  // every run in the group, latest on top
+  runs: MeasurementListItem[];
+  runCount: number;
+}
+
 const NUMERIC_SORT_KEYS: readonly MeasurementSortKey[] = [
   "inspection",
   "created_at",
@@ -68,6 +78,8 @@ export interface UseMeasurementListResult {
 
   sorted: MeasurementListItem[];
   paged: MeasurementListItem[];
+  groups: MeasurementGroup[];
+  pagedGroups: MeasurementGroup[];
   sortKey: MeasurementSortKey;
   sortDir: SortDir;
   handleSort: (key: MeasurementSortKey) => void;
@@ -152,6 +164,25 @@ export default function useMeasurementList({
     );
   }, [rows]);
 
+  // distinct inspections present in the list, for the inspection select filter
+  const inspectionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      if (!seen.has(r.inspection_id)) {
+        seen.set(
+          r.inspection_id,
+          t("measurementsList.inspectionLabel", {
+            order: r.inspection_sequence_order,
+            method: t(`map.inspectionMethod.${r.inspection_method}`, r.inspection_method),
+          }),
+        );
+      }
+    }
+    return Array.from(seen, ([value, label]) => ({ value, label })).sort(
+      (a, b) => a.label.localeCompare(b.label),
+    );
+  }, [rows, t]);
+
   const filterSpec = useMemo<FilterSpec<MeasurementListItem>[]>(
     () => [
       {
@@ -174,13 +205,20 @@ export default function useMeasurementList({
         testId: "mission-filter",
       },
       {
+        kind: "select",
+        field: "inspection_id",
+        options: inspectionOptions,
+        placeholder: t("measurementsList.filters.allInspections"),
+        testId: "inspection-filter",
+      },
+      {
         kind: "dateRange",
         field: "created_at",
         testIdFrom: "date-from",
         testIdTo: "date-to",
       },
     ],
-    [t, missionOptions],
+    [t, missionOptions, inspectionOptions],
   );
 
   const onFiltersChange = useCallback(() => setPage(0), []);
@@ -225,6 +263,26 @@ export default function useMeasurementList({
   >(searched, "created_at", compareMeasurement, "desc", NUMERIC_SORT_KEYS);
 
   const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
+
+  // collapse each iteration group into one row; the latest run (highest
+  // iteration_index) is the representative, group order follows its sort position
+  const groups = useMemo<MeasurementGroup[]>(() => {
+    const byGroup = new Map<string, MeasurementListItem[]>();
+    for (const r of sorted) {
+      const key = r.iteration_group_id ?? r.id;
+      const bucket = byGroup.get(key);
+      if (bucket) bucket.push(r);
+      else byGroup.set(key, [r]);
+    }
+    return Array.from(byGroup, ([groupId, members]) => {
+      const runs = [...members].sort(
+        (a, b) => (b.iteration_index ?? 1) - (a.iteration_index ?? 1),
+      );
+      return { groupId, representative: runs[0], runs, runCount: runs.length };
+    });
+  }, [sorted]);
+
+  const pagedGroups = groups.slice(page * pageSize, (page + 1) * pageSize);
 
   const handleDelete = useCallback(
     async (row: MeasurementListItem) => {
@@ -277,6 +335,8 @@ export default function useMeasurementList({
     filterBar: bar,
     sorted,
     paged,
+    groups,
+    pagedGroups,
     sortKey,
     sortDir,
     handleSort,

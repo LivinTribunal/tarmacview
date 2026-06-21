@@ -16,6 +16,9 @@ from app.core.dependencies import get_db
 from app.core.enums import AuditAction
 from app.schemas.measurement import (
     ConfirmLightsRequest,
+    IterateMeasurementRequest,
+    IterationCompareResponse,
+    MeasurementIterationResponse,
     MeasurementPreviewResponse,
     MeasurementResponse,
     MeasurementResultsResponse,
@@ -198,3 +201,65 @@ def confirm_lights(
     db.commit()
     measurement_service.enqueue_processing(measurement.id)
     return measurement_service.to_response(measurement)
+
+
+@router.post("/measurements/{measurement_id}/iterate", response_model=MeasurementResponse)
+def iterate_measurement(
+    measurement_id: UUID,
+    body: IterateMeasurementRequest,
+    request: Request,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """re-fly the run's inspection from freshly uploaded media, linked into its group."""
+    measurement = measurement_service.iterate_measurement(
+        db, measurement_id, body.media_object_keys
+    )
+    airport_id = measurement_service.airport_id_for_inspection(db, measurement.inspection_id)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.MEASURE,
+        entity_type="Measurement",
+        entity_id=measurement.id,
+        details={
+            "parent_id": str(measurement_id),
+            "iteration_index": measurement.iteration_index,
+            "media_count": len(body.media_object_keys),
+        },
+        ip_address=request.client.host if request.client else None,
+        airport_id=airport_id,
+    )
+    db.commit()
+    measurement_service.enqueue_first_frame(measurement.id)
+    return measurement_service.to_response(measurement)
+
+
+@router.get(
+    "/measurements/{measurement_id}/iterations",
+    response_model=list[MeasurementIterationResponse],
+)
+def list_iterations(
+    measurement_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """every run in this measurement's iteration group, ordered by iteration_index."""
+    return measurement_service.list_iterations(db, measurement_id)
+
+
+@router.get(
+    "/iteration-groups/{group_id}/compare",
+    response_model=IterationCompareResponse,
+)
+def compare_iterations(
+    group_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+    iterations: str | None = None,
+):
+    """N-way convergence compare across a group; ``?iterations=1,2,3`` filters runs."""
+    indices = (
+        [int(x) for x in iterations.split(",") if x.strip().isdigit()] if iterations else None
+    ) or None
+    return measurement_service.compare_iterations(db, group_id, indices)

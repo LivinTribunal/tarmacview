@@ -35,6 +35,16 @@ export default function MeasurementsListPage() {
   const [deleteTarget, setDeleteTarget] = useState<MeasurementListItem | null>(null);
   const [renameTarget, setRenameTarget] = useState<MeasurementListItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  function toggleExpand(groupId: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }
 
   if (!selectedAirport) {
     return (
@@ -100,13 +110,15 @@ export default function MeasurementsListPage() {
       <ListPageContent>
         <div className="rounded-2xl border border-tv-border bg-tv-surface overflow-hidden">
           <MeasurementListTable
-            rows={list.paged}
+            groups={list.pagedGroups}
             totalRows={list.rows.length}
             loading={list.loading}
             error={list.error}
             sortKey={list.sortKey}
             sortDir={list.sortDir}
+            expandedGroups={expandedGroups}
             onSort={list.handleSort}
+            onToggleExpand={toggleExpand}
             onRowClick={handleRowClick}
             onRename={(row) => {
               setRenameTarget(row);
@@ -118,11 +130,11 @@ export default function MeasurementsListPage() {
         </div>
       </ListPageContent>
 
-      {!list.loading && !list.error && list.sorted.length > 0 && (
+      {!list.loading && !list.error && list.groups.length > 0 && (
         <Pagination
           page={list.page}
           pageSize={list.pageSize}
-          totalItems={list.sorted.length}
+          totalItems={list.groups.length}
           onPageChange={list.setPage}
           onPageSizeChange={list.handlePageSizeChange}
           showingKey="measurementsList.showing"

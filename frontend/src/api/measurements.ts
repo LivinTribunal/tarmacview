@@ -1,6 +1,8 @@
 import type {
+  IterationCompare,
   LightBox,
   Measurement,
+  MeasurementIteration,
   MeasurementListItem,
   MeasurementPreview,
   MeasurementResults,
@@ -70,6 +72,36 @@ export async function getMeasurementResults(
   measurementId: string,
 ): Promise<MeasurementResults> {
   const res = await client.get(`/measurements/${measurementId}/data`);
+  return res.data;
+}
+
+/** re-fly the run's inspection from freshly uploaded media, linked into its group. */
+export async function iterateMeasurement(
+  measurementId: string,
+  mediaObjectKeys: string[],
+): Promise<Measurement> {
+  const res = await client.post(`/measurements/${measurementId}/iterate`, {
+    media_object_keys: mediaObjectKeys,
+  });
+  return res.data;
+}
+
+/** every run in this measurement's iteration group, ordered by iteration_index. */
+export async function listMeasurementIterations(
+  measurementId: string,
+): Promise<MeasurementIteration[]> {
+  const res = await client.get(`/measurements/${measurementId}/iterations`);
+  return res.data;
+}
+
+/** N-way convergence compare across a group; omitting iterations returns every run. */
+export async function compareIterations(
+  groupId: string,
+  iterations?: number[],
+): Promise<IterationCompare> {
+  const params =
+    iterations && iterations.length ? { iterations: iterations.join(",") } : undefined;
+  const res = await client.get(`/iteration-groups/${groupId}/compare`, { params });
   return res.data;
 }
 

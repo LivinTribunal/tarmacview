@@ -21,6 +21,9 @@ export interface MeasurementListItem {
   status: MeasurementStatus;
   // operator-supplied run name; blank falls back to the inspection label
   label: string | null;
+  // iteration grouping - linked re-flies of the same inspection share a group
+  iteration_group_id: string | null;
+  iteration_index: number | null;
   created_at: string | null;
   has_results: boolean;
   pass_count: number;
@@ -73,6 +76,8 @@ export interface Measurement {
   inspection_id: string;
   status: MeasurementStatus;
   label: string | null;
+  iteration_group_id: string | null;
+  iteration_index: number | null;
   error_message: string | null;
 }
 
@@ -123,6 +128,8 @@ export interface MeasurementResults {
   has_results: boolean;
   // run name + inspection context for the results-header blank-label fallback
   label: string | null;
+  iteration_group_id: string | null;
+  iteration_index: number | null;
   inspection_method: InspectionMethod | null;
   inspection_sequence_order: number | null;
   runway_heading: number | null;
@@ -131,4 +138,59 @@ export interface MeasurementResults {
   lights: LightSeries[];
   drone_path: DronePathPoint[];
   video_urls: Record<string, string>;
+}
+
+// one run in an iteration group - the row the iteration switcher lists
+export interface MeasurementIteration {
+  id: string;
+  iteration_index: number | null;
+  label: string | null;
+  status: MeasurementStatus;
+  created_at: string | null;
+  has_results: boolean;
+  pass_count: number;
+  fail_count: number;
+}
+
+// one iteration's identity - the column header of the convergence table
+export interface IterationMeta {
+  id: string;
+  iteration_index: number | null;
+  label: string | null;
+  status: MeasurementStatus;
+  created_at: string | null;
+}
+
+// one light's measured value for one iteration, plus its delta + verdict change
+export interface IterationCompareCell {
+  iteration_index: number | null;
+  measured_transition_angle: number | null;
+  passed: boolean | null;
+  delta_from_setpoint: number | null;
+  verdict_changed_to_pass: boolean;
+}
+
+// one iteration's per-frame timeseries for a single light, for the overlay charts
+export interface IterationSeries {
+  iteration_index: number | null;
+  transition_angle_min: number | null;
+  transition_angle_middle: number | null;
+  transition_angle_max: number | null;
+  points: LightSeriesPoint[];
+}
+
+// one PAPI light's convergence across the group - setpoint, cells, overlay series
+export interface LightComparison {
+  light_name: string;
+  setting_angle: number | null;
+  tolerance: number | null;
+  cells: IterationCompareCell[];
+  series: IterationSeries[];
+}
+
+// N-way convergence payload - per-light cells + overlay series across iterations
+export interface IterationCompare {
+  group_id: string;
+  iterations: IterationMeta[];
+  lights: LightComparison[];
 }

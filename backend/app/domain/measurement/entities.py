@@ -95,6 +95,10 @@ class Measurement:
     status: MeasurementStatus = MeasurementStatus.QUEUED
     # operator-supplied free-text run name; blank falls back to the inspection label
     label: str | None = None
+    # iteration grouping - root run is its own group (group = id, index 1), each
+    # linked re-fly of the same inspection takes the parent's group and max + 1
+    iteration_group_id: UUID | None = None
+    iteration_index: int | None = None
     runway_heading: float | None = None
     reference_points: list[ReferencePoint] = field(default_factory=list)
     light_boxes: list[LightBox] = field(default_factory=list)
@@ -106,6 +110,11 @@ class Measurement:
     error_message: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    def start_iteration_group(self) -> None:
+        """mark this run as the root of its own iteration group (group = own id, index 1)."""
+        self.iteration_group_id = self.id
+        self.iteration_index = 1
 
     def transition_to(self, target: MeasurementStatus) -> None:
         """advance status through the state machine - raises on an illegal hop."""

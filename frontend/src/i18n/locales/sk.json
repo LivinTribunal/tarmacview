@@ -2152,6 +2152,9 @@
     "searchPlaceholder": "Hľadať merania...",
     "tab": {
       "all": "Všetky"
+    },
+    "iteration": {
+      "label": "Iterácia {{index}}"
     }
   },
   "measurementsList": {
@@ -2167,6 +2170,8 @@
     "review": "Skontrolovať",
     "watch": "Zobraziť priebeh",
     "passFail": "{{pass}} VYHOVUJE / {{fail}} NEVYHOVUJE",
+    "runCount": "{{count}} behov",
+    "expandRuns": "Zobraziť iterácie",
     "columns": {
       "mission": "Misia",
       "inspection": "Inšpekcia",
@@ -2183,7 +2188,8 @@
       "ERROR": "Zlyhalo"
     },
     "filters": {
-      "allMissions": "Všetky misie"
+      "allMissions": "Všetky misie",
+      "allInspections": "Všetky inšpekcie"
     },
     "actions": {
       "rename": "Premenovať",
@@ -2201,6 +2207,13 @@
     "generatingPdf": "Generuje sa…",
     "passRollup": "{{pass}}/{{total}} vyhovuje",
     "noData": "Pre tento graf nie sú dáta.",
+    "uploadIteration": "Nahrať iteráciu",
+    "iterationSwitcher": {
+      "label": "Prepnúť iteráciu"
+    },
+    "tab": {
+      "compare": "Porovnať"
+    },
     "table": {
       "title": "Prechodové uhly",
       "light": "Svetlo",
@@ -2239,6 +2252,33 @@
       "enhanced": "Vylepšené",
       "combined": "Všetky PAPI svetlá",
       "fullscreen": "Celá obrazovka"
+    }
+  },
+  "iterationUpload": {
+    "title": "Nahrať záznam z dronu pre iteráciu",
+    "hint": "Nahrajte nový záznam z preletu tejto inšpekcie. Spustí sa nové meranie a porovná sa s predchádzajúcimi behmi.",
+    "uploading": "Nahráva sa…",
+    "confirm": "Spustiť iteráciu",
+    "cancel": "Zrušiť",
+    "error": "Iteráciu sa nepodarilo spustiť. Skúste to znova."
+  },
+  "iterationCompare": {
+    "title": "Konvergencia",
+    "selectIterations": "Iterácie",
+    "lightPicker": "Svetlo",
+    "iterationN": "Iterácia {{index}}",
+    "failToPass": "NEVYHOVUJE → VYHOVUJE",
+    "loadError": "Porovnanie sa nepodarilo načítať.",
+    "noData": "Pre tento graf nie sú dáta.",
+    "table": {
+      "light": "Svetlo",
+      "setpoint": "Cieľová hodnota",
+      "tolerance": "Tolerancia"
+    },
+    "charts": {
+      "angle": "Elevačný uhol",
+      "intensity": "Intenzita",
+      "chromaticity": "Chromatickosť (podiel červenej)"
     }
   }
 }

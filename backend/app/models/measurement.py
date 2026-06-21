@@ -15,6 +15,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     func,
@@ -39,6 +40,10 @@ class Measurement(Base):
     # operator-supplied free-text run name; null falls back to the inspection label
     label = Column(String, nullable=True)
     runway_heading = Column(Float, nullable=True)
+    # iteration grouping - linked re-flies of the same inspection share a group;
+    # the root run is its own group (group = id, index 1), each re-fly is max + 1
+    iteration_group_id = Column(UUID, nullable=True)
+    iteration_index = Column(Integer, nullable=True)
     # snapshotted LHA ground truth - an audit record, not a live join
     reference_points = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # operator-confirmed first-frame light boxes (percentage coords)
@@ -65,4 +70,5 @@ class Measurement(Base):
             name="ck_measurement_status",
         ),
         Index("ix_measurement_inspection_id", "inspection_id"),
+        Index("ix_measurement_iteration_group_id", "iteration_group_id"),
     )

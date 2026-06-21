@@ -33,6 +33,10 @@ class MeasurementRepository(ABC):
         """all measurements currently in any of the given statuses (one read)."""
 
     @abstractmethod
+    def list_by_iteration_group(self, group_id: UUID) -> list[Measurement]:
+        """all runs in one iteration group, ordered by iteration_index ascending."""
+
+    @abstractmethod
     def save(self, measurement: Measurement) -> Measurement:
         """insert or update one aggregate and return the persisted form."""
 

@@ -36,6 +36,8 @@ const baseResults: MeasurementResults = {
   status: "DONE",
   has_results: true,
   label: null,
+  iteration_group_id: "m1",
+  iteration_index: 1,
   inspection_method: "HORIZONTAL_RANGE",
   inspection_sequence_order: 1,
   runway_heading: 90,

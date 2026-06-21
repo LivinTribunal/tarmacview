@@ -89,6 +89,8 @@ def _to_domain(row: MeasurementORM) -> Measurement:
         inspection_id=row.inspection_id,
         status=MeasurementStatus(row.status),
         label=row.label,
+        iteration_group_id=row.iteration_group_id,
+        iteration_index=row.iteration_index,
         runway_heading=row.runway_heading,
         reference_points=[_ref_from_dict(d) for d in (row.reference_points or [])],
         light_boxes=[_box_from_dict(d) for d in (row.light_boxes or [])],
@@ -108,6 +110,8 @@ def _apply_to_row(row: MeasurementORM, m: Measurement) -> None:
     row.inspection_id = m.inspection_id
     row.status = m.status.value
     row.label = m.label
+    row.iteration_group_id = m.iteration_group_id
+    row.iteration_index = m.iteration_index
     row.runway_heading = m.runway_heading
     row.reference_points = [_ref_to_dict(rp) for rp in m.reference_points]
     row.light_boxes = [_box_to_dict(b) for b in m.light_boxes]
@@ -162,6 +166,16 @@ class SqlAlchemyMeasurementRepository(MeasurementRepository):
             self.db.query(MeasurementORM)
             .filter(MeasurementORM.status.in_(values))
             .order_by(MeasurementORM.created_at)
+            .all()
+        )
+        return [_to_domain(r) for r in rows]
+
+    def list_by_iteration_group(self, group_id: UUID) -> list[Measurement]:
+        """all runs in one iteration group, ordered by iteration_index ascending."""
+        rows = (
+            self.db.query(MeasurementORM)
+            .filter(MeasurementORM.iteration_group_id == group_id)
+            .order_by(MeasurementORM.iteration_index, MeasurementORM.created_at)
             .all()
         )
         return [_to_domain(r) for r in rows]

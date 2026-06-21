@@ -33,9 +33,15 @@ from app.models.inspection import Inspection
 from app.models.mission import Mission
 from app.schemas.measurement import (
     DronePathPoint,
+    IterationCompareCell,
+    IterationCompareResponse,
+    IterationMeta,
+    IterationSeries,
+    LightComparison,
     LightSeries,
     LightSeriesPoint,
     LightSummaryResponse,
+    MeasurementIterationResponse,
     MeasurementListItemResponse,
     MeasurementResponse,
     MeasurementResultsResponse,
@@ -136,6 +142,8 @@ def to_response(m: Measurement) -> MeasurementResponse:
         inspection_id=m.inspection_id,
         status=m.status.value,
         label=m.label,
+        iteration_group_id=m.iteration_group_id,
+        iteration_index=m.iteration_index,
         runway_heading=m.runway_heading,
         reference_points=[
             ReferencePointResponse(
@@ -205,6 +213,44 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
         reference_points=reference_points,
         media_object_keys=media_keys,
     )
+    # a mission-wide run is the root of its own iteration group; linked re-flies
+    # go through iterate_measurement and copy this group id
+    measurement.start_iteration_group()
+    return _repo(db).save(measurement)
+
+
+def iterate_measurement(db: Session, parent_id: UUID, media_object_keys: list[str]) -> Measurement:
+    """start a linked re-fly of the parent's inspection from the supplied media only.
+
+    copies the parent's iteration group with ``iteration_index = max + 1`` and consumes
+    only the request-supplied keys - never the inspection's standing media (per-run
+    media isolation). 404 when the parent is missing, 422 on empty keys. flush only;
+    the route commits and enqueues the first frame.
+    """
+    parent = get_measurement(db, parent_id)
+    if not media_object_keys:
+        raise DomainError("an iteration needs at least one uploaded media file", status_code=422)
+
+    inspection = db.query(Inspection).filter(Inspection.id == parent.inspection_id).first()
+    if inspection is None:
+        raise NotFoundError("inspection not found")
+
+    # legacy rows predating the iteration columns fall back to their own id as the group
+    group_id = parent.iteration_group_id or parent.id
+    existing = _repo(db).list_by_iteration_group(group_id)
+    next_index = max((m.iteration_index or 1 for m in existing), default=1) + 1
+
+    reference_points, runway_heading = _snapshot_reference_points(db, inspection)
+    measurement = Measurement(
+        inspection_id=parent.inspection_id,
+        status=MeasurementStatus.QUEUED,
+        runway_heading=runway_heading,
+        reference_points=reference_points,
+        # PER-RUN ISOLATION: only the supplied keys, never _inspection_media_keys
+        media_object_keys=list(media_object_keys),
+        iteration_group_id=group_id,
+        iteration_index=next_index,
+    )
     return _repo(db).save(measurement)
 
 
@@ -238,6 +284,8 @@ def _list_item(
         inspection_sequence_order=inspection.sequence_order,
         status=measurement.status.value,
         label=measurement.label,
+        iteration_group_id=measurement.iteration_group_id,
+        iteration_index=measurement.iteration_index,
         created_at=measurement.created_at,
         has_results=has_results,
         pass_count=pass_count,
@@ -453,6 +501,14 @@ def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
     return path
 
 
+def _load_frames(measurement: Measurement) -> list[dict]:
+    """read + decompress one run's per-frame blob - empty when not DONE / no blob."""
+    if measurement.status != MeasurementStatus.DONE or not measurement.object_key:
+        return []
+    raw = object_storage.get_object(measurement.object_key)
+    return json.loads(gzip.decompress(raw).decode("utf-8"))
+
+
 def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsResponse:
     """assemble the full results payload for the operator results page.
 
@@ -469,6 +525,8 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
         status=measurement.status.value,
         has_results=False,
         label=measurement.label,
+        iteration_group_id=measurement.iteration_group_id,
+        iteration_index=measurement.iteration_index,
         inspection_method=inspection.method if inspection else None,
         inspection_sequence_order=inspection.sequence_order if inspection else None,
         runway_heading=measurement.runway_heading,
@@ -478,8 +536,7 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
     if measurement.status != MeasurementStatus.DONE or not measurement.object_key:
         return response
 
-    raw = object_storage.get_object(measurement.object_key)
-    frames = json.loads(gzip.decompress(raw).decode("utf-8"))
+    frames = _load_frames(measurement)
     summaries_by_name = {s.light_name: s for s in measurement.summaries}
 
     response.lights = [
@@ -492,6 +549,131 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
     }
     response.has_results = True
     return response
+
+
+# iteration grouping (linked re-flies of one inspection + N-way compare)
+
+
+def _iteration_item(run: Measurement) -> MeasurementIterationResponse:
+    """map one run in a group to its switcher row (pass/fail + has_results rollup)."""
+    pass_count = sum(1 for s in run.summaries if s.passed is True)
+    fail_count = sum(1 for s in run.summaries if s.passed is False)
+    has_results = run.status == MeasurementStatus.DONE and run.object_key is not None
+    return MeasurementIterationResponse(
+        id=run.id,
+        iteration_index=run.iteration_index,
+        label=run.label,
+        status=run.status.value,
+        created_at=run.created_at,
+        has_results=has_results,
+        pass_count=pass_count,
+        fail_count=fail_count,
+    )
+
+
+def list_iterations(db: Session, measurement_id: UUID) -> list[MeasurementIterationResponse]:
+    """every run in a measurement's iteration group, ordered by iteration_index.
+
+    resolves the group off the run (legacy rows fall back to their own id) and maps
+    each member to a switcher row. 404 when the run is missing.
+    """
+    measurement = get_measurement(db, measurement_id)
+    group_id = measurement.iteration_group_id or measurement.id
+    runs = _repo(db).list_by_iteration_group(group_id)
+    return [_iteration_item(run) for run in runs]
+
+
+def _first_setpoint(runs: list[Measurement], name: str) -> tuple[float | None, float | None]:
+    """first non-null (setting_angle, tolerance) for one light across the group.
+
+    the planned setpoint is assumed constant across iterations (hardware is tweaked to
+    hit a fixed target), so the earliest run that snapshotted it wins.
+    """
+    for run in runs:
+        for summary in run.summaries:
+            if summary.light_name == name and summary.setting_angle is not None:
+                return summary.setting_angle, summary.tolerance
+    return None, None
+
+
+def compare_iterations(
+    db: Session, group_id: UUID, iteration_indices: list[int] | None
+) -> IterationCompareResponse:
+    """assemble the N-way convergence payload for one iteration group.
+
+    per PAPI light: the constant setpoint + tolerance, one cell per selected iteration
+    (measured angle, verdict, delta-from-setpoint, FAIL->PASS marker), and the overlaid
+    per-frame timeseries. ``iteration_indices`` filters the runs (None = all). 404 when
+    the group is empty. read-only - decompresses one blob per DONE run.
+    """
+    runs = _repo(db).list_by_iteration_group(group_id)
+    if not runs:
+        raise NotFoundError("iteration group not found")
+    if iteration_indices:
+        wanted = set(iteration_indices)
+        runs = [r for r in runs if r.iteration_index in wanted]
+
+    frames_by_run = {run.id: _load_frames(run) for run in runs}
+    summaries_by_run = {run.id: {s.light_name: s for s in run.summaries} for run in runs}
+
+    iterations = [
+        IterationMeta(
+            id=run.id,
+            iteration_index=run.iteration_index,
+            label=run.label,
+            status=run.status.value,
+            created_at=run.created_at,
+        )
+        for run in runs
+    ]
+
+    lights: list[LightComparison] = []
+    for name in PAPI_LIGHT_NAMES:
+        setting_angle, tolerance = _first_setpoint(runs, name)
+        cells: list[IterationCompareCell] = []
+        series: list[IterationSeries] = []
+        prev_cell: IterationCompareCell | None = None
+        for run in runs:
+            summary = summaries_by_run[run.id].get(name)
+            measured = summary.measured_transition_angle if summary else None
+            passed = summary.passed if summary else None
+            delta = (
+                measured - setting_angle
+                if measured is not None and setting_angle is not None
+                else None
+            )
+            verdict_changed = prev_cell is not None and prev_cell.passed is False and passed is True
+            cell = IterationCompareCell(
+                iteration_index=run.iteration_index,
+                measured_transition_angle=measured,
+                passed=passed,
+                delta_from_setpoint=delta,
+                verdict_changed_to_pass=verdict_changed,
+            )
+            cells.append(cell)
+            prev_cell = cell
+
+            ls = _light_series(name, frames_by_run[run.id], summary)
+            series.append(
+                IterationSeries(
+                    iteration_index=run.iteration_index,
+                    transition_angle_min=ls.transition_angle_min,
+                    transition_angle_middle=ls.transition_angle_middle,
+                    transition_angle_max=ls.transition_angle_max,
+                    points=ls.points,
+                )
+            )
+        lights.append(
+            LightComparison(
+                light_name=name,
+                setting_angle=setting_angle,
+                tolerance=tolerance,
+                cells=cells,
+                series=series,
+            )
+        )
+
+    return IterationCompareResponse(group_id=group_id, iterations=iterations, lights=lights)
 
 
 # engine seams (lazy-import the opencv engine; monkeypatched in tests)

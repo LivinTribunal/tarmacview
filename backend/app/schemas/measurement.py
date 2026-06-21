@@ -50,6 +50,8 @@ class MeasurementResponse(BaseModel):
     inspection_id: UUID
     status: MeasurementStatusStr
     label: str | None = None
+    iteration_group_id: UUID | None = None
+    iteration_index: int | None = None
     runway_heading: float | None = None
     reference_points: list[ReferencePointResponse] = []
     light_boxes: list[LightBox] = []
@@ -90,6 +92,8 @@ class MeasurementListItemResponse(BaseModel):
     inspection_sequence_order: int
     status: MeasurementStatusStr
     label: str | None = None
+    iteration_group_id: UUID | None = None
+    iteration_index: int | None = None
     created_at: datetime | None = None
     has_results: bool = False
     pass_count: int = 0
@@ -168,6 +172,8 @@ class MeasurementResultsResponse(BaseModel):
     status: MeasurementStatusStr
     has_results: bool = False
     label: str | None = None
+    iteration_group_id: UUID | None = None
+    iteration_index: int | None = None
     # inspection context so the results header can render the same blank-label
     # fallback ("Inspection N - Method") as the list page
     inspection_method: str | None = None
@@ -178,3 +184,74 @@ class MeasurementResultsResponse(BaseModel):
     lights: list[LightSeries] = []
     drone_path: list[DronePathPoint] = []
     video_urls: dict[str, str] = {}
+
+
+# iteration shapes - the re-fly grouping and the N-way convergence compare view
+
+
+class IterateMeasurementRequest(BaseModel):
+    """start a linked re-fly of a run's inspection from the supplied media only."""
+
+    media_object_keys: list[str]
+
+
+class MeasurementIterationResponse(BaseModel):
+    """one run in an iteration group - the row the iteration switcher lists."""
+
+    id: UUID
+    iteration_index: int | None = None
+    label: str | None = None
+    status: MeasurementStatusStr
+    created_at: datetime | None = None
+    has_results: bool = False
+    pass_count: int = 0
+    fail_count: int = 0
+
+
+class IterationMeta(BaseModel):
+    """one iteration's identity, the column header of the convergence table."""
+
+    id: UUID
+    iteration_index: int | None = None
+    label: str | None = None
+    status: MeasurementStatusStr
+    created_at: datetime | None = None
+
+
+class IterationCompareCell(BaseModel):
+    """one light's measured value for one iteration, plus its delta + verdict change."""
+
+    iteration_index: int | None = None
+    measured_transition_angle: float | None = None
+    passed: bool | None = None
+    delta_from_setpoint: float | None = None
+    # true when this iteration flipped a previously-FAIL light to PASS
+    verdict_changed_to_pass: bool = False
+
+
+class IterationSeries(BaseModel):
+    """one iteration's per-frame timeseries for a single light, for the overlay charts."""
+
+    iteration_index: int | None = None
+    transition_angle_min: float | None = None
+    transition_angle_middle: float | None = None
+    transition_angle_max: float | None = None
+    points: list[LightSeriesPoint] = []
+
+
+class LightComparison(BaseModel):
+    """one PAPI light's convergence across the group - setpoint, cells, overlay series."""
+
+    light_name: str
+    setting_angle: float | None = None
+    tolerance: float | None = None
+    cells: list[IterationCompareCell] = []
+    series: list[IterationSeries] = []
+
+
+class IterationCompareResponse(BaseModel):
+    """N-way convergence payload - per-light cells + overlay series across iterations."""
+
+    group_id: UUID
+    iterations: list[IterationMeta] = []
+    lights: list[LightComparison] = []

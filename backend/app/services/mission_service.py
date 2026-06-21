@@ -2,11 +2,12 @@
 
 from uuid import UUID
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.enums import MissionStatus
 from app.core.exceptions import DomainError, NotFoundError
 from app.models.airport import Airport
+from app.models.flight_plan import FlightPlan, ValidationResult
 from app.models.inspection import Inspection
 from app.models.mission import TRANSITIONS, DroneProfile, Mission
 from app.schemas.mission import MissionCreate, MissionUpdate
@@ -200,7 +201,13 @@ def duplicate_mission(db: Session, mission_id: UUID) -> Mission:
     """
     original = (
         db.query(Mission)
-        .options(joinedload(Mission.inspections).joinedload(Inspection.config))
+        .options(
+            joinedload(Mission.inspections).joinedload(Inspection.config),
+            selectinload(Mission.flight_plan).selectinload(FlightPlan.waypoints),
+            selectinload(Mission.flight_plan)
+            .selectinload(FlightPlan.validation_result)
+            .selectinload(ValidationResult.violations),
+        )
         .filter(Mission.id == mission_id)
         .first()
     )

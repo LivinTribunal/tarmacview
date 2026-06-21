@@ -224,6 +224,7 @@ class AuditAction(str, enum.Enum):
     DEACTIVATE_USER = "DEACTIVATE_USER"
     ASSIGN_AIRPORT = "ASSIGN_AIRPORT"
     SYSTEM_SETTING_CHANGE = "SYSTEM_SETTING_CHANGE"
+    BACKUP = "BACKUP"
 
 
 class ComputationStatus(str, enum.Enum):

@@ -13,6 +13,7 @@ from app.core.enums import AuditAction, UserRole
 from app.schemas.admin import (
     AirportAssignmentUpdate,
     AuditLogResponse,
+    BackupListResponse,
     InvitationResponse,
     SystemSettingsResponse,
     SystemSettingsUpdate,
@@ -21,7 +22,7 @@ from app.schemas.admin import (
     UserInviteRequest,
     UserListMeta,
 )
-from app.services import admin_service, audit_service, runtime_settings
+from app.services import admin_service, audit_service, backup_service, runtime_settings
 from app.utils.audit import log_audit
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -301,6 +302,9 @@ def update_system_settings(
         elevation_api_fallback_enabled=body.elevation_api_fallback_enabled,
         elevation_api_provider=body.elevation_api_provider,
         elevation_api_key=body.elevation_api_key,
+        backup_enabled=body.backup_enabled,
+        backup_interval_hours=body.backup_interval_hours,
+        backup_retention_count=body.backup_retention_count,
     )
 
     _redacted = {"cesium_ion_token", "elevation_api_key"}
@@ -325,6 +329,40 @@ def update_system_settings(
         runtime_settings.invalidate("elevation_api_key")
 
     return SystemSettingsResponse(**settings)
+
+
+# database backups
+
+
+@router.get("/backups", response_model=BackupListResponse)
+def list_backups(
+    current_user: SuperAdminUser,
+    db: Session = Depends(get_db),
+):
+    """list recent db backups + last-run status."""
+    return BackupListResponse(**backup_service.list_backups(db))
+
+
+@router.post("/backups", status_code=202)
+def trigger_backup(
+    current_user: SuperAdminUser,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """trigger an on-demand db backup (runs off-request on the worker)."""
+    log_audit(
+        db,
+        current_user,
+        AuditAction.BACKUP,
+        entity_type="SystemSettings",
+        details={"trigger": "manual"},
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
+
+    # enqueue after commit so the worker can't race an uncommitted audit row
+    backup_service.enqueue_backup()
+    return {"status": "queued"}
 
 
 # audit log

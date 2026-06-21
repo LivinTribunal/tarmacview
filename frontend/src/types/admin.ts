@@ -61,6 +61,11 @@ export interface SystemSettingsResponse {
   elevation_api_fallback_enabled: boolean;
   elevation_api_provider: ElevationApiProvider;
   elevation_api_key: string | null;
+  backup_enabled: boolean;
+  backup_interval_hours: number;
+  backup_retention_count: number;
+  last_backup_at: string | null;
+  last_backup_status: string | null;
 }
 
 export interface SystemSettingsUpdate {
@@ -70,6 +75,21 @@ export interface SystemSettingsUpdate {
   elevation_api_fallback_enabled?: boolean;
   elevation_api_provider?: ElevationApiProvider;
   elevation_api_key?: string | null;
+  backup_enabled?: boolean;
+  backup_interval_hours?: number;
+  backup_retention_count?: number;
+}
+
+export interface BackupItem {
+  key: string;
+  size: number;
+  last_modified: string;
+}
+
+export interface BackupListResponse {
+  backups: BackupItem[];
+  last_backup_at: string | null;
+  last_backup_status: string | null;
 }
 
 export interface AuditLogEntry {

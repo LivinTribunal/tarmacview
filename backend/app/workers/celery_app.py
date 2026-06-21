@@ -24,7 +24,7 @@ celery_app = Celery(
     "tarmacview",
     broker=redis_url,
     backend=redis_url,
-    include=["app.workers.measurement_tasks"],
+    include=["app.workers.measurement_tasks", "app.workers.backup_tasks"],
 )
 
 # late acks + single prefetch - video jobs are long, so a worker should not
@@ -39,6 +39,16 @@ celery_app.conf.update(
     task_soft_time_limit=soft_time_limit,
     task_time_limit=hard_time_limit,
 )
+
+
+# beat dispatcher tick - a single beat process fires this on an interval; the task
+# reads the db-backed backup config each tick and runs a dump only when due, so the
+# interval is runtime-configurable without restarting beat. keep worker-beat at one
+# replica (duplicate beats = duplicate backups).
+backup_tick = int(os.getenv("BACKUP_DISPATCH_TICK_SECONDS", "300"))
+celery_app.conf.beat_schedule = {
+    "maybe-run-backup": {"task": "workers.backup.maybe_run_backup", "schedule": backup_tick},
+}
 
 
 @celery_app.task(name="workers.ping")

@@ -1,17 +1,23 @@
 import { useState, useEffect, useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Save, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Save, Loader2, CheckCircle, XCircle, AlertTriangle, Database } from "lucide-react";
 import {
   ListPageContainer,
   ListPageContent,
 } from "@/components/common/ListPageLayout";
 import type {
+  BackupItem,
   ElevationApiProvider,
   SystemSettingsResponse,
   SystemSettingsUpdate,
 } from "@/types/admin";
 import { ELEVATION_API_KEY_MASK } from "@/types/admin";
-import { getSystemSettings, updateSystemSettings } from "@/api/admin";
+import {
+  getSystemSettings,
+  listBackups,
+  triggerBackup,
+  updateSystemSettings,
+} from "@/api/admin";
 import { useSystemSettings } from "@/contexts/SystemSettingsContext";
 
 /** super-admin system settings page: maintenance mode, api keys, elevation provider. */
@@ -30,6 +36,9 @@ export default function SuperAdminSystemPage() {
   // separate input state so the inbound mask sentinel is never re-sent
   // verbatim on save (which would noop) but is shown to the operator.
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [triggering, setTriggering] = useState(false);
+  const [triggered, setTriggered] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -45,6 +54,35 @@ export default function SuperAdminSystemPage() {
     load();
   }, []);
 
+  async function loadBackups() {
+    try {
+      const data = await listBackups();
+      setBackups(data.backups);
+    } catch {
+      setError(t("superAdmin.errors.backupsLoadFailed"));
+    }
+  }
+
+  useEffect(() => {
+    loadBackups();
+  }, []);
+
+  async function handleTriggerBackup() {
+    setTriggering(true);
+    setTriggered(false);
+    setError(null);
+    try {
+      await triggerBackup();
+      setTriggered(true);
+      setTimeout(() => setTriggered(false), 4000);
+      await loadBackups();
+    } catch {
+      setError(t("superAdmin.errors.backupTriggerFailed"));
+    } finally {
+      setTriggering(false);
+    }
+  }
+
   async function handleSave() {
     if (!settings) return;
     setSaving(true);
@@ -57,6 +95,9 @@ export default function SuperAdminSystemPage() {
         elevation_api_url: settings.elevation_api_url,
         elevation_api_fallback_enabled: settings.elevation_api_fallback_enabled,
         elevation_api_provider: settings.elevation_api_provider,
+        backup_enabled: settings.backup_enabled,
+        backup_interval_hours: settings.backup_interval_hours,
+        backup_retention_count: settings.backup_retention_count,
       };
       // only send the api key field when the operator actually typed something.
       // empty input + a persisted key means "keep existing" - omit the field
@@ -323,6 +364,147 @@ export default function SuperAdminSystemPage() {
           >
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>{t("admin.elevationApi.warning")}</span>
+          </div>
+        </section>
+
+        {/* database backups */}
+        <section
+          className="rounded-lg border border-tv-border bg-tv-surface p-6 space-y-4"
+          data-testid="backup-panel"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-tv-text-primary">
+                {t("admin.backups.title")}
+              </h2>
+              <p className="text-sm text-tv-text-secondary mt-1">
+                {t("admin.backups.enableDescription")}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.backup_enabled}
+              aria-label={t("admin.backups.enableLabel")}
+              onClick={() =>
+                setSettings({ ...settings, backup_enabled: !settings.backup_enabled })
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.backup_enabled ? "bg-tv-accent" : "bg-tv-surface-hover"
+              }`}
+              data-testid="backup-enabled-toggle"
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.backup_enabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="backup-interval"
+                className="block text-sm font-medium text-tv-text-secondary mb-1"
+              >
+                {t("admin.backups.intervalLabel")}
+              </label>
+              <input
+                id="backup-interval"
+                type="number"
+                min={1}
+                value={settings.backup_interval_hours}
+                disabled={!settings.backup_enabled}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    backup_interval_hours: Number(e.target.value),
+                  })
+                }
+                className="w-full rounded-lg border border-tv-border bg-tv-bg px-3 py-2 text-sm text-tv-text-primary focus:outline-none focus:border-tv-accent disabled:opacity-50"
+                data-testid="backup-interval-input"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="backup-retention"
+                className="block text-sm font-medium text-tv-text-secondary mb-1"
+              >
+                {t("admin.backups.retentionLabel")}
+              </label>
+              <input
+                id="backup-retention"
+                type="number"
+                min={1}
+                value={settings.backup_retention_count}
+                disabled={!settings.backup_enabled}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    backup_retention_count: Number(e.target.value),
+                  })
+                }
+                className="w-full rounded-lg border border-tv-border bg-tv-bg px-3 py-2 text-sm text-tv-text-primary focus:outline-none focus:border-tv-accent disabled:opacity-50"
+                data-testid="backup-retention-input"
+              />
+            </div>
+          </div>
+
+          <p className="text-sm text-tv-text-secondary" data-testid="backup-last-run">
+            {t("admin.backups.lastBackup")}:{" "}
+            {settings.last_backup_at
+              ? `${new Date(settings.last_backup_at).toLocaleString()} (${
+                  settings.last_backup_status ?? ""
+                })`
+              : t("admin.backups.never")}
+          </p>
+
+          <div>
+            <h3 className="text-sm font-medium text-tv-text-secondary mb-2">
+              {t("admin.backups.recentBackups")}
+            </h3>
+            {backups.length === 0 ? (
+              <p className="text-sm text-tv-text-muted" data-testid="backup-list-empty">
+                {t("admin.backups.noBackups")}
+              </p>
+            ) : (
+              <ul className="space-y-1" data-testid="backup-list">
+                {backups.map((b) => (
+                  <li
+                    key={b.key}
+                    className="flex items-center justify-between text-sm text-tv-text-primary"
+                  >
+                    <span className="font-mono">{b.key}</span>
+                    <span className="text-tv-text-muted">
+                      {new Date(b.last_modified).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleTriggerBackup}
+              disabled={triggering}
+              className="flex items-center gap-2 rounded-lg border border-tv-border px-4 py-2 text-sm text-tv-text-secondary hover:text-tv-text-primary hover:border-tv-accent transition-colors disabled:opacity-50"
+              data-testid="trigger-backup-button"
+            >
+              {triggering ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Database className="w-4 h-4" />
+              )}
+              {t("admin.backups.backupNow")}
+            </button>
+            {triggered && (
+              <span className="text-sm text-[var(--tv-success)]">
+                {t("admin.backups.triggered")}
+              </span>
+            )}
           </div>
         </section>
 

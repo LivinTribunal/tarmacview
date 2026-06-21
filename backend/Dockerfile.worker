@@ -13,8 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt -r requirements-video.txt
 # stage 2: runtime - ffmpeg + opencv runtime libs + libpq
 FROM python:3.12-slim
 WORKDIR /app
+# postgresql-client provides pg_dump for the scheduled db backup task
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 ffmpeg libglib2.0-0 libgl1 \
+    libpq5 ffmpeg libglib2.0-0 libgl1 postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin

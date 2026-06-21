@@ -36,6 +36,11 @@ const MOCK_SETTINGS = {
   elevation_api_fallback_enabled: false,
   elevation_api_provider: "OPEN_ELEVATION" as const,
   elevation_api_key: null,
+  backup_enabled: false,
+  backup_interval_hours: 24,
+  backup_retention_count: 3,
+  last_backup_at: null,
+  last_backup_status: null,
 };
 
 /**

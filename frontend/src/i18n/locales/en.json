@@ -1956,7 +1956,9 @@
       "auditLogLoadFailed": "Failed to load audit logs",
       "auditLogExportFailed": "Failed to export audit log",
       "systemSettingsLoadFailed": "Failed to load system settings",
-      "systemSettingsSaveFailed": "Failed to save settings"
+      "systemSettingsSaveFailed": "Failed to save settings",
+      "backupsLoadFailed": "Failed to load backups",
+      "backupTriggerFailed": "Failed to trigger backup"
     }
   },
   "admin": {
@@ -2002,6 +2004,19 @@
     "elevationApiFallback": {
       "label": "Per-point elevation API fallback",
       "help": "When ON, FLAT airports query Open-Elevation per point so trajectories follow terrain even without a DEM. Costs extra latency and depends on the external API being reachable; OFF falls back to the constant airport elevation."
+    },
+    "backups": {
+      "title": "Database backups",
+      "enableLabel": "Scheduled backups",
+      "enableDescription": "When ON, the database is dumped on a schedule and shipped to object storage, keeping the newest few dumps.",
+      "intervalLabel": "Interval (hours)",
+      "retentionLabel": "Keep latest",
+      "lastBackup": "Last backup",
+      "never": "Never",
+      "recentBackups": "Recent backups",
+      "noBackups": "No backups yet.",
+      "backupNow": "Back up now",
+      "triggered": "Backup queued"
     },
     "elevationApi": {
       "panelTitle": "Remote elevation provider",
@@ -2111,7 +2126,8 @@
         "INVITE_USER": "Invited user",
         "DEACTIVATE_USER": "Deactivated user",
         "ASSIGN_AIRPORT": "Assigned airports",
-        "SYSTEM_SETTING_CHANGE": "Changed system settings"
+        "SYSTEM_SETTING_CHANGE": "Changed system settings",
+        "BACKUP": "Ran backup"
       }
     },
     "airportDetail": {

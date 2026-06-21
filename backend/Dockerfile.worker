@@ -13,9 +13,17 @@ RUN pip install --no-cache-dir -r requirements.txt -r requirements-video.txt
 # stage 2: runtime - ffmpeg + opencv runtime libs + libpq
 FROM python:3.12-slim
 WORKDIR /app
-# postgresql-client provides pg_dump for the scheduled db backup task
+# postgresql-client-16 provides a pg_dump matching the pg16 server. pulled from the
+# pgdg apt repo - debian's bare postgresql-client metapackage pins to pg15, whose
+# pg_dump refuses to dump a newer server (version mismatch).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 ffmpeg libglib2.0-0 libgl1 postgresql-client \
+    libpq5 ffmpeg libglib2.0-0 libgl1 ca-certificates wget \
+    && . /etc/os-release \
+    && wget -qO /usr/share/keyrings/pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin

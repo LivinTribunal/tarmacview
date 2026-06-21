@@ -197,6 +197,124 @@ class TestLengthModes:
         assert plan.length_to <= plan.total_length + 1.0
 
 
+class TestLengthAnchor:
+    """THRESHOLD / ENDPOINT anchor reflects the along-track window."""
+
+    def test_threshold_max_length_unchanged(self):
+        """null anchor == THRESHOLD: MAX_LENGTH stays [0, to] byte-for-byte."""
+        plan = plan_surface_scan(
+            FakeSurface(),
+            _cfg(scan_length_mode="MAX_LENGTH", scan_length_to=400.0),
+            sensor_fov=80.0,
+        )
+        assert plan.length_from == pytest.approx(0.0)
+        assert plan.length_to == pytest.approx(400.0)
+
+    def test_endpoint_max_length(self):
+        """ENDPOINT reflects MAX_LENGTH [0, 400] -> [total - 400, total]."""
+        plan = plan_surface_scan(
+            FakeSurface(),
+            _cfg(
+                scan_length_mode="MAX_LENGTH",
+                scan_length_to=400.0,
+                scan_length_anchor="ENDPOINT",
+            ),
+            sensor_fov=80.0,
+        )
+        assert plan.length_from == pytest.approx(plan.total_length - 400.0, abs=1.0)
+        assert plan.length_to == pytest.approx(plan.total_length, abs=1.0)
+
+    def test_endpoint_interval(self):
+        """ENDPOINT reflects INTERVAL [200, 600] -> [total - 600, total - 200]."""
+        plan = plan_surface_scan(
+            FakeSurface(),
+            _cfg(
+                scan_length_mode="INTERVAL",
+                scan_length_from=200.0,
+                scan_length_to=600.0,
+                scan_length_anchor="ENDPOINT",
+            ),
+            sensor_fov=80.0,
+        )
+        assert plan.length_from == pytest.approx(plan.total_length - 600.0, abs=1.0)
+        assert plan.length_to == pytest.approx(plan.total_length - 200.0, abs=1.0)
+
+    def test_explicit_threshold_interval_matches_default(self):
+        """explicit THRESHOLD equals the null-anchor result."""
+        kw = dict(scan_length_mode="INTERVAL", scan_length_from=200.0, scan_length_to=600.0)
+        default = plan_surface_scan(FakeSurface(), _cfg(**kw), sensor_fov=80.0)
+        explicit = plan_surface_scan(
+            FakeSurface(), _cfg(scan_length_anchor="THRESHOLD", **kw), sensor_fov=80.0
+        )
+        assert explicit.length_from == pytest.approx(default.length_from)
+        assert explicit.length_to == pytest.approx(default.length_to)
+
+    def test_full_mode_anchor_invariant(self):
+        """FULL spans [0, total] regardless of anchor (reflects to itself)."""
+        plan = plan_surface_scan(
+            FakeSurface(), _cfg(scan_length_anchor="ENDPOINT"), sensor_fov=80.0
+        )
+        assert plan.length_from == pytest.approx(0.0)
+        assert plan.length_to == pytest.approx(plan.total_length, abs=1.0)
+
+    @pytest.mark.parametrize("anchor", ["THRESHOLD", "ENDPOINT"])
+    def test_anchor_direction_orthogonal(self, anchor):
+        """direction only reorders the imaged strip; the anchor moves where it sits.
+
+        the waypoints themselves carry a fly-over back-offset whose direction
+        flips with the run heading, so the imaged camera_target points - not the
+        offset waypoints - are the direction-invariant quantity to compare.
+        """
+        surface = FakeSurface()
+
+        def imaged(rev):
+            """waypoints + rounded imaged-target set for one direction at this anchor."""
+            wps = calculate_surface_scan_path(
+                surface,
+                _cfg(
+                    scan_length_mode="MAX_LENGTH",
+                    scan_length_to=400.0,
+                    scan_length_anchor=anchor,
+                    direction_reversed=rev,
+                ),
+                None,
+                3.0,
+                sensor_fov=80.0,
+            )
+            targets = {(round(w.camera_target.lon, 6), round(w.camera_target.lat, 6)) for w in wps}
+            return wps, targets
+
+        natural_wps, natural_set = imaged(False)
+        reversed_wps, reversed_set = imaged(True)
+        # direction only reorders: the imaged strip is identical
+        assert natural_set == reversed_set
+        # but the traversal start flips to the opposite end of the run
+        first_nat = (round(natural_wps[0].camera_target.lon, 6),)
+        first_rev = (round(reversed_wps[0].camera_target.lon, 6),)
+        assert first_nat != first_rev
+
+    def test_threshold_and_endpoint_sit_at_opposite_ends(self):
+        """the THRESHOLD window and the ENDPOINT window image disjoint positions."""
+        surface = FakeSurface()
+
+        def imaged_set(anchor):
+            """rounded along-track imaged-target longitudes for an anchor."""
+            wps = calculate_surface_scan_path(
+                surface,
+                _cfg(
+                    scan_length_mode="MAX_LENGTH",
+                    scan_length_to=400.0,
+                    scan_length_anchor=anchor,
+                ),
+                None,
+                3.0,
+                sensor_fov=80.0,
+            )
+            return {round(w.camera_target.lon, 5) for w in wps}
+
+        assert imaged_set("THRESHOLD").isdisjoint(imaged_set("ENDPOINT"))
+
+
 class TestWidthAndSide:
     """width band + LEFT/RIGHT side selection."""
 

@@ -790,6 +790,12 @@
         "MAX_LENGTH": "Max. dĺžka",
         "INTERVAL": "Interval"
       },
+      "scanLengthAnchor": "Ukotvenie",
+      "scanLengthAnchorHelp": "Od ktorého konca sa meria dĺžkové okno. Prah meria od prahu dráhy (predvolené); Koniec meria od vzdialeného konca.",
+      "scanLengthAnchorOption": {
+        "THRESHOLD": "Prah",
+        "ENDPOINT": "Koniec"
+      },
       "scanLengthFrom": "Od (m)",
       "scanLengthTo": "Do (m)",
       "scanWidth": "Šírka (m)",

@@ -5,6 +5,7 @@ import type {
   FlightPlanScope,
   InspectionMethod,
   MissionStatus,
+  ScanLengthAnchor,
   ScanLengthMode,
   ScanRunOrientation,
   ScanWidthSide,
@@ -87,6 +88,7 @@ export interface MissionDetailResponse extends MissionResponse {
 export interface ScanConfigFields {
   scan_surface_id: string | null;
   scan_length_mode: ScanLengthMode | null;
+  scan_length_anchor: ScanLengthAnchor | null;
   scan_length_from: number | null;
   scan_length_to: number | null;
   scan_width: number | null;
@@ -102,6 +104,7 @@ export interface ScanConfigFields {
 export const SCAN_FIELDS = [
   "scan_surface_id",
   "scan_length_mode",
+  "scan_length_anchor",
   "scan_length_from",
   "scan_length_to",
   "scan_width",

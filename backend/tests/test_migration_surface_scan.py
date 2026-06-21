@@ -105,6 +105,28 @@ def test_downgrade_drops_scan_columns_and_upgrade_restores(alembic_env):
     assert SCAN_COLUMNS <= _columns(url, "inspection_configuration")
 
 
+def test_anchor_column_and_check(alembic_env):
+    """0021 adds scan_length_anchor + its CHECK; downgrade to 0020 drops it."""
+    cfg, url = alembic_env
+    command.upgrade(cfg, "head")
+    assert "scan_length_anchor" in _columns(url, "inspection_configuration")
+
+    engine = create_engine(url)
+    try:
+        check_names = {
+            c["name"] for c in inspect(engine).get_check_constraints("inspection_configuration")
+        }
+        assert "ck_inspection_configuration_scan_length_anchor" in check_names
+    finally:
+        engine.dispose()
+
+    command.downgrade(cfg, "0020_mission_status_measured")
+    assert "scan_length_anchor" not in _columns(url, "inspection_configuration")
+
+    command.upgrade(cfg, "head")
+    assert "scan_length_anchor" in _columns(url, "inspection_configuration")
+
+
 def test_frontlap_migration_isolates_to_its_own_column(alembic_env):
     """downgrade to 0015 drops only scan_frontlap_percent; the other scan columns survive."""
     cfg, url = alembic_env

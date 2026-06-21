@@ -243,15 +243,12 @@ describe("MissionValidationPage picker state survival", () => {
     renderPage();
 
     // wait for initial load to complete
-    const kmzCheckbox = await screen.findByTestId("format-KMZ");
-    const mavlinkCheckbox = screen.getByTestId("format-MAVLINK");
-    expect(kmzCheckbox).not.toBeChecked();
+    const select = (await screen.findByTestId("format-select")) as HTMLSelectElement;
+    expect(select.value).toBe("KMZ");
 
-    // tick KMZ + MAVLINK
-    fireEvent.click(kmzCheckbox);
-    fireEvent.click(mavlinkCheckbox);
-    expect(kmzCheckbox).toBeChecked();
-    expect(mavlinkCheckbox).toBeChecked();
+    // pick a non-default format
+    fireEvent.change(select, { target: { value: "MAVLINK" } });
+    expect(select.value).toBe("MAVLINK");
 
     // dispatch focus -> triggers another fetchData
     await act(async () => {
@@ -266,18 +263,19 @@ describe("MissionValidationPage picker state survival", () => {
       await Promise.resolve();
     });
 
-    // checkboxes still checked -> ExportPanel was not unmounted
-    expect(screen.getByTestId("format-KMZ")).toBeChecked();
-    expect(screen.getByTestId("format-MAVLINK")).toBeChecked();
+    // selection survived -> ExportPanel was not unmounted
+    expect((screen.getByTestId("format-select") as HTMLSelectElement).value).toBe(
+      "MAVLINK",
+    );
   });
 
   it("picker state survives visibilitychange refetch", async () => {
     setupHappyPath();
     renderPage();
 
-    const kmzCheckbox = await screen.findByTestId("format-KMZ");
-    fireEvent.click(kmzCheckbox);
-    expect(kmzCheckbox).toBeChecked();
+    const select = (await screen.findByTestId("format-select")) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "MAVLINK" } });
+    expect(select.value).toBe("MAVLINK");
 
     // simulate tab becoming visible
     Object.defineProperty(document, "visibilityState", {
@@ -294,7 +292,9 @@ describe("MissionValidationPage picker state survival", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByTestId("format-KMZ")).toBeChecked();
+    expect((screen.getByTestId("format-select") as HTMLSelectElement).value).toBe(
+      "MAVLINK",
+    );
   });
 
   it("picker state survives post-export refetch", async () => {
@@ -313,11 +313,12 @@ describe("MissionValidationPage picker state survival", () => {
     try {
       renderPage();
 
-      const kmzCheckbox = await screen.findByTestId("format-KMZ");
-      fireEvent.click(kmzCheckbox);
+      const select = (await screen.findByTestId("format-select")) as HTMLSelectElement;
+      // MAVLINK is geozone-capable and not a WPMZ format - clean direct export
+      fireEvent.change(select, { target: { value: "MAVLINK" } });
       const geozonesCheckbox = screen.getByTestId("include-geozones");
       fireEvent.click(geozonesCheckbox);
-      expect(kmzCheckbox).toBeChecked();
+      expect(select.value).toBe("MAVLINK");
       expect(geozonesCheckbox).toBeChecked();
 
       // click download -> exportMissionFiles -> fetchData refetch
@@ -336,7 +337,9 @@ describe("MissionValidationPage picker state survival", () => {
         await Promise.resolve();
       });
 
-      expect(screen.getByTestId("format-KMZ")).toBeChecked();
+      expect((screen.getByTestId("format-select") as HTMLSelectElement).value).toBe(
+        "MAVLINK",
+      );
       expect(screen.getByTestId("include-geozones")).toBeChecked();
     } finally {
       URL.createObjectURL = originalCreate;

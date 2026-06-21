@@ -996,6 +996,7 @@
       "alreadyApproved": "Misia je už schválená",
       "acceptError": "Validácia misie zlyhala",
       "export": "Exportovať údaje misie",
+      "formatLabel": "Formát",
       "formatKml": "KML",
       "formatKmlDesc": "Formát pre Google Earth viewer",
       "formatKmz": "KMZ (DJI)",

@@ -135,7 +135,8 @@ DRAFT → PLANNED → VALIDATED → EXPORTED → MEASURED → COMPLETED
 - COMPLETED, CANCELLED: terminal states — no modifications allowed, user must duplicate the mission
 
 **Duplication:**
-- Duplicated missions always start in DRAFT status regardless of the original's status
+- A DRAFT original — or any original without a flight plan — clones to a clean DRAFT copy with no trajectory. Even a DRAFT holding a stale flight-plan row (the keep-stale contract) clones to a clean DRAFT, preserving the "PLANNED ⇒ current trajectory" invariant.
+- A non-DRAFT original that has a flight plan deep-copies the whole trajectory (waypoints + validation result + violations) and lands the copy as PLANNED, ready to use. Cloned inspections are remapped so copied waypoints rebind to the new inspection rows, and `ValidationViolation.waypoint_ids` are remapped to the copy's waypoints. Constraint rules and export results are not carried over and the trajectory is not regenerated (verbatim deep-copy); the copy name gets a "(copy)" suffix.
 
 **Status gating:**
 - Export button: disabled until VALIDATED
@@ -424,7 +425,7 @@ Airport list, inspection template editor (AGL selector, per-AGL helper-mode togg
 - `Mission.regress_if_trajectory_changed(data)` — invalidates trajectory when needed; returns True on regression. Does NOT apply field values — callers still own field assignment via `apply_schema_update` / `setattr`.
 - `Mission.modify_inspections(callback)` — runs an inspections mutator and invalidates the trajectory atomically. Keeps the existing flight plan as stale.
 - `Mission.assert_deletable()` — raises when status is `COMPLETED` or `CANCELLED`; only those two are terminal
-- `Mission.duplicate()` — returns a detached DRAFT copy with cloned inspections and configs; caller adds the copy to the session and flushes
+- `Mission.duplicate()` — returns a detached copy with cloned inspections and configs. When the original is non-DRAFT and has a flight plan, deep-copies the trajectory (waypoints + validation result + violations, with inspection and `waypoint_ids` refs remapped to the copy) and lands the copy as PLANNED; a DRAFT original (even one holding a stale plan) stays a clean DRAFT with no plan. Caller adds the copy to the session and flushes.
 - `Mission.add_inspection(inspection)` / `remove_inspection(id)` — invalidates trajectory, max 10
 - `Mission.change_drone_profile(id)` — invalidates trajectory
 - `Mission.TERMINAL_STATUSES` — `frozenset({MissionStatus.COMPLETED, MissionStatus.CANCELLED})`; the canonical guard for "no further mutation". `MissionStatus(str, Enum)` keeps both string-keyed and enum-keyed comparisons working at every existing call site.

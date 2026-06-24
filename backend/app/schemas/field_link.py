@@ -38,6 +38,27 @@ class FieldLinkStatusResponse(BaseModel):
     public_host: str | None = None
 
 
+class FieldLinkWayline(BaseModel):
+    """one wayline registered in the field hub's library."""
+
+    id: str
+    mission_id: str
+    name: str
+    drone_model_key: str | None = None
+    payload_model_keys: list[str] = []
+    favorited: bool = False
+    username: str | None = None
+    # hub-reported epoch milliseconds
+    create_time: int
+    update_time: int
+
+
+class FieldLinkWaylineListResponse(BaseModel):
+    """the hub's wayline library, degrading to empty when the hub can't answer."""
+
+    waylines: list[FieldLinkWayline] = []
+
+
 class MediaEventCreate(BaseModel):
     """hub-reported arrival of one uploaded original."""
 

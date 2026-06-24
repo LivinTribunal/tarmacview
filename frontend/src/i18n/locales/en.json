@@ -56,6 +56,7 @@
     "missions": "Missions",
     "airport": "Airport",
     "results": "Results",
+    "fieldOps": "Field Ops",
     "missionCenter": "Mission Center",
     "configuratorCenter": "Coordinator Center",
     "airports": "Airports",
@@ -2242,6 +2243,39 @@
       "enhanced": "Enhanced",
       "combined": "All PAPI lights",
       "fullscreen": "Fullscreen"
+    }
+  },
+  "fieldOps": {
+    "refresh": "Refresh",
+    "hubOffline": "Field hub is offline. Cloud missions may be stale or unavailable.",
+    "cloudMissions": {
+      "title": "Cloud Missions",
+      "empty": "No cloud missions on the field hub.",
+      "loadError": "Could not load cloud missions.",
+      "deleteConfirm": "Delete cloud mission \"{{name}}\"? This removes it from the field hub.",
+      "columns": {
+        "name": "Name",
+        "drone": "Drone model",
+        "updated": "Last updated"
+      }
+    },
+    "droneMedia": {
+      "title": "Drone Media",
+      "empty": "No transferred drone media.",
+      "loadError": "Could not load drone media.",
+      "columns": {
+        "file": "File",
+        "status": "Status",
+        "size": "Size",
+        "mission": "Mission",
+        "captured": "Captured"
+      },
+      "mediaStatus": {
+        "RECEIVED": "Received",
+        "MATCHED": "Matched",
+        "UNASSIGNED": "Unassigned",
+        "INGESTED": "Ingested"
+      }
     }
   }
 }

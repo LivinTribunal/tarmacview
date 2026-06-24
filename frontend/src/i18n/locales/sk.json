@@ -58,6 +58,7 @@
     "missions": "Misie",
     "airport": "Letisko",
     "results": "Výsledky",
+    "fieldOps": "Terénne operácie",
     "missionCenter": "Mission Center",
     "configuratorCenter": "Coordinator Center",
     "airports": "Letiská",
@@ -2246,6 +2247,39 @@
       "enhanced": "Vylepšené",
       "combined": "Všetky PAPI svetlá",
       "fullscreen": "Celá obrazovka"
+    }
+  },
+  "fieldOps": {
+    "refresh": "Obnoviť",
+    "hubOffline": "Terénny hub je offline. Cloudové misie môžu byť neaktuálne alebo nedostupné.",
+    "cloudMissions": {
+      "title": "Cloudové misie",
+      "empty": "Na terénnom hube nie sú žiadne cloudové misie.",
+      "loadError": "Nepodarilo sa načítať cloudové misie.",
+      "deleteConfirm": "Odstrániť cloudovú misiu \"{{name}}\"? Odstráni sa z terénneho hubu.",
+      "columns": {
+        "name": "Názov",
+        "drone": "Model dronu",
+        "updated": "Naposledy upravené"
+      }
+    },
+    "droneMedia": {
+      "title": "Médiá z dronu",
+      "empty": "Žiadne prenesené médiá z dronu.",
+      "loadError": "Nepodarilo sa načítať médiá z dronu.",
+      "columns": {
+        "file": "Súbor",
+        "status": "Stav",
+        "size": "Veľkosť",
+        "mission": "Misia",
+        "captured": "Zachytené"
+      },
+      "mediaStatus": {
+        "RECEIVED": "Prijaté",
+        "MATCHED": "Priradené",
+        "UNASSIGNED": "Nepriradené",
+        "INGESTED": "Spracované"
+      }
     }
   }
 }

@@ -28,3 +28,30 @@ class InternalStatusResponse(BaseModel):
     # device-facing connect address pilot 2 points at - null when unprovisioned
     connect_url: str | None = None
     public_host: str | None = None
+
+
+class InternalWaylineItem(BaseModel):
+    """one dispatched wayline as the backend reconciles its cloud-wayline list."""
+
+    id: str
+    mission_id: str
+    name: str
+    drone_model_key: str | None = None
+    payload_model_keys: list[str] = []
+    favorited: bool = False
+    username: str | None = None
+    create_time: int
+    update_time: int
+    object_key: str
+
+
+class InternalWaylineListResponse(BaseModel):
+    """all dispatched waylines for the backend, newest first."""
+
+    waylines: list[InternalWaylineItem]
+
+
+class InternalWaylineDeleteResponse(BaseModel):
+    """idempotent delete outcome - true when a row was removed."""
+
+    deleted: bool

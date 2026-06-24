@@ -7,13 +7,21 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.enums import MediaFileStatus
+from app.core.exceptions import DomainError
 from app.models.drone_media_file import DroneMediaFile
-from app.schemas.field_link import FieldLinkDevice, FieldLinkStatusResponse, MediaEventCreate
+from app.schemas.field_link import (
+    FieldLinkDevice,
+    FieldLinkStatusResponse,
+    FieldLinkWayline,
+    FieldLinkWaylineListResponse,
+    MediaEventCreate,
+)
 from app.services.geometry_converter import geojson_to_wkt
 
 logger = logging.getLogger(__name__)
 
 STATUS_PATH = "/internal/api/v1/status"
+WAYLINES_PATH = "/internal/api/v1/waylines"
 
 
 def _no_hub() -> FieldLinkStatusResponse:
@@ -56,6 +64,86 @@ def get_field_link_status(
     except (httpx.HTTPError, ValueError, TypeError, AttributeError):
         logger.warning("field hub status fetch failed", exc_info=True)
         return _no_hub()
+
+
+def list_field_link_waylines(
+    transport: httpx.BaseTransport | None = None,
+) -> FieldLinkWaylineListResponse:
+    """the hub's wayline library, degrading to empty when the hub can't answer.
+
+    mirrors get_field_link_status: an unset fieldhub_url or any transport/parse
+    failure logs a warning and returns an empty list rather than raising, so the
+    read-only listing never surfaces hub state as an error.
+    """
+    if not settings.fieldhub_url:
+        return FieldLinkWaylineListResponse(waylines=[])
+
+    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
+    try:
+        with httpx.Client(
+            base_url=settings.fieldhub_url,
+            timeout=settings.fieldhub_timeout,
+            verify=verify,
+            transport=transport,
+        ) as client:
+            response = client.get(
+                WAYLINES_PATH, headers={"X-Hub-Secret": settings.fieldhub_shared_secret}
+            )
+            response.raise_for_status()
+            body = response.json()
+        return FieldLinkWaylineListResponse(
+            waylines=[_map_wayline(item) for item in body.get("waylines", [])]
+        )
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError, KeyError):
+        logger.warning("field hub wayline list fetch failed", exc_info=True)
+        return FieldLinkWaylineListResponse(waylines=[])
+
+
+def delete_field_link_wayline(
+    wayline_id: str,
+    transport: httpx.BaseTransport | None = None,
+) -> bool:
+    """delete one wayline from the hub library, returning the hub's deleted flag.
+
+    raises DomainError(502) when the hub is unconfigured or unreachable so the
+    route can distinguish "hub down" from a wayline that simply wasn't there.
+    """
+    if not settings.fieldhub_url:
+        raise DomainError("field hub is not configured", status_code=502)
+
+    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
+    try:
+        with httpx.Client(
+            base_url=settings.fieldhub_url,
+            timeout=settings.fieldhub_timeout,
+            verify=verify,
+            transport=transport,
+        ) as client:
+            response = client.delete(
+                f"{WAYLINES_PATH}/{wayline_id}",
+                headers={"X-Hub-Secret": settings.fieldhub_shared_secret},
+            )
+            response.raise_for_status()
+            body = response.json()
+        return bool(body.get("deleted", False))
+    except httpx.HTTPError as e:
+        logger.warning("field hub wayline delete failed", exc_info=True)
+        raise DomainError("field hub unreachable - wayline not deleted", status_code=502) from e
+
+
+def _map_wayline(item: dict) -> FieldLinkWayline:
+    """map one hub wayline item to the public shape, dropping object_key."""
+    return FieldLinkWayline(
+        id=item["id"],
+        mission_id=item["mission_id"],
+        name=item["name"],
+        drone_model_key=item.get("drone_model_key"),
+        payload_model_keys=item.get("payload_model_keys", []),
+        favorited=bool(item.get("favorited", False)),
+        username=item.get("username"),
+        create_time=item["create_time"],
+        update_time=item["update_time"],
+    )
 
 
 def record_media_event(db: Session, data: MediaEventCreate) -> tuple[DroneMediaFile, bool]:

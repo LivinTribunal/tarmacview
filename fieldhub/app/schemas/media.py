@@ -1,6 +1,13 @@
 """media module dtos mirroring the demo's fast-upload and callback payloads."""
 
-from pydantic import AliasChoices, BaseModel, Field
+import math
+
+from pydantic import AliasChoices, BaseModel, Field, field_validator
+
+
+def _strip_control_chars(value: str) -> str:
+    """drop nul and other control bytes a device may append to a string field."""
+    return "".join(ch for ch in value if ord(ch) >= 0x20 and ord(ch) != 0x7F).strip()
 
 
 class MediaFastUploadRequest(BaseModel):
@@ -38,6 +45,26 @@ class MediaFileMetadata(BaseModel):
     gimbal_yaw_degree: float | None = None
     created_time: str | None = None
     shoot_position: ShootPosition | None = None
+
+    @field_validator("created_time", mode="before")
+    @classmethod
+    def _clean_created_time(cls, value):
+        """device sometimes appends a nul byte to the timestamp - strip it before parse."""
+        if not isinstance(value, str):
+            return value
+        return _strip_control_chars(value) or None
+
+    @field_validator("shoot_position", mode="after")
+    @classmethod
+    def _drop_unusable_position(cls, value):
+        """null a position the device couldn't fix - non-finite or out-of-range coords."""
+        if value is None:
+            return None
+        if not (math.isfinite(value.lat) and math.isfinite(value.lng)):
+            return None
+        if not (-90.0 <= value.lat <= 90.0 and -180.0 <= value.lng <= 180.0):
+            return None
+        return value
 
 
 class MediaFileExtension(BaseModel):

@@ -187,7 +187,7 @@ describe("ExportPanel - mission report section", () => {
     expect(
       screen.queryByText("Mission needs to be validated before export"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("format-KML")).not.toBeDisabled();
+    expect(screen.getByTestId("format-select")).not.toBeDisabled();
     expect(screen.getByTestId("download-export-btn")).not.toBeDisabled();
   });
 });
@@ -306,7 +306,7 @@ describe("ExportPanel - geozones toggle", () => {
     expect(checkbox.disabled).toBe(false);
   });
 
-  it("disables runway-buffers nested checkbox until parent is on AND mavlink selected", () => {
+  it("hides runway-buffers checkbox until geozones is on, then gates it on mavlink", () => {
     renderPanel({
       mission: makeMission({
         drone_profile_id: "drone-1",
@@ -314,15 +314,24 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
-    const runway = screen.getByTestId("include-runway-buffers") as HTMLInputElement;
-    expect(runway.disabled).toBe(true);
+    // hidden entirely while the geozones toggle is off
+    expect(screen.queryByTestId("include-runway-buffers")).toBeNull();
 
+    // toggling geozones on reveals it nested beneath, still disabled (no MAVLINK)
     fireEvent.click(screen.getByTestId("include-geozones"));
-    // still disabled because MAVLINK isn't selected
-    expect(runway.disabled).toBe(true);
+    expect(
+      (screen.getByTestId("include-runway-buffers") as HTMLInputElement).disabled,
+    ).toBe(true);
 
+    // selecting MAVLINK enables it
     selectFormat("MAVLINK");
-    expect(runway.disabled).toBe(false);
+    expect(
+      (screen.getByTestId("include-runway-buffers") as HTMLInputElement).disabled,
+    ).toBe(false);
+
+    // toggling geozones back off hides it again - no stale checkbox
+    fireEvent.click(screen.getByTestId("include-geozones"));
+    expect(screen.queryByTestId("include-runway-buffers")).toBeNull();
   });
 
   it("renders the advisory note when KML or KMZ is selected and parent is on", () => {

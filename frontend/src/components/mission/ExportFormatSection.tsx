@@ -176,37 +176,37 @@ export default function ExportFormatSection({
                 </div>
               </label>
 
-              <label
-                className={`flex items-start gap-3 pl-6 ${
-                  includeGeozones && geozoneCheck.enabled && mavlinkSelected
-                    ? "cursor-pointer"
-                    : "opacity-50 cursor-not-allowed"
-                }`}
-                title={
-                  !mavlinkSelected
-                    ? t(
-                        "mission.validationExportPage.geozones.runwayBuffersRequiresMavlink",
-                      )
-                    : undefined
-                }
-              >
-                <input
-                  type="checkbox"
-                  checked={includeRunwayBuffers && includeGeozones && geozoneCheck.enabled && mavlinkSelected}
-                  onChange={onToggleRunwayBuffers}
-                  disabled={!includeGeozones || !geozoneCheck.enabled || !mavlinkSelected}
-                  className="mt-0.5 accent-[var(--tv-accent)]"
-                  data-testid="include-runway-buffers"
-                />
-                <div>
-                  <span className="text-sm font-medium text-tv-text-primary">
-                    {t("mission.validationExportPage.geozones.runwayBuffersLabel")}
-                  </span>
-                  <p className="text-xs text-tv-text-muted">
-                    {t("mission.validationExportPage.geozones.runwayBuffersDescription")}
-                  </p>
-                </div>
-              </label>
+              {includeGeozones && geozoneCheck.enabled && (
+                <label
+                  className={`flex items-start gap-3 pl-6 ${
+                    mavlinkSelected ? "cursor-pointer" : "opacity-50 cursor-not-allowed"
+                  }`}
+                  title={
+                    !mavlinkSelected
+                      ? t(
+                          "mission.validationExportPage.geozones.runwayBuffersRequiresMavlink",
+                        )
+                      : undefined
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={includeRunwayBuffers && mavlinkSelected}
+                    onChange={onToggleRunwayBuffers}
+                    disabled={!mavlinkSelected}
+                    className="mt-0.5 accent-[var(--tv-accent)]"
+                    data-testid="include-runway-buffers"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-tv-text-primary">
+                      {t("mission.validationExportPage.geozones.runwayBuffersLabel")}
+                    </span>
+                    <p className="text-xs text-tv-text-muted">
+                      {t("mission.validationExportPage.geozones.runwayBuffersDescription")}
+                    </p>
+                  </div>
+                </label>
+              )}
 
               {includeGeozones && geozoneCheck.enabled && enforcedSelected.length > 0 && (
                 <p

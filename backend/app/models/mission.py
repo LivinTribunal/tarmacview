@@ -230,6 +230,14 @@ class Mission(Base):
     # mission has been validated or already exported - export gate
     POST_PLAN_STATUSES = frozenset({MissionStatus.VALIDATED, MissionStatus.EXPORTED})
 
+    # export/dispatch gate - VALIDATED/EXPORTED plus the post-validation MEASURED
+    # state (a measured mission was already validated; its plan + artifacts persist,
+    # so re-download / re-send stays allowed). deliberately NOT POST_PLAN_STATUSES,
+    # which mark_measured / regress_to_planned / trajectory auto-regress also consume.
+    EXPORT_ELIGIBLE_STATUSES = frozenset(
+        {MissionStatus.VALIDATED, MissionStatus.EXPORTED, MissionStatus.MEASURED}
+    )
+
     # waypoint edits still allowed (regress to PLANNED), exports/completion are not
     PRE_EXPORT_EDITABLE_STATUSES = frozenset(
         {MissionStatus.DRAFT, MissionStatus.PLANNED, MissionStatus.VALIDATED}
@@ -277,11 +285,22 @@ class Mission(Base):
         return result
 
     def duplicate(self) -> "Mission":
-        """clone this mission as a new DRAFT with copied inspections and configs.
+        """clone this mission, carrying the trajectory over when one exists.
+
+        a non-DRAFT original with a flight plan deep-copies the whole FlightPlan
+        aggregate (waypoints + validation result + violations) and lands the copy
+        as PLANNED. a DRAFT original - even one holding a stale flight-plan row
+        from the keep-stale contract - clones to a clean DRAFT with no plan.
 
         the returned Mission and its child entities are unattached - callers
         must add the copy to a session and flush.
         """
+        from app.models.flight_plan import (
+            FlightPlan,
+            ValidationResult,
+            ValidationViolation,
+            Waypoint,
+        )
         from app.models.inspection import Inspection, InspectionConfiguration
 
         copy = Mission(
@@ -303,6 +322,10 @@ class Mission(Base):
             flight_plan_scope=self.flight_plan_scope,
             direction=self.direction,
         )
+
+        # old inspection id -> new Inspection, so copied waypoints can rebind
+        # to the freshly-minted inspection rows instead of the original ids
+        inspection_map: dict = {}
         for insp in self.inspections:
             new_config = None
             if insp.config:
@@ -310,14 +333,76 @@ class Mission(Base):
                     f: getattr(insp.config, f) for f in InspectionConfiguration._MERGE_FIELDS
                 }
                 new_config = InspectionConfiguration(**config_fields)
-            copy.inspections.append(
-                Inspection(
-                    template_id=insp.template_id,
-                    config=new_config,
-                    method=insp.method,
-                    sequence_order=insp.sequence_order,
-                )
+            new_insp = Inspection(
+                template_id=insp.template_id,
+                config=new_config,
+                method=insp.method,
+                sequence_order=insp.sequence_order,
             )
+            copy.inspections.append(new_insp)
+            inspection_map[insp.id] = new_insp
+
+        # carry the trajectory + promote to PLANNED only when the original has a
+        # flight plan AND is not DRAFT. a DRAFT original may hold a stale plan row
+        # (keep-stale contract) - promoting those waypoints would break the
+        # "PLANNED => current trajectory" invariant, so a DRAFT copy stays clean.
+        if self.flight_plan is not None and self.status != MissionStatus.DRAFT:
+            src_fp = self.flight_plan
+            new_fp = FlightPlan(
+                airport_id=src_fp.airport_id,
+                total_distance=src_fp.total_distance,
+                estimated_duration=src_fp.estimated_duration,
+                is_validated=src_fp.is_validated,
+                generated_at=src_fp.generated_at,
+            )
+
+            # old waypoint id -> new waypoint id, so violation waypoint_ids remap
+            waypoint_id_map: dict[str, str] = {}
+            for wp in src_fp.waypoints:
+                new_wp_id = uuid4()
+                new_wp = Waypoint(
+                    id=new_wp_id,
+                    sequence_order=wp.sequence_order,
+                    position=wp.position,
+                    heading=wp.heading,
+                    speed=wp.speed,
+                    hover_duration=wp.hover_duration,
+                    camera_action=wp.camera_action,
+                    waypoint_type=wp.waypoint_type,
+                    camera_target=wp.camera_target,
+                    gimbal_pitch=wp.gimbal_pitch,
+                    agl=wp.agl,
+                    camera_target_agl=wp.camera_target_agl,
+                )
+                # bind the inspection relationship, not the raw FK - duplicate()
+                # mints fresh inspection ids. None for TAKEOFF/TRANSIT/LANDING.
+                new_wp.inspection = inspection_map.get(wp.inspection_id)
+                new_fp.waypoints.append(new_wp)
+                waypoint_id_map[str(wp.id)] = str(new_wp_id)
+
+            src_vr = src_fp.validation_result
+            if src_vr is not None:
+                new_vr = ValidationResult(passed=src_vr.passed, validated_at=src_vr.validated_at)
+                for v in src_vr.violations:
+                    remapped_ids = None
+                    if v.waypoint_ids is not None:
+                        remapped_ids = [
+                            waypoint_id_map.get(str(wid), str(wid)) for wid in v.waypoint_ids
+                        ]
+                    new_vr.violations.append(
+                        ValidationViolation(
+                            constraint_id=v.constraint_id,
+                            category=v.category,
+                            message=v.message,
+                            waypoint_ids=remapped_ids,
+                            violation_kind=v.violation_kind,
+                        )
+                    )
+                new_fp.validation_result = new_vr
+
+            copy.flight_plan = new_fp
+            copy.transition_to(MissionStatus.PLANNED)
+
         return copy
 
     def regress_to_planned(self):

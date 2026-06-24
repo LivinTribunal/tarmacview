@@ -1,5 +1,7 @@
 """tests for mission CRUD, duplication, inspections, transit AGL, trajectory-affecting updates."""
 
+from uuid import uuid4
+
 import pytest
 
 from tests.data.missions import (
@@ -882,3 +884,220 @@ def test_inspection_limit_tenth_ok_eleventh_409(client, airport_id, lifecycle_te
 
     detail = client.get(f"/api/v1/missions/{mission['id']}").json()
     assert len(detail["inspections"]) == 10
+
+
+# duplicate-with-trajectory: deep-copy of the flight plan aggregate (issue #140)
+
+
+def _make_template(client):
+    """create an inspection template via the api and return its id."""
+    r = client.post(
+        "/api/v1/inspection-templates",
+        json={**MISSION_TEMPLATE_PAYLOAD, "name": f"Dup Traj Template {uuid4()}"},
+    )
+    return r.json()["id"]
+
+
+def _build_planned_mission_with_plan(client, db_session, airport_id, status, name):
+    """create a mission via the api, attach an inspection + flight plan, set status.
+
+    returns (mission_id, inspection_id, measurement_wp_id) - all DB ids.
+    """
+    from app.models.flight_plan import (
+        FlightPlan,
+        ValidationResult,
+        ValidationViolation,
+        Waypoint,
+    )
+    from app.models.inspection import Inspection
+    from app.models.mission import Mission
+
+    template_id = _make_template(client)
+    mission = client.post("/api/v1/missions", json={"name": name, "airport_id": airport_id}).json()
+    mission_id = mission["id"]
+
+    db_mission = db_session.query(Mission).filter(Mission.id == mission_id).first()
+
+    inspection = Inspection(
+        id=uuid4(),
+        mission_id=db_mission.id,
+        template_id=template_id,
+        method="HORIZONTAL_RANGE",
+        sequence_order=1,
+    )
+    db_session.add(inspection)
+    db_session.flush()
+
+    fp = FlightPlan(id=uuid4(), mission_id=db_mission.id, airport_id=db_mission.airport_id)
+    fp.compile(123.0, 45.0)
+    fp.is_validated = True
+    db_session.add(fp)
+    db_session.flush()
+
+    takeoff = Waypoint(
+        id=uuid4(),
+        flight_plan_id=fp.id,
+        sequence_order=1,
+        position="POINT Z (18.11 49.69 270)",
+        waypoint_type="TAKEOFF",
+        inspection_id=None,
+    )
+    measurement = Waypoint(
+        id=uuid4(),
+        flight_plan_id=fp.id,
+        sequence_order=2,
+        position="POINT Z (18.12 49.69 290)",
+        waypoint_type="MEASUREMENT",
+        inspection_id=inspection.id,
+    )
+    db_session.add_all([takeoff, measurement])
+    db_session.flush()
+
+    vr = ValidationResult(id=uuid4(), flight_plan_id=fp.id, passed=True)
+    db_session.add(vr)
+    db_session.flush()
+    db_session.add(
+        ValidationViolation(
+            id=uuid4(),
+            validation_result_id=vr.id,
+            category="warning",
+            message="near surface",
+            waypoint_ids=[str(measurement.id)],
+            violation_kind="surface_crossing",
+        )
+    )
+
+    db_mission.status = status
+    db_session.commit()
+
+    return mission_id, str(inspection.id), str(measurement.id)
+
+
+def test_duplicate_planned_mission_copies_trajectory_and_is_planned(client, airport_id, db_session):
+    """a PLANNED original carries its trajectory over and the copy lands PLANNED."""
+    from app.models.mission import Mission
+
+    mission_id, orig_insp_id, orig_wp_id = _build_planned_mission_with_plan(
+        client, db_session, airport_id, "PLANNED", "Dup Traj Planned"
+    )
+
+    response = client.post(f"/api/v1/missions/{mission_id}/duplicate")
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "PLANNED"
+    copy_id = body["id"]
+
+    db_session.expire_all()
+    copy = db_session.query(Mission).filter(Mission.id == copy_id).first()
+    assert copy.flight_plan is not None
+    assert copy.flight_plan.mission_id == copy.id
+    assert copy.flight_plan.total_distance == 123.0
+    assert copy.flight_plan.estimated_duration == 45.0
+    assert len(copy.flight_plan.waypoints) == 2
+
+    copy_insp_ids = {str(i.id) for i in copy.inspections}
+    measurement = next(wp for wp in copy.flight_plan.waypoints if wp.waypoint_type == "MEASUREMENT")
+    assert str(measurement.inspection_id) in copy_insp_ids
+    assert str(measurement.inspection_id) != orig_insp_id
+
+    violations = copy.flight_plan.validation_result.violations
+    assert violations[0].waypoint_ids == [str(measurement.id)]
+    assert orig_wp_id not in violations[0].waypoint_ids
+
+    # original is untouched - keeps its own plan and status
+    original = db_session.query(Mission).filter(Mission.id == mission_id).first()
+    assert original.status == "PLANNED"
+    assert original.flight_plan.id != copy.flight_plan.id
+
+
+@pytest.mark.parametrize("status", ["VALIDATED", "EXPORTED", "MEASURED", "COMPLETED", "CANCELLED"])
+def test_duplicate_mission_status_matrix(client, airport_id, db_session, status):
+    """a non-DRAFT original with a plan always duplicates to a PLANNED copy."""
+    from app.models.mission import Mission
+
+    mission_id, _, _ = _build_planned_mission_with_plan(
+        client, db_session, airport_id, status, f"Dup Traj {status}"
+    )
+
+    response = client.post(f"/api/v1/missions/{mission_id}/duplicate")
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "PLANNED"
+
+    db_session.expire_all()
+    copy = db_session.query(Mission).filter(Mission.id == body["id"]).first()
+    assert copy.flight_plan is not None
+    assert len(copy.flight_plan.waypoints) == 2
+
+
+def test_duplicate_draft_with_stale_plan_has_no_plan(client, airport_id, db_session):
+    """a DRAFT original holding a stale plan row duplicates to a clean DRAFT."""
+    from app.models.mission import Mission
+
+    mission_id, _, _ = _build_planned_mission_with_plan(
+        client, db_session, airport_id, "DRAFT", "Dup Traj Stale Draft"
+    )
+
+    response = client.post(f"/api/v1/missions/{mission_id}/duplicate")
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "DRAFT"
+
+    db_session.expire_all()
+    copy = db_session.query(Mission).filter(Mission.id == body["id"]).first()
+    assert copy.flight_plan is None
+
+
+def test_duplicate_does_not_copy_export_results(client, airport_id, db_session):
+    """export result rows are intentionally not carried over to the copy."""
+    from app.models.flight_plan import ExportResult, FlightPlan
+    from app.models.mission import Mission
+
+    mission_id, _, _ = _build_planned_mission_with_plan(
+        client, db_session, airport_id, "EXPORTED", "Dup Traj Export Results"
+    )
+
+    src_fp = (
+        db_session.query(FlightPlan)
+        .join(Mission, FlightPlan.mission_id == Mission.id)
+        .filter(Mission.id == mission_id)
+        .first()
+    )
+    db_session.add(
+        ExportResult(
+            id=uuid4(),
+            flight_plan_id=src_fp.id,
+            file_name="plan.kmz",
+            format="KMZ",
+            file_path="/tmp/plan.kmz",
+        )
+    )
+    db_session.commit()
+
+    response = client.post(f"/api/v1/missions/{mission_id}/duplicate")
+    assert response.status_code == 201
+
+    db_session.expire_all()
+    copy = db_session.query(Mission).filter(Mission.id == response.json()["id"]).first()
+    assert copy.flight_plan is not None
+    assert copy.flight_plan.export_results == []
+
+
+def test_duplicate_records_audit_duplicated_from(client, airport_id, db_session):
+    """the duplicate route records the source mission id in the audit details."""
+    from app.models.audit_log import AuditLog
+
+    mission_id, _, _ = _build_planned_mission_with_plan(
+        client, db_session, airport_id, "PLANNED", "Dup Traj Audit"
+    )
+
+    copy_id = client.post(f"/api/v1/missions/{mission_id}/duplicate").json()["id"]
+
+    db_session.expire_all()
+    audit = (
+        db_session.query(AuditLog)
+        .filter(AuditLog.entity_id == copy_id, AuditLog.entity_type == "Mission")
+        .first()
+    )
+    assert audit is not None
+    assert audit.details["duplicated_from"] == mission_id

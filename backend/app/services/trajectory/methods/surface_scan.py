@@ -99,6 +99,8 @@ def _resolve_length_interval(config: ResolvedConfig, total_length: Meters) -> tu
     FULL = whole surface; MAX_LENGTH caps the far end at scan_length_to;
     INTERVAL trims both ends. INTERVAL with from >= to is rejected at the
     schema layer (422), so a degenerate window here falls back to FULL.
+    ENDPOINT anchor measures the window from the far end: the resolved
+    interval becomes [total_length - to, total_length - from].
     """
     mode = (config.scan_length_mode or "FULL").upper()
     if mode == "INTERVAL":
@@ -109,6 +111,12 @@ def _resolve_length_interval(config: ResolvedConfig, total_length: Meters) -> tu
         end = config.scan_length_to if config.scan_length_to is not None else total_length
     else:
         start, end = 0.0, total_length
+
+    # anchor the window at the endpoint end by reflecting it across the surface
+    # so distances are measured from the far end instead of the threshold.
+    anchor = (config.scan_length_anchor or "THRESHOLD").upper()
+    if anchor == "ENDPOINT":
+        start, end = total_length - end, total_length - start
 
     start = max(0.0, min(start, total_length))
     end = max(0.0, min(end, total_length))

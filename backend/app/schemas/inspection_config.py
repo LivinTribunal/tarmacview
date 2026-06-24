@@ -27,6 +27,8 @@ HoverBearingRefStr = Literal["RUNWAY", "COMPASS"]
 InspectionDirectionStr = Literal["NATURAL", "REVERSED"]
 # surface-scan along-track extent. null = FULL (whole surface).
 ScanLengthModeStr = Literal["FULL", "MAX_LENGTH", "INTERVAL"]
+# which runway end the along-track window is measured from. null = THRESHOLD.
+ScanLengthAnchorStr = Literal["THRESHOLD", "ENDPOINT"]
 # surface-scan band side relative to the surface bearing. null = centered (full width).
 ScanWidthSideStr = Literal["LEFT", "RIGHT"]
 # surface-scan run orientation. null = LENGTH_WISE.
@@ -117,6 +119,7 @@ class ScanConfigFields(BaseModel):
     # surface-scan fields - target is a surface, not an AGL.
     scan_surface_id: UUID | None = None
     scan_length_mode: ScanLengthModeStr | None = None
+    scan_length_anchor: ScanLengthAnchorStr | None = None
     scan_length_from: float | None = Field(default=None, ge=0)
     scan_length_to: float | None = Field(default=None, ge=0)
     scan_width: float | None = Field(default=None, gt=0)

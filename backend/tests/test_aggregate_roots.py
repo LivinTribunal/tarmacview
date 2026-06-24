@@ -7,7 +7,12 @@ import pytest
 from pydantic import ValidationError
 
 from app.models.airport import AirfieldSurface, Airport, Obstacle, SafetyZone
-from app.models.flight_plan import FlightPlan
+from app.models.flight_plan import (
+    FlightPlan,
+    ValidationResult,
+    ValidationViolation,
+    Waypoint,
+)
 from app.models.inspection import Inspection, InspectionConfiguration
 from app.models.mission import Mission
 
@@ -1077,3 +1082,130 @@ class TestMissionDuplicate:
         m = self._make_mission()
         copy = m.duplicate()
         assert copy.inspections == []
+
+    def _attach_flight_plan(self, m, *, with_inspection=True):
+        """attach an in-python flight plan graph to a source mission.
+
+        returns (measurement_wp, old_inspection) so callers can assert remaps.
+        """
+        old_insp = None
+        if with_inspection:
+            old_insp = Inspection(
+                id=uuid4(),
+                template_id=uuid4(),
+                method="HORIZONTAL_RANGE",
+                sequence_order=1,
+                config=None,
+            )
+            m.inspections = [old_insp]
+
+        takeoff = Waypoint(
+            id=uuid4(),
+            sequence_order=1,
+            position="POINT Z (0 0 10)",
+            waypoint_type="TAKEOFF",
+            inspection_id=None,
+        )
+        measurement = Waypoint(
+            id=uuid4(),
+            sequence_order=2,
+            position="POINT Z (0 0 20)",
+            waypoint_type="MEASUREMENT",
+            inspection_id=old_insp.id if old_insp else None,
+        )
+        vr = ValidationResult(passed=True)
+        vr.violations = [
+            ValidationViolation(
+                category="warning",
+                message="near surface",
+                waypoint_ids=[str(measurement.id)],
+                violation_kind="surface_crossing",
+            ),
+            ValidationViolation(
+                category="violation",
+                message="no waypoint ref",
+                waypoint_ids=None,
+            ),
+        ]
+        fp = FlightPlan(
+            airport_id=m.airport_id,
+            total_distance=123.0,
+            estimated_duration=45.0,
+            is_validated=True,
+        )
+        fp.waypoints = [takeoff, measurement]
+        fp.validation_result = vr
+        m.flight_plan = fp
+        return measurement, old_insp
+
+    def test_duplicate_planned_copies_flight_plan_and_promotes(self):
+        """planned source carries its flight plan over and lands as PLANNED."""
+        m = self._make_mission("PLANNED")
+        self._attach_flight_plan(m)
+
+        copy = m.duplicate()
+
+        assert copy.status == "PLANNED"
+        assert copy.flight_plan is not None
+        assert copy.flight_plan is not m.flight_plan
+        assert len(copy.flight_plan.waypoints) == 2
+        assert copy.flight_plan.total_distance == 123.0
+        assert copy.flight_plan.estimated_duration == 45.0
+
+    def test_duplicate_remaps_waypoint_inspection(self):
+        """copied waypoints bind to the new inspections, takeoff stays None."""
+        m = self._make_mission("PLANNED")
+        _, old_insp = self._attach_flight_plan(m)
+
+        copy = m.duplicate()
+
+        new_insp = copy.inspections[0]
+        assert new_insp is not old_insp
+        wps_by_type = {wp.waypoint_type: wp for wp in copy.flight_plan.waypoints}
+        assert wps_by_type["MEASUREMENT"].inspection is new_insp
+        assert wps_by_type["TAKEOFF"].inspection is None
+
+    def test_duplicate_remaps_violation_waypoint_ids(self):
+        """violation waypoint_ids point at the copy's waypoints, not the source."""
+        m = self._make_mission("VALIDATED")
+        old_measurement, _ = self._attach_flight_plan(m)
+
+        copy = m.duplicate()
+
+        new_measurement = next(
+            wp for wp in copy.flight_plan.waypoints if wp.waypoint_type == "MEASUREMENT"
+        )
+        violations = copy.flight_plan.validation_result.violations
+        with_ids = next(v for v in violations if v.waypoint_ids is not None)
+        assert with_ids.waypoint_ids == [str(new_measurement.id)]
+        assert str(old_measurement.id) not in with_ids.waypoint_ids
+        none_ids = next(v for v in violations if v.message == "no waypoint ref")
+        assert none_ids.waypoint_ids is None
+
+    def test_duplicate_draft_with_stale_plan_stays_clean_draft(self):
+        """a DRAFT source holding a stale plan row clones to a clean DRAFT."""
+        m = self._make_mission("DRAFT")
+        self._attach_flight_plan(m)
+
+        copy = m.duplicate()
+
+        assert copy.status == "DRAFT"
+        assert copy.flight_plan is None
+
+    def test_duplicate_non_draft_no_plan_stays_draft(self):
+        """non-DRAFT source with no plan still clones to DRAFT."""
+        m = self._make_mission("EXPORTED")
+        m.flight_plan = None
+        copy = m.duplicate()
+        assert copy.status == "DRAFT"
+        assert copy.flight_plan is None
+
+    def test_duplicate_validation_result_passed_copied(self):
+        """validation result is a distinct object carrying the same passed flag."""
+        m = self._make_mission("PLANNED")
+        self._attach_flight_plan(m)
+
+        copy = m.duplicate()
+
+        assert copy.flight_plan.validation_result is not m.flight_plan.validation_result
+        assert copy.flight_plan.validation_result.passed == m.flight_plan.validation_result.passed

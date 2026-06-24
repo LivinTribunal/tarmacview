@@ -119,6 +119,11 @@ function makeMission(
   };
 }
 
+// switch the single-select format dropdown to a given format
+function selectFormat(fmt: string) {
+  fireEvent.change(screen.getByTestId("format-select"), { target: { value: fmt } });
+}
+
 function renderPanel(overrides: Partial<ExportPanelProps> = {}) {
   const defaults: ExportPanelProps = {
     mission: makeMission(),
@@ -175,30 +180,47 @@ describe("ExportPanel - mission report section", () => {
 
     expect(screen.getByTestId("mission-report-section")).toBeInTheDocument();
   });
+
+  it("enables export controls for a MEASURED mission (post-validation)", () => {
+    renderPanel({ mission: makeMission({ status: "MEASURED" }) });
+
+    expect(
+      screen.queryByText("Mission needs to be validated before export"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("format-select")).not.toBeDisabled();
+    expect(screen.getByTestId("download-export-btn")).not.toBeDisabled();
+  });
 });
 
 describe("ExportPanel - per-format capability notes", () => {
-  it("renders zoom-only English copy for KMZ and WPML", () => {
+  it("renders zoom-only English copy for the default KMZ and for WPML", () => {
     renderPanel();
 
-    const kmzNote = screen.getByTestId("capability-KMZ");
-    const wpmlNote = screen.getByTestId("capability-WPML");
-    expect(kmzNote.textContent).toMatch(/Carries optical zoom per inspection/);
-    expect(wpmlNote.textContent).toMatch(/Carries optical zoom per inspection/);
+    // KMZ is the default selection
+    expect(screen.getByTestId("capability-KMZ").textContent).toMatch(
+      /Carries optical zoom per inspection/,
+    );
+
+    selectFormat("WPML");
+    expect(screen.getByTestId("capability-WPML").textContent).toMatch(
+      /Carries optical zoom per inspection/,
+    );
   });
 
   it("renders full-coverage English copy for JSON", () => {
     renderPanel();
 
-    const jsonNote = screen.getByTestId("capability-JSON");
-    expect(jsonNote.textContent).toMatch(/Carries all camera settings/);
+    selectFormat("JSON");
+    expect(screen.getByTestId("capability-JSON").textContent).toMatch(
+      /Carries all camera settings/,
+    );
   });
 
   it("renders the dedicated KML name+description note", () => {
     renderPanel();
 
-    const kmlNote = screen.getByTestId("capability-KML");
-    expect(kmlNote.textContent).toMatch(
+    selectFormat("KML");
+    expect(screen.getByTestId("capability-KML").textContent).toMatch(
       /KML carries waypoint name and description text only/,
     );
   });
@@ -207,9 +229,28 @@ describe("ExportPanel - per-format capability notes", () => {
     renderPanel();
 
     for (const fmt of ["MAVLINK", "UGCS", "CSV", "GPX", "LITCHI", "DRONEDEPLOY"]) {
-      const note = screen.getByTestId(`capability-${fmt}`);
-      expect(note.textContent).toMatch(/No camera settings in this format/);
+      selectFormat(fmt);
+      expect(screen.getByTestId(`capability-${fmt}`).textContent).toMatch(
+        /No camera settings in this format/,
+      );
     }
+  });
+
+  it("defaults the format dropdown to KMZ", () => {
+    renderPanel();
+
+    expect((screen.getByTestId("format-select") as HTMLSelectElement).value).toBe("KMZ");
+  });
+
+  it("replaces the selection in the download payload when a new format is picked", () => {
+    const onExport = vi.fn();
+    renderPanel({ onExport });
+
+    // JSON is not a DJI WPMZ format, so download fires directly
+    selectFormat("JSON");
+    fireEvent.click(screen.getByTestId("download-export-btn"));
+
+    expect(onExport.mock.calls[0][0]).toEqual(["JSON"]);
   });
 });
 
@@ -222,9 +263,8 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
-    // KML is selected by default - it IS capable. switch to GPX (incapable).
-    fireEvent.click(screen.getByTestId("format-KML"));
-    fireEvent.click(screen.getByTestId("format-GPX"));
+    // KMZ is selected by default - it IS capable. switch to GPX (incapable).
+    selectFormat("GPX");
 
     const checkbox = screen.getByTestId("include-geozones") as HTMLInputElement;
     expect(checkbox.disabled).toBe(true);
@@ -284,7 +324,7 @@ describe("ExportPanel - geozones toggle", () => {
     ).toBe(true);
 
     // selecting MAVLINK enables it
-    fireEvent.click(screen.getByTestId("format-MAVLINK"));
+    selectFormat("MAVLINK");
     expect(
       (screen.getByTestId("include-runway-buffers") as HTMLInputElement).disabled,
     ).toBe(false);
@@ -294,7 +334,7 @@ describe("ExportPanel - geozones toggle", () => {
     expect(screen.queryByTestId("include-runway-buffers")).toBeNull();
   });
 
-  it("renders the advisory note when KML or KMZ is in selection and parent is on", () => {
+  it("renders the advisory note when KML or KMZ is selected and parent is on", () => {
     renderPanel({
       mission: makeMission({
         drone_profile_id: "drone-1",
@@ -302,11 +342,12 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    // KMZ (default) is an advisory format
     fireEvent.click(screen.getByTestId("include-geozones"));
     expect(screen.queryByTestId("advisory-note")).toBeInTheDocument();
 
-    // turn KML off, advisory disappears
-    fireEvent.click(screen.getByTestId("format-KML"));
+    // switch to a non-advisory but still capable format, advisory disappears
+    selectFormat("JSON");
     expect(screen.queryByTestId("advisory-note")).not.toBeInTheDocument();
   });
 
@@ -320,14 +361,14 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
-    fireEvent.click(screen.getByTestId("format-MAVLINK"));
+    selectFormat("MAVLINK");
     fireEvent.click(screen.getByTestId("include-geozones"));
     fireEvent.click(screen.getByTestId("include-runway-buffers"));
     fireEvent.click(screen.getByTestId("download-export-btn"));
 
     expect(onExport).toHaveBeenCalledTimes(1);
     const [formats, options] = onExport.mock.calls[0];
-    expect(formats).toEqual(expect.arrayContaining(["KML", "MAVLINK"]));
+    expect(formats).toEqual(["MAVLINK"]);
     expect(options).toEqual({
       include_geozones: true,
       include_runway_buffers: true,
@@ -338,9 +379,11 @@ describe("ExportPanel - geozones toggle", () => {
     const onExport = vi.fn();
     renderPanel({ onExport });
 
+    // switch off the default KMZ (a DJI WPMZ format) to avoid the fallback modal
+    selectFormat("JSON");
     fireEvent.click(screen.getByTestId("download-export-btn"));
 
-    expect(onExport).toHaveBeenCalledWith(["KML"], {
+    expect(onExport).toHaveBeenCalledWith(["JSON"], {
       include_geozones: false,
       include_runway_buffers: false,
     });
@@ -401,9 +444,8 @@ describe("ExportPanel - dji heading mode picker", () => {
       droneProfiles: [makeDjiProfile({ id: "parrot-1", manufacturer: "Parrot" })],
     });
 
-    // KML is selected by default - if the picker were unguarded by manufacturer
+    // KMZ is selected by default - if the picker were unguarded by manufacturer
     // it would still render. assert it doesn't.
-    fireEvent.click(screen.getByTestId("format-KMZ"));
     expect(screen.queryByTestId("dji-heading-mode-select")).toBeNull();
   });
 
@@ -412,19 +454,18 @@ describe("ExportPanel - dji heading mode picker", () => {
       mission: makeMission({ drone_profile_id: "p-1" }),
       droneProfiles: [makeDjiProfile({ id: "p-1", manufacturer: null })],
     });
-    fireEvent.click(screen.getByTestId("format-KMZ"));
     expect(screen.queryByTestId("dji-heading-mode-select")).toBeNull();
   });
 
   it("does not render the picker when no DJI WPMZ format is selected", () => {
     renderDjiPanel();
-    // KML is selected by default but it is not a DJI WPMZ format
+    // KMZ is the default WPMZ format - switch to JSON to hide the picker
+    selectFormat("JSON");
     expect(screen.queryByTestId("dji-heading-mode-select")).toBeNull();
   });
 
   it("renders the picker when KMZ is selected on a DJI mission", () => {
     renderDjiPanel();
-    fireEvent.click(screen.getByTestId("format-KMZ"));
 
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     expect(select).toBeInTheDocument();
@@ -434,20 +475,18 @@ describe("ExportPanel - dji heading mode picker", () => {
 
   it("renders the picker when WPML is selected on a DJI mission", () => {
     renderDjiPanel();
-    fireEvent.click(screen.getByTestId("format-WPML"));
+    selectFormat("WPML");
     expect(screen.getByTestId("dji-heading-mode-select")).toBeInTheDocument();
   });
 
   it("defaults the picker to smoothTransition when the column is null", () => {
     renderDjiPanel({ dji_heading_mode: null });
-    fireEvent.click(screen.getByTestId("format-KMZ"));
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     expect(select.value).toBe("smoothTransition");
   });
 
   it("pre-fills from mission.dji_heading_mode persisted preference", () => {
     renderDjiPanel({ dji_heading_mode: "followWayline" });
-    fireEvent.click(screen.getByTestId("format-KMZ"));
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     expect(select.value).toBe("followWayline");
   });
@@ -455,7 +494,6 @@ describe("ExportPanel - dji heading mode picker", () => {
   it("forwards dji_heading_mode_override on download", () => {
     const onExport = vi.fn();
     renderDjiPanel({ dji_heading_mode: "smoothTransition" }, onExport);
-    fireEvent.click(screen.getByTestId("format-KMZ"));
 
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "towardPOI" } });
@@ -469,7 +507,8 @@ describe("ExportPanel - dji heading mode picker", () => {
   it("omits the override when the picker is hidden", () => {
     const onExport = vi.fn();
     renderDjiPanel({}, onExport);
-    // KML-only selection: picker hidden, no override should be sent
+    // JSON is not a DJI WPMZ format: picker hidden, no override should be sent
+    selectFormat("JSON");
     fireEvent.click(screen.getByTestId("download-export-btn"));
 
     const [, options] = onExport.mock.calls[0];
@@ -481,7 +520,7 @@ describe("ExportPanel - dji heading mode picker", () => {
 // operator sees the m4t-tagged warning before the download starts.
 describe("ExportPanel - wpml fallback modal", () => {
   function selectKmz() {
-    fireEvent.click(screen.getByTestId("format-KMZ"));
+    selectFormat("KMZ");
   }
   function clickDownload() {
     fireEvent.click(screen.getByTestId("download-export-btn"));
@@ -625,6 +664,8 @@ describe("ExportPanel - altitude clamp warning", () => {
     const onExport = vi.fn();
     renderPanel({ onExport, clampWarning: CLAMPS });
 
+    // no drone on the default mission, so switch off KMZ to skip the wpml modal
+    selectFormat("JSON");
     fireEvent.click(screen.getByTestId("altitude-clamp-ack"));
     fireEvent.click(screen.getByTestId("download-export-btn"));
 
@@ -637,6 +678,7 @@ describe("ExportPanel - altitude clamp warning", () => {
     const onExport = vi.fn();
     renderPanel({ onExport });
 
+    selectFormat("JSON");
     fireEvent.click(screen.getByTestId("download-export-btn"));
     const [, options] = onExport.mock.calls[0];
     expect(options.acknowledge_altitude_clamps).toBeUndefined();

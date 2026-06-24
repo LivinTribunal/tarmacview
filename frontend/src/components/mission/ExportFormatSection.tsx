@@ -26,7 +26,7 @@ interface ExportFormatSectionProps {
   exportEnabled: boolean;
   terminal: boolean;
   selectedFormats: Set<string>;
-  onToggleFormat: (fmt: string) => void;
+  onSelectFormat: (fmt: string) => void;
   geozoneCheck: CanIncludeGeozonesResult;
   includeGeozones: boolean;
   onToggleGeozones: () => void;
@@ -50,14 +50,14 @@ interface ExportFormatSectionProps {
   warningSlot?: ReactNode;
 }
 
-/** export format checkboxes, geozone bundle, dji heading picker, and download button. */
+/** export format dropdown, geozone bundle, dji heading picker, and download button. */
 export default function ExportFormatSection({
   exportCollapsed,
   onToggleCollapsed,
   exportEnabled,
   terminal,
   selectedFormats,
-  onToggleFormat,
+  onSelectFormat,
   geozoneCheck,
   includeGeozones,
   onToggleGeozones,
@@ -77,6 +77,10 @@ export default function ExportFormatSection({
   warningSlot,
 }: ExportFormatSectionProps) {
   const { t } = useTranslation();
+  // the parent set always holds exactly one format; fall back to KMZ defensively
+  const selectedValue = Array.from(selectedFormats)[0] ?? "KMZ";
+  const selectedFormat =
+    EXPORT_FORMATS.find((f) => f.value === selectedValue) ?? EXPORT_FORMATS[1];
   return (
     <div className="bg-tv-surface border border-tv-border rounded-2xl p-4">
       <button
@@ -107,45 +111,35 @@ export default function ExportFormatSection({
 
       {!exportCollapsed && (
         <div className="mt-3 flex flex-col gap-3">
-          {/* format checkboxes */}
-          <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto">
-            {EXPORT_FORMATS.map((fmt) => (
-              <label
-                key={fmt.value}
-                className={`flex items-start gap-3 px-3 py-2 rounded-xl bg-tv-bg cursor-pointer ${
-                  !exportEnabled && !terminal
-                    ? "opacity-50 cursor-not-allowed"
-                    : terminal
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedFormats.has(fmt.value)}
-                  onChange={() => onToggleFormat(fmt.value)}
-                  disabled={!exportEnabled || terminal}
-                  className="mt-0.5 accent-[var(--tv-accent)]"
-                  data-testid={`format-${fmt.value}`}
-                />
-                <div>
-                  <span className="text-sm font-medium text-tv-text-primary">
-                    {t(`mission.validationExportPage.${fmt.labelKey}`)}
-                  </span>
-                  <p className="text-xs text-tv-text-muted">
-                    {t(`mission.validationExportPage.${fmt.descKey}`)}
-                  </p>
-                  <p
-                    className="text-[11px] text-tv-text-muted italic mt-1"
-                    data-testid={`capability-${fmt.value}`}
-                  >
-                    {t(
-                      `mission.validationExportPage.capabilityNote.${fmt.capabilityKey}`,
-                    )}
-                  </p>
-                </div>
-              </label>
-            ))}
+          {/* format picker */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-tv-text-secondary">
+              {t("mission.validationExportPage.formatLabel")}
+            </label>
+            <select
+              value={selectedValue}
+              onChange={(e) => onSelectFormat(e.target.value)}
+              disabled={!exportEnabled || terminal}
+              className="w-full appearance-none pl-3 pr-7 py-2 rounded-full text-sm border border-tv-border bg-tv-bg text-tv-text-primary focus:outline-none focus:border-tv-accent transition-colors bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%23888%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="format-select"
+            >
+              {EXPORT_FORMATS.map((fmt) => (
+                <option key={fmt.value} value={fmt.value}>
+                  {t(`mission.validationExportPage.${fmt.labelKey}`)}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-tv-text-muted" data-testid="selected-format-desc">
+              {t(`mission.validationExportPage.${selectedFormat.descKey}`)}
+            </p>
+            <p
+              className="text-[11px] text-tv-text-muted italic"
+              data-testid={`capability-${selectedFormat.value}`}
+            >
+              {t(
+                `mission.validationExportPage.capabilityNote.${selectedFormat.capabilityKey}`,
+              )}
+            </p>
           </div>
 
           {/* geozone bundle toggle */}

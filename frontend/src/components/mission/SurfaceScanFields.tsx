@@ -7,7 +7,12 @@ import type {
 import type { InspectionConfigResponse as TemplateConfigResponse } from "@/types/inspectionTemplate";
 import type { SurfaceResponse } from "@/types/airport";
 import type { DroneProfileResponse } from "@/types/droneProfile";
-import type { ScanLengthMode, ScanRunOrientation, ScanWidthSide } from "@/types/enums";
+import type {
+  ScanLengthAnchor,
+  ScanLengthMode,
+  ScanRunOrientation,
+  ScanWidthSide,
+} from "@/types/enums";
 import InfoHint from "@/components/common/InfoHint";
 
 interface SurfaceScanFieldsProps {
@@ -91,6 +96,8 @@ export default function SurfaceScanFields({
 
   const scanSurfaceId = resolveString<string>("scan_surface_id") ?? "";
   const lengthMode = resolveString<ScanLengthMode>("scan_length_mode") ?? "FULL";
+  const lengthAnchor =
+    resolveString<ScanLengthAnchor>("scan_length_anchor") ?? "THRESHOLD";
   const lengthFrom = resolveNumber("scan_length_from");
   const lengthTo = resolveNumber("scan_length_to");
   const scanWidth = resolveNumber("scan_width");
@@ -210,6 +217,39 @@ export default function SurfaceScanFields({
               className={inputClass}
               data-testid="scan-length-to"
             />
+          </div>
+        </div>
+      )}
+
+      {/* length anchor - which end the window is measured from */}
+      {lengthMode !== "FULL" && (
+        <div>
+          <label className={labelClass}>
+            <span>{t("mission.config.scanLengthAnchor")}</span>
+            <InfoHint
+              text={t("mission.config.scanLengthAnchorHelp")}
+              label={t("mission.config.scanLengthAnchor")}
+              testId="hint-scan-length-anchor"
+            />
+          </label>
+          <div className="flex gap-1 rounded-full bg-tv-bg border border-tv-border p-0.5">
+            {(["THRESHOLD", "ENDPOINT"] as ScanLengthAnchor[]).map((anchor) => (
+              <button
+                key={anchor}
+                type="button"
+                onClick={() =>
+                  onChange({ ...configOverride, scan_length_anchor: anchor })
+                }
+                className={`flex-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  lengthAnchor === anchor
+                    ? "bg-tv-accent text-tv-accent-text"
+                    : "text-tv-text-secondary hover:text-tv-text-primary"
+                }`}
+                data-testid={`scan-length-anchor-${anchor.toLowerCase()}`}
+              >
+                {t(`mission.config.scanLengthAnchorOption.${anchor}`)}
+              </button>
+            ))}
           </div>
         </div>
       )}

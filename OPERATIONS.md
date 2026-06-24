@@ -118,7 +118,7 @@ These plug into the existing `VITE_TILE_*` / `VITE_CESIUM_IMAGERY_URL` indirecti
 
 ### Pre-built terrain data
 
-Start from SRTM (or a higher-resolution per-airport-region DEM) and run it through Cesium Terrain Builder to produce a quantised-mesh tileset. Place the output behind your self-hosted terrain endpoint.
+Start from SRTM (or a higher-resolution per-airport-region DEM) and run `scripts/field-hub/bundle-terrain.py` (which drives Cesium Terrain Builder) to produce a quantised-mesh tileset. The output is uploaded to MinIO under the `terrain/` prefix and served same-origin by the backend terrain route `GET /api/v1/terrain/...` (not a separate terrain server), so CSP `connect-src 'self'` already covers it — no nginx / CSP change.
 
 ### Building and seeding the field tile bundle
 
@@ -132,9 +132,12 @@ Run once while online (staging laptop — `bundle-basemap.py` is stdlib + `httpx
      --out prague-imagery.mbtiles
    ```
    Repeat with the OSM template (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`) to cover the 3D viewer's "map" terrain mode.
-2. **3D terrain mesh** — run the airport DEM (GLO-30 / SRTM) through the Cesium quantised-mesh bundler (#129, a script under `scripts/field-hub/`) to produce `layer.json` + `.terrain` tiles. This is a different artefact from the backend's `download_srtm_for_location` GLO-30 DEM, which feeds altitude math, not the render mesh.
-3. **Upload to MinIO** — push the `.mbtiles` and the terrain tileset into the MinIO bucket the `field` profile already runs (the `minio` service in `docker-compose.yml`, seeded by `minio-setup`). The backend tile route (#128) reads tiles from this bundle.
-4. **Point the build at the bundle** — for the field build set `VITE_TILE_IMAGERY_URL` / `VITE_TILE_OSM_URL` / `VITE_CESIUM_IMAGERY_URL` at `/api/v1/tiles/...`, `VITE_CESIUM_TERRAIN_URL` at the served terrain set, and `TILE_MODE=offline`. No map code changes — this is the same env indirection used today.
+2. **3D terrain mesh** — run the airport DEM (GLO-30 / SRTM) through `scripts/field-hub/bundle-terrain.py`, which drives Cesium Terrain Builder (default docker image `tumgis/ctb-quantized-mesh`) to produce `layer.json` + `{z}/{x}/{y}.terrain` tiles. This is a different artefact from the backend's `download_srtm_for_location` GLO-30 DEM, which feeds altitude math, not the render mesh:
+   ```
+   scripts/field-hub/bundle-terrain.py --dem prague-glo30.tif --out ./terrain-prague --start-zoom 0 --end-zoom 14
+   ```
+3. **Upload to MinIO** — push the `.mbtiles` and the terrain tileset into the MinIO bucket the `field` profile already runs (the `minio` service in `docker-compose.yml`, seeded by `minio-setup`). The backend tile route (#128) reads the raster tiles from this bundle; the terrain tileset uploads under the `terrain/` prefix (object keys `terrain/layer.json`, `terrain/{z}/{x}/{y}.terrain`), read back by the `/api/v1/terrain/...` route — e.g. `mc mirror ./terrain-prague/ local/tarmacview-media/terrain/`.
+4. **Point the build at the bundle** — for the field build set `VITE_TILE_IMAGERY_URL` / `VITE_TILE_OSM_URL` / `VITE_CESIUM_IMAGERY_URL` at `/api/v1/tiles/...`, `VITE_CESIUM_TERRAIN_URL=/api/v1/terrain` (no trailing slash — Cesium appends `/layer.json` and `/{z}/{x}/{y}.terrain`), and `TILE_MODE=offline`. No map code changes — this is the same env indirection used today.
 
 ### Backend configuration
 
@@ -184,7 +187,7 @@ Changing `airport.elevation`, `terrain_source`, or `dem_file_path` runs `renorma
 
 `import.meta.env.*` is resolved at build time. One built artefact is bound to one set of endpoints — rebuild to change them.
 
-For the **field build** these point at the same-origin backend tile route (`/api/v1/tiles/...`) and the served terrain set rather than the public CDN; the cloud build leaves them unset.
+For the **field build** these point at the same-origin backend routes rather than the public CDN — the `VITE_TILE_*` / `VITE_CESIUM_IMAGERY_URL` raster vars at `/api/v1/tiles/...` and `VITE_CESIUM_TERRAIN_URL=/api/v1/terrain` (the same-origin terrain route, so CSP `connect-src 'self'` already covers it); the cloud build leaves them unset.
 
 **Service-worker tile cache.** The production build registers a Workbox service worker that `CacheFirst`-caches external map tiles (ESRI / OSM / Cesium hosts). Its matcher (`frontend/src/sw/tileCacheConfig.ts`) only recognises those public cloud hosts, so once the `VITE_TILE_*` / `VITE_CESIUM_*` URLs point at internal servers the cache no-ops and every tile fetch goes straight to your self-hosted endpoints. No extra configuration is needed, and the verification check below still holds.
 

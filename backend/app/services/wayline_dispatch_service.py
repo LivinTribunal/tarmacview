@@ -88,8 +88,9 @@ def dispatch_mission(
 ) -> WaylineDispatch:
     """export the mission KMZ, push it to the hub, and upsert the dispatch row.
 
-    reuses export_mission so dispatch inherits the VALIDATED/EXPORTED gate,
-    the VALIDATED -> EXPORTED transition, and the 409 altitude-clamp gate.
+    reuses export_mission so dispatch inherits the export-eligibility gate
+    (VALIDATED/EXPORTED/MEASURED), the VALIDATED -> EXPORTED transition, and
+    the 409 altitude-clamp gate.
     re-dispatch updates the existing row in place with a stable wayline uuid.
     flushes; the route logs the DISPATCH audit row and commits.
     """

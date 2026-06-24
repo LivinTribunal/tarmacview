@@ -992,6 +992,7 @@
       "alreadyApproved": "Mission is already approved",
       "acceptError": "Failed to validate mission",
       "export": "Export Mission Data",
+      "formatLabel": "Format",
       "formatKml": "KML",
       "formatKmlDesc": "Google Earth viewer format",
       "formatKmz": "KMZ (DJI)",

@@ -84,7 +84,7 @@ export default function ExportPanel({
   } = useFieldLinkStatus();
   const [exportCollapsed, setExportCollapsed] = useState(false);
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(
-    new Set(["KML"]),
+    new Set(["KMZ"]),
   );
   const [includeGeozones, setIncludeGeozones] = useState(false);
   const [includeRunwayBuffers, setIncludeRunwayBuffers] = useState(false);
@@ -151,16 +151,8 @@ export default function ExportPanel({
   const showHeadingModePicker =
     !terminal && exportEnabled && isDjiMission && djiFormatSelected;
 
-  function toggleFormat(fmt: string) {
-    setSelectedFormats((prev) => {
-      const next = new Set(prev);
-      if (next.has(fmt)) {
-        next.delete(fmt);
-      } else {
-        next.add(fmt);
-      }
-      return next;
-    });
+  function selectFormat(fmt: string) {
+    setSelectedFormats(new Set([fmt]));
   }
 
   function handleToggleGeozones() {
@@ -274,7 +266,7 @@ export default function ExportPanel({
         exportEnabled={exportEnabled}
         terminal={terminal}
         selectedFormats={selectedFormats}
-        onToggleFormat={toggleFormat}
+        onSelectFormat={selectFormat}
         geozoneCheck={geozoneCheck}
         includeGeozones={includeGeozones}
         onToggleGeozones={handleToggleGeozones}

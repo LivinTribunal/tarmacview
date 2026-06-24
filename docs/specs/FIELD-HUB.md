@@ -352,9 +352,10 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
 
 - `POST /api/v1/missions/{mission_id}/dispatch` — export KMZ + register with
   hub. *Landed in #825*: reuses the export pipeline with fixed KMZ settings,
-  so dispatch inherits the VALIDATED/EXPORTED gate, the VALIDATED → EXPORTED
-  transition, and the 409 altitude-clamp gate; an unreachable/unconfigured
-  hub raises 502 and nothing persists.
+  so dispatch inherits the VALIDATED/EXPORTED/MEASURED export gate, the
+  VALIDATED → EXPORTED transition, and the 409 altitude-clamp gate; an
+  unreachable/unconfigured hub raises 502 and nothing persists. A measured
+  mission can re-dispatch and stays MEASURED (the transition keys on VALIDATED).
 - `GET /api/v1/field-link/status` — link state (proxy). Since #109 the body
   carries four signals: `hub_online`, `rc_connected` (Pilot's HTTP session),
   `broker_connected` (hub↔broker link), and `devices[].online` (a drone live on
@@ -395,8 +396,8 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   10 s status poll, status gate, altitude-clamp acknowledge retry). Since #109
   the chip is two pills — **RC** (noHub / offline / online) and **Telemetry**
   (on / off) — and *Send to drone* is gated only on the hub being reachable +
-  the mission being VALIDATED/EXPORTED, **not** on a drone being online (you can
-  stage waylines before the aircraft is up).
+  the mission being VALIDATED/EXPORTED/MEASURED, **not** on a drone being online
+  (you can stage waylines before the aircraft is up).
 - `FieldHubDialog.tsx`: the *Field Hub* connection dialog opened from a button
   beside the link chip. *Landed in #28*: device-facing connect address with
   copy + inline-rendered QR, the connected-device list (empty state included),

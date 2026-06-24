@@ -94,6 +94,7 @@ services:
         VITE_TILE_REFERENCE_URL: ${VITE_TILE_REFERENCE_URL:-}
         VITE_TILE_IMAGERY_ATTRIBUTION: ${VITE_TILE_IMAGERY_ATTRIBUTION:-}
         VITE_CESIUM_IMAGERY_URL: ${VITE_CESIUM_IMAGERY_URL:-}
+        VITE_CESIUM_TERRAIN_URL: ${VITE_CESIUM_TERRAIN_URL:-}
     container_name: tarmacview-frontend
     restart: unless-stopped
     depends_on:

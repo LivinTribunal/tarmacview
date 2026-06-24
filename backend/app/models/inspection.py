@@ -21,11 +21,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
-from app.core.enums import ScanLengthMode, ScanRunOrientation, ScanWidthSide
+from app.core.enums import ScanLengthAnchor, ScanLengthMode, ScanRunOrientation, ScanWidthSide
 
 # enum values rendered inline into CheckConstraint bodies so the db constraint
 # and the python enum cannot drift (mirrors the airport models pattern).
 _SCAN_LENGTH_MODE_VALUES = ", ".join(f"'{m.value}'" for m in ScanLengthMode)
+_SCAN_LENGTH_ANCHOR_VALUES = ", ".join(f"'{m.value}'" for m in ScanLengthAnchor)
 _SCAN_WIDTH_SIDE_VALUES = ", ".join(f"'{m.value}'" for m in ScanWidthSide)
 _SCAN_RUN_ORIENTATION_VALUES = ", ".join(f"'{m.value}'" for m in ScanRunOrientation)
 
@@ -79,6 +80,7 @@ CONFIG_FIELDS: tuple[str, ...] = (
     "descent_glide_slope_override",
     "scan_surface_id",
     "scan_length_mode",
+    "scan_length_anchor",
     "scan_length_from",
     "scan_length_to",
     "scan_width",
@@ -160,6 +162,7 @@ class InspectionConfiguration(Base):
         UUID, ForeignKey("airfield_surface.id", ondelete="SET NULL"), nullable=True
     )
     scan_length_mode = Column(String(20), nullable=True)
+    scan_length_anchor = Column(String(20), nullable=True)
     scan_length_from = Column(Float, nullable=True)
     scan_length_to = Column(Float, nullable=True)
     scan_width = Column(Float, nullable=True)
@@ -195,6 +198,10 @@ class InspectionConfiguration(Base):
         CheckConstraint(
             f"scan_length_mode IN ({_SCAN_LENGTH_MODE_VALUES})",
             name="ck_inspection_configuration_scan_length_mode",
+        ),
+        CheckConstraint(
+            f"scan_length_anchor IN ({_SCAN_LENGTH_ANCHOR_VALUES})",
+            name="ck_inspection_configuration_scan_length_anchor",
         ),
         CheckConstraint(
             f"scan_width_side IN ({_SCAN_WIDTH_SIDE_VALUES})",

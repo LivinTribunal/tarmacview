@@ -97,6 +97,37 @@ describe("SurfaceScanFields", () => {
     );
   });
 
+  it("renders the anchor toggle when length mode is MAX_LENGTH", () => {
+    renderFields({ scan_length_mode: "MAX_LENGTH" });
+    expect(screen.getByTestId("scan-length-anchor-threshold")).toBeInTheDocument();
+    expect(screen.getByTestId("scan-length-anchor-endpoint")).toBeInTheDocument();
+  });
+
+  it("shows the anchor toggle for INTERVAL", () => {
+    renderFields({ scan_length_mode: "INTERVAL" });
+    expect(screen.getByTestId("scan-length-anchor-threshold")).toBeInTheDocument();
+  });
+
+  it("hides the anchor toggle when length mode is FULL", () => {
+    renderFields({ scan_length_mode: "FULL" });
+    expect(screen.queryByTestId("scan-length-anchor-threshold")).not.toBeInTheDocument();
+  });
+
+  it("selecting Endpoint emits scan_length_anchor", () => {
+    const { onChange } = renderFields({ scan_length_mode: "MAX_LENGTH" });
+    fireEvent.click(screen.getByTestId("scan-length-anchor-endpoint"));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ scan_length_anchor: "ENDPOINT" }),
+    );
+  });
+
+  it("defaults to Threshold anchor", () => {
+    renderFields({ scan_length_mode: "MAX_LENGTH" });
+    expect(screen.getByTestId("scan-length-anchor-threshold").className).toContain(
+      "bg-tv-accent",
+    );
+  });
+
   it("renders both run orientation options", () => {
     renderFields();
     expect(screen.getByTestId("scan-orientation-length_wise")).toBeInTheDocument();

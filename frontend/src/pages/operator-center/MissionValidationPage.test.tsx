@@ -236,12 +236,11 @@ describe("ExportPanel", () => {
     };
   });
 
-  it("renders format checkboxes", () => {
+  it("renders the format dropdown", () => {
     render(<ExportPanel {...defaultProps} />);
-    expect(screen.getByTestId("format-KML")).toBeInTheDocument();
-    expect(screen.getByTestId("format-KMZ")).toBeInTheDocument();
-    expect(screen.getByTestId("format-JSON")).toBeInTheDocument();
-    expect(screen.getByTestId("format-MAVLINK")).toBeInTheDocument();
+    const select = screen.getByTestId("format-select");
+    expect(select).toBeInTheDocument();
+    expect(select.querySelectorAll("option")).toHaveLength(10);
   });
 
   it("download button enabled for VALIDATED status", () => {
@@ -256,16 +255,16 @@ describe("ExportPanel", () => {
     expect(screen.getByTestId("download-export-btn")).toBeDisabled();
   });
 
-  it("checkboxes disabled for DRAFT status", () => {
+  it("format dropdown disabled for DRAFT status", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("DRAFT")} />,
     );
-    expect(screen.getByTestId("format-KML")).toBeDisabled();
+    expect(screen.getByTestId("format-select")).toBeDisabled();
   });
 
-  it("checkboxes enabled for VALIDATED status", () => {
+  it("format dropdown enabled for VALIDATED status", () => {
     render(<ExportPanel {...defaultProps} />);
-    expect(screen.getByTestId("format-KML")).not.toBeDisabled();
+    expect(screen.getByTestId("format-select")).not.toBeDisabled();
   });
 
   it("complete button disabled for VALIDATED status", () => {
@@ -348,15 +347,17 @@ describe("ExportPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("calls onExport with selected formats on download", () => {
+  it("calls onExport with the selected format on download", () => {
     render(<ExportPanel {...defaultProps} />);
 
-    // KML is selected by default, also select JSON
-    fireEvent.click(screen.getByTestId("format-JSON"));
+    // pick JSON (a non-WPMZ format) so the download fires without the wpml modal
+    fireEvent.change(screen.getByTestId("format-select"), {
+      target: { value: "JSON" },
+    });
     fireEvent.click(screen.getByTestId("download-export-btn"));
 
     expect(defaultProps.onExport).toHaveBeenCalledWith(
-      expect.arrayContaining(["KML", "JSON"]),
+      ["JSON"],
       expect.objectContaining({ include_geozones: false }),
     );
   });

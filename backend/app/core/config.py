@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     tile_mode: str = "online"  # online | cached | offline
     # bundle object key in s3_bucket is "{tile_bundle_prefix}/{layer}.mbtiles"
     tile_bundle_prefix: str = "basemaps"
+    # cesium quantised-mesh terrain tileset prefix in s3_bucket: object keys are
+    # "{terrain_bundle_prefix}/layer.json" and "{terrain_bundle_prefix}/{z}/{x}/{y}.terrain".
+    # served same-origin by /api/v1/terrain, cached under tile_cache_dir/terrain.
+    terrain_bundle_prefix: str = "terrain"
     tile_cache_dir: Path = _PROJECT_ROOT / "data" / "tile-cache"
     tile_cache_max_bytes: int = 512 * 1024 * 1024  # 512 MB, proxied tiles only
     tile_cache_max_age_days: int = 7  # matches the browser sw cache-tier policy

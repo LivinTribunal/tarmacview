@@ -47,6 +47,8 @@ export type InspectionMethod =
 
 export type ScanLengthMode = "FULL" | "MAX_LENGTH" | "INTERVAL";
 
+export type ScanLengthAnchor = "THRESHOLD" | "ENDPOINT";
+
 export type ScanWidthSide = "LEFT" | "RIGHT";
 
 export type ScanRunOrientation = "LENGTH_WISE" | "WIDTH_WISE";

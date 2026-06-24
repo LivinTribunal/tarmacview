@@ -3728,6 +3728,27 @@ class TestExportMissionFormats:
         mission.transition_to.assert_not_called()
         db.commit.assert_not_called()
 
+    def test_measured_mission_exports_and_skips_transition(self):
+        """a MEASURED mission passes the gate and stays MEASURED (no EXPORTED bump)."""
+        mission = MagicMock()
+        mission.status = "MEASURED"
+        mission.name = "Measured"
+        mission.drone_profile_id = None
+
+        fp = _make_flight_plan(1)
+        fp.airport_id = uuid4()
+
+        airport = MagicMock()
+        airport.elevation = 100.0
+
+        db = _build_export_db_mock(mission, fp, airport)
+
+        files, _, _clamps = export_service.export_mission(db, uuid4(), ["JSON"])
+
+        assert len(files) == 1
+        mission.transition_to.assert_not_called()
+        db.commit.assert_not_called()
+
     def test_draft_status_rejected(self):
         """missions in DRAFT status cannot be exported - DomainError 409."""
         from app.core.exceptions import DomainError

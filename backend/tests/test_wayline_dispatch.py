@@ -180,6 +180,29 @@ def test_redispatch_updates_in_place(client, dispatchable_mission, fake_hub, db_
     assert len(rows) == 1
 
 
+def test_dispatch_measured_mission_succeeds(
+    client, dispatchable_mission, fake_hub, db_session, db_engine
+):
+    """a MEASURED mission dispatches (no 409), persists the row, stays MEASURED."""
+    mission_id = dispatchable_mission["mission_id"]
+    with db_engine.connect() as conn:
+        conn.execute(
+            text("UPDATE mission SET status=:s WHERE id=:id"),
+            {"s": MissionStatus.MEASURED.value, "id": mission_id},
+        )
+        conn.commit()
+
+    response = client.post(f"/api/v1/missions/{mission_id}/dispatch")
+    assert response.status_code == 200, response.text
+
+    rows = _dispatch_rows(db_session, mission_id)
+    assert len(rows) == 1
+
+    # dispatch must not bump MEASURED -> EXPORTED (the transition keys on VALIDATED)
+    mission = client.get(f"/api/v1/missions/{mission_id}").json()
+    assert mission["status"] == "MEASURED"
+
+
 def test_dispatch_draft_mission_409(client, airport_id, fake_hub, db_session):
     """the export status gate applies - DRAFT missions are refused."""
     mission = client.post(

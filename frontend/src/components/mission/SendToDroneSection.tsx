@@ -4,6 +4,7 @@ import { Loader2, QrCode, Send } from "lucide-react";
 import { dispatchMission } from "@/api/missions";
 import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 import type { MissionStatus } from "@/types/enums";
+import { isExportEligible } from "@/constants/mission";
 import Button from "@/components/common/Button";
 import FieldLinkStatusChip from "./FieldLinkStatusChip";
 
@@ -23,10 +24,6 @@ type Feedback =
   | { kind: "clamps" }
   | null;
 
-function canDispatch(status: MissionStatus): boolean {
-  return status === "VALIDATED" || status === "EXPORTED";
-}
-
 /** send-to-drone card - pushes the mission KMZ into the field hub's route library. */
 export default function SendToDroneSection({
   missionId,
@@ -44,7 +41,7 @@ export default function SendToDroneSection({
   // the rc picks up the mission whenever it next connects. the backend raises
   // 502 when the hub is unconfigured/unreachable, so gate on hub_online only.
   const hubReachable = !!linkStatus?.hub_online;
-  const statusAllows = canDispatch(missionStatus);
+  const statusAllows = isExportEligible(missionStatus);
   // a pending clamp warning turns the button into an explicit "dispatch anyway"
   const acknowledgeClamps = feedback?.kind === "clamps";
   const disabled = !hubReachable || !statusAllows || isDispatching;

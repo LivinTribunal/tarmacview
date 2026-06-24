@@ -9,6 +9,7 @@ import {
   GEOZONE_ENFORCED_FORMATS,
   canIncludeGeozones,
 } from "@/constants/exportCapabilities";
+import { isExportEligible } from "@/constants/mission";
 import { useFieldLinkStatus } from "@/hooks/useFieldLinkStatus";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
@@ -51,10 +52,6 @@ export interface ExportPanelProps {
   onViewResults?: () => void;
 }
 
-function canExport(status: MissionStatus): boolean {
-  return status === "VALIDATED" || status === "EXPORTED";
-}
-
 function isTerminal(status: MissionStatus): boolean {
   return status === "COMPLETED" || status === "CANCELLED";
 }
@@ -87,7 +84,7 @@ export default function ExportPanel({
   } = useFieldLinkStatus();
   const [exportCollapsed, setExportCollapsed] = useState(false);
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(
-    new Set(["KML"]),
+    new Set(["KMZ"]),
   );
   const [includeGeozones, setIncludeGeozones] = useState(false);
   const [includeRunwayBuffers, setIncludeRunwayBuffers] = useState(false);
@@ -119,7 +116,7 @@ export default function ExportPanel({
   }, [mission.dji_heading_mode]);
 
   const status = mission.status;
-  const exportEnabled = canExport(status);
+  const exportEnabled = isExportEligible(status);
   const terminal = isTerminal(status);
 
   // lifecycle button gating - a mission can only be completed or cancelled
@@ -154,16 +151,8 @@ export default function ExportPanel({
   const showHeadingModePicker =
     !terminal && exportEnabled && isDjiMission && djiFormatSelected;
 
-  function toggleFormat(fmt: string) {
-    setSelectedFormats((prev) => {
-      const next = new Set(prev);
-      if (next.has(fmt)) {
-        next.delete(fmt);
-      } else {
-        next.add(fmt);
-      }
-      return next;
-    });
+  function selectFormat(fmt: string) {
+    setSelectedFormats(new Set([fmt]));
   }
 
   function handleToggleGeozones() {
@@ -277,7 +266,7 @@ export default function ExportPanel({
         exportEnabled={exportEnabled}
         terminal={terminal}
         selectedFormats={selectedFormats}
-        onToggleFormat={toggleFormat}
+        onSelectFormat={selectFormat}
         geozoneCheck={geozoneCheck}
         includeGeozones={includeGeozones}
         onToggleGeozones={handleToggleGeozones}

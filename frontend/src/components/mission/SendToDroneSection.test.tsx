@@ -112,6 +112,12 @@ describe("SendToDroneSection", () => {
     expect(screen.getByTestId("send-to-drone-btn")).not.toBeDisabled();
   });
 
+  it("allows dispatch for MEASURED missions (re-send after measuring)", () => {
+    renderSection({ missionStatus: "MEASURED" });
+
+    expect(screen.getByTestId("send-to-drone-btn")).not.toBeDisabled();
+  });
+
   it("shows the success message and refetches after a dispatch", async () => {
     mockedDispatch.mockResolvedValue({ kind: "dispatched", dispatch: DISPATCH });
     const { props } = renderSection();

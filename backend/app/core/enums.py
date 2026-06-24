@@ -84,6 +84,13 @@ class ScanLengthMode(str, enum.Enum):
     INTERVAL = "INTERVAL"
 
 
+class ScanLengthAnchor(str, enum.Enum):
+    """which runway end the surface-scan along-track window is measured from."""
+
+    THRESHOLD = "THRESHOLD"
+    ENDPOINT = "ENDPOINT"
+
+
 class ScanWidthSide(str, enum.Enum):
     """which side of the surface bearing a narrowed scan band sits on."""
 

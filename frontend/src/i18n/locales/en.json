@@ -786,6 +786,12 @@
         "MAX_LENGTH": "Max length",
         "INTERVAL": "Interval"
       },
+      "scanLengthAnchor": "Anchor",
+      "scanLengthAnchorHelp": "Which end the length window is measured from. Threshold measures from the runway threshold (default); Endpoint measures from the far end.",
+      "scanLengthAnchorOption": {
+        "THRESHOLD": "Threshold",
+        "ENDPOINT": "Endpoint"
+      },
       "scanLengthFrom": "From (m)",
       "scanLengthTo": "To (m)",
       "scanWidth": "Width (m)",

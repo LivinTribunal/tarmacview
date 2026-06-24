@@ -1,6 +1,6 @@
 """lock-in for the shared ScanConfigFields mixin.
 
-the 11 scan_* fields and the _check_scan_interval validator live exactly once
+the 12 scan_* fields and the _check_scan_interval validator live exactly once
 on the mixin; all four config schemas inherit them. these assertions pin the
 mixin as the single definition site and that the interval check now fires on
 the response shapes too (benign - responses are built from validated rows).
@@ -19,6 +19,7 @@ from app.schemas.inspection_template import InspectionConfigResponse as Template
 SCAN_FIELDS = {
     "scan_surface_id",
     "scan_length_mode",
+    "scan_length_anchor",
     "scan_length_from",
     "scan_length_to",
     "scan_width",
@@ -45,14 +46,14 @@ def _build(cls, **extra):
     return cls(**base, **extra)
 
 
-def test_mixin_owns_the_ten_scan_fields():
-    """the mixin declares exactly the 11 scan_* fields."""
+def test_mixin_owns_the_twelve_scan_fields():
+    """the mixin declares exactly the 12 scan_* fields."""
     assert set(ScanConfigFields.model_fields) == SCAN_FIELDS
 
 
 @pytest.mark.parametrize("cls", CONFIG_CLASSES)
 def test_every_config_class_inherits_the_mixin(cls):
-    """all four config classes inherit the 11 scan_* fields from the mixin."""
+    """all four config classes inherit the 12 scan_* fields from the mixin."""
     assert issubclass(cls, ScanConfigFields)
     assert SCAN_FIELDS <= set(cls.model_fields)
 

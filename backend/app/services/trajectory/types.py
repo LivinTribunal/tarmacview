@@ -216,6 +216,7 @@ class ResolvedConfig:
     # surface-scan: surface target + serpentine layout knobs.
     scan_surface_id: UUID | str | None = None
     scan_length_mode: str | None = None
+    scan_length_anchor: str | None = None
     scan_length_from: Meters | None = None
     scan_length_to: Meters | None = None
     scan_width: Meters | None = None

@@ -67,6 +67,7 @@ export default function ValidationResultsPanel({
   const isApproved =
     missionStatus === "VALIDATED" ||
     missionStatus === "EXPORTED" ||
+    missionStatus === "MEASURED" ||
     missionStatus === "COMPLETED";
 
   let overallStatus: "passed" | "failed" | "notValidated";

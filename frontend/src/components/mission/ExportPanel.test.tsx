@@ -175,6 +175,16 @@ describe("ExportPanel - mission report section", () => {
 
     expect(screen.getByTestId("mission-report-section")).toBeInTheDocument();
   });
+
+  it("enables export controls for a MEASURED mission (post-validation)", () => {
+    renderPanel({ mission: makeMission({ status: "MEASURED" }) });
+
+    expect(
+      screen.queryByText("Mission needs to be validated before export"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("format-KML")).not.toBeDisabled();
+    expect(screen.getByTestId("download-export-btn")).not.toBeDisabled();
+  });
 });
 
 describe("ExportPanel - per-format capability notes", () => {

@@ -128,10 +128,12 @@ def export_mission(
     if not mission:
         raise NotFoundError("mission not found")
 
-    # reject invalid statuses before querying dependent data
-    if mission.status not in Mission.POST_PLAN_STATUSES:
+    # reject statuses that have not reached validation; MEASURED is allowed
+    # (post-validation - plan + artifacts persist, re-export/re-dispatch is legal)
+    if mission.status not in Mission.EXPORT_ELIGIBLE_STATUSES:
         raise DomainError(
-            f"mission must be VALIDATED or EXPORTED to export, current: {mission.status}",
+            "mission must be VALIDATED, EXPORTED, or MEASURED to export, "
+            f"current: {mission.status}",
             status_code=409,
         )
 

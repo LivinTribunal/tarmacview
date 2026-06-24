@@ -9,6 +9,7 @@ import {
   GEOZONE_ENFORCED_FORMATS,
   canIncludeGeozones,
 } from "@/constants/exportCapabilities";
+import { isExportEligible } from "@/constants/mission";
 import { useFieldLinkStatus } from "@/hooks/useFieldLinkStatus";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
@@ -49,10 +50,6 @@ export interface ExportPanelProps {
   onDispatched?: () => void;
   /** open the mission's measurements list (results entry point). */
   onViewResults?: () => void;
-}
-
-function canExport(status: MissionStatus): boolean {
-  return status === "VALIDATED" || status === "EXPORTED";
 }
 
 function isTerminal(status: MissionStatus): boolean {
@@ -119,7 +116,7 @@ export default function ExportPanel({
   }, [mission.dji_heading_mode]);
 
   const status = mission.status;
-  const exportEnabled = canExport(status);
+  const exportEnabled = isExportEligible(status);
   const terminal = isTerminal(status);
 
   // lifecycle button gating - a mission can only be completed or cancelled

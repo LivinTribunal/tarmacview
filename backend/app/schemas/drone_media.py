@@ -42,6 +42,12 @@ class UploadUrlResponse(BaseModel):
     upload_url: str
 
 
+class MediaViewUrlResponse(BaseModel):
+    """presigned GET target the browser opens to stream or download one media file."""
+
+    url: str
+
+
 class CompleteUploadRequest(BaseModel):
     """record a finished manual upload against a mission and optional inspection."""
 

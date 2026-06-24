@@ -230,6 +230,14 @@ def assign_media(
     return row, mission
 
 
+def get_view_url(db: Session, media_id: UUID) -> str:
+    """presigned GET url for one stored media file - the browser opens it to view."""
+    row = db.query(DroneMediaFile).filter(DroneMediaFile.id == media_id).first()
+    if row is None:
+        raise NotFoundError("drone media file not found")
+    return object_storage.presigned_get(row.object_key)
+
+
 def confirm_ingest(db: Session, mission_id: UUID) -> tuple[Mission, int]:
     """mark a mission's media INGESTED - stub hand-off to the processing pipeline.
 

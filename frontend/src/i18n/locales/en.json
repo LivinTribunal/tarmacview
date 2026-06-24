@@ -2263,6 +2263,8 @@
       "title": "Drone Media",
       "empty": "No transferred drone media.",
       "loadError": "Could not load drone media.",
+      "open": "Open media",
+      "openError": "Could not open this file.",
       "columns": {
         "file": "File",
         "status": "Status",
@@ -2276,6 +2278,23 @@
         "UNASSIGNED": "Unassigned",
         "INGESTED": "Ingested"
       }
+    },
+    "linkProcess": {
+      "open": "Link & process",
+      "help": "The measurement processes all videos currently assigned to the chosen inspection, in order. Assign every video for that inspection before starting.",
+      "noAirport": "Select an airport to link this video to one of its missions.",
+      "missionLabel": "Mission",
+      "missionPlaceholder": "Select a mission",
+      "missionsError": "Could not load missions.",
+      "inspectionLabel": "Inspection",
+      "inspectionPlaceholder": "Select an inspection",
+      "inspectionOption": "Inspection {{order}} · {{method}}",
+      "inspectionsError": "Could not load inspections.",
+      "confirm": "Link & start",
+      "starting": "Starting…",
+      "error": "Could not link and start the measurement.",
+      "success": "Processing started.",
+      "viewResults": "View results"
     }
   }
 }

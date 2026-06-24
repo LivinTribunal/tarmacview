@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.main import app
 from app.models.audit_log import AuditLog
 from app.models.drone_media_file import DroneMediaFile
+from app.services import object_storage
 from tests.data.missions import MISSION_AIRPORT_PAYLOAD
 
 PATH = "/api/v1/drone-media"
@@ -254,6 +255,27 @@ def test_assign_unknown_media_or_mission_404(client, hub_secret, mission_a):
     row = _post_event(client, hub_secret)
     missing_mission = client.post(f"{PATH}/{row['id']}/assign", json={"mission_id": str(uuid4())})
     assert missing_mission.status_code == 404
+
+
+# view url
+
+
+def test_view_url_returns_presigned_get_for_object_key(client, hub_secret, monkeypatch):
+    """the view-url route presigns a GET against the row's stored object key."""
+    monkeypatch.setattr(
+        object_storage, "presigned_get", lambda key: f"https://minio.test/{key}?sig=abc"
+    )
+    row = _post_event(client, hub_secret)
+
+    response = client.get(f"{PATH}/{row['id']}/view-url")
+
+    assert response.status_code == 200
+    assert response.json()["url"] == f"https://minio.test/{row['object_key']}?sig=abc"
+
+
+def test_view_url_unknown_media_404(client, hub_secret):
+    """a presign request for a missing media file -> 404."""
+    assert client.get(f"{PATH}/{uuid4()}/view-url").status_code == 404
 
 
 # ingest confirm

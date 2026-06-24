@@ -20,6 +20,11 @@ export async function listMissionDroneMedia(
   return res.data;
 }
 
+export async function getDroneMediaViewUrl(mediaId: string): Promise<string> {
+  const res = await client.get(`/drone-media/${mediaId}/view-url`);
+  return res.data.url;
+}
+
 export async function requestUploadUrl(
   filename: string,
   contentType: string | null,

@@ -2267,6 +2267,8 @@
       "title": "Médiá z dronu",
       "empty": "Žiadne prenesené médiá z dronu.",
       "loadError": "Nepodarilo sa načítať médiá z dronu.",
+      "open": "Otvoriť médiá",
+      "openError": "Tento súbor sa nepodarilo otvoriť.",
       "columns": {
         "file": "Súbor",
         "status": "Stav",
@@ -2280,6 +2282,23 @@
         "UNASSIGNED": "Nepriradené",
         "INGESTED": "Spracované"
       }
+    },
+    "linkProcess": {
+      "open": "Priradiť a spracovať",
+      "help": "Meranie spracuje všetky videá aktuálne priradené k zvolenej inšpekcii, v poradí. Pred spustením priraďte všetky videá danej inšpekcie.",
+      "noAirport": "Vyberte letisko, ku ktorého misiám sa má toto video priradiť.",
+      "missionLabel": "Misia",
+      "missionPlaceholder": "Vyberte misiu",
+      "missionsError": "Nepodarilo sa načítať misie.",
+      "inspectionLabel": "Inšpekcia",
+      "inspectionPlaceholder": "Vyberte inšpekciu",
+      "inspectionOption": "Inšpekcia {{order}} · {{method}}",
+      "inspectionsError": "Nepodarilo sa načítať inšpekcie.",
+      "confirm": "Priradiť a spustiť",
+      "starting": "Spúšťa sa…",
+      "error": "Nepodarilo sa priradiť a spustiť meranie.",
+      "success": "Spracovanie sa spustilo.",
+      "viewResults": "Zobraziť výsledky"
     }
   }
 }

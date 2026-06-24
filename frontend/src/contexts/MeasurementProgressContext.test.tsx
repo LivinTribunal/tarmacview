@@ -107,6 +107,67 @@ describe("MeasurementProgressContext", () => {
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
   });
 
+  it("drops a tracked id whose status poll 404s (deleted while active)", async () => {
+    const notFound = Object.assign(new Error("not found"), {
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+    statusMock.mockImplementation((id) =>
+      id === "m1"
+        ? Promise.reject(notFound)
+        : Promise.resolve({ id, status: "PROCESSING", error_message: null }),
+    );
+
+    renderProvider();
+    act(() => {
+      fireEvent.click(screen.getByTestId("track")); // m1, m2
+    });
+    expect(count()).toBe("2");
+
+    // m1 was deleted -> 404 -> dropped; m2 still processing -> kept
+    await tick();
+    expect(count()).toBe("1");
+  });
+
+  it("retains a tracked id whose poll fails with a non-404 (network) error", async () => {
+    // a network blip must NOT drop a still-running run
+    statusMock.mockImplementation((id) =>
+      id === "m1"
+        ? Promise.reject(new Error("network down"))
+        : Promise.resolve({ id, status: "PROCESSING", error_message: null }),
+    );
+
+    renderProvider();
+    act(() => {
+      fireEvent.click(screen.getByTestId("track")); // m1, m2
+    });
+    expect(count()).toBe("2");
+
+    await tick();
+    expect(count()).toBe("2");
+  });
+
+  it("retains a tracked id whose poll fails with an axios 5xx", async () => {
+    const serverError = Object.assign(new Error("boom"), {
+      isAxiosError: true,
+      response: { status: 500 },
+    });
+    statusMock.mockImplementation((id) =>
+      id === "m1"
+        ? Promise.reject(serverError)
+        : Promise.resolve({ id, status: "PROCESSING", error_message: null }),
+    );
+
+    renderProvider();
+    act(() => {
+      fireEvent.click(screen.getByTestId("track")); // m1, m2
+    });
+    expect(count()).toBe("2");
+
+    await tick();
+    expect(count()).toBe("2");
+  });
+
   it("rehydrates the active count from sessionStorage", () => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(["a", "b"]));
     renderProvider();

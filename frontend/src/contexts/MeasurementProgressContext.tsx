@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { isAxiosError } from "@/api/client";
 import { getMeasurementStatus } from "@/api/measurements";
 import { MEASUREMENT_POLL_INTERVAL_MS } from "@/constants/ui";
 import type { MeasurementStatus } from "@/types/measurement";
@@ -89,11 +90,18 @@ export function MeasurementProgressProvider({ children }: { children: ReactNode 
     const handle = setInterval(async () => {
       const results = await Promise.allSettled(activeIds.map((id) => getMeasurementStatus(id)));
       if (cancelled || !mountedRef.current) return;
-      const settled = results.flatMap((r, i) =>
-        r.status === "fulfilled" && !ACTIVE_STATUSES.includes(r.value.status)
-          ? [activeIds[i]]
-          : [],
-      );
+      const settled = results.flatMap((r, i) => {
+        // run reached a terminal phase -> drop it
+        if (r.status === "fulfilled" && !ACTIVE_STATUSES.includes(r.value.status)) {
+          return [activeIds[i]];
+        }
+        // run was deleted while still active (404) -> drop it; transient
+        // errors (network blip / 5xx) fall through and the id is kept
+        if (r.status === "rejected" && isAxiosError(r.reason) && r.reason.response?.status === 404) {
+          return [activeIds[i]];
+        }
+        return [];
+      });
       if (settled.length > 0) {
         setActiveIds((prev) => prev.filter((id) => !settled.includes(id)));
       }

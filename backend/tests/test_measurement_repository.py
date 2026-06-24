@@ -237,6 +237,34 @@ def test_list_by_statuses_empty_returns_empty(session):
     assert repo.list_by_statuses([]) == []
 
 
+def test_list_by_iteration_group_orders_by_index(session, inspection_id):
+    """list_by_iteration_group returns only the group's runs, ascending by index."""
+    s, created = session
+    repo = SqlAlchemyMeasurementRepository(s)
+
+    root = Measurement(inspection_id=inspection_id)
+    root.start_iteration_group()
+    repo.save(root)
+    s.commit()
+    created.append(root.id)
+
+    second = Measurement(inspection_id=inspection_id, iteration_group_id=root.id, iteration_index=2)
+    repo.save(second)
+    s.commit()
+    created.append(second.id)
+
+    # a run in a different group must not leak in
+    other = Measurement(inspection_id=inspection_id)
+    other.start_iteration_group()
+    repo.save(other)
+    s.commit()
+    created.append(other.id)
+
+    runs = repo.list_by_iteration_group(root.id)
+    assert [m.id for m in runs] == [root.id, second.id]
+    assert [m.iteration_index for m in runs] == [1, 2]
+
+
 def test_list_by_statuses_filters_on_status(session, inspection_id):
     """only rows in the requested statuses come back; others are excluded."""
     s, created = session

@@ -1,36 +1,57 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Outlet, useNavigate, useParams } from "react-router";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, Upload } from "lucide-react";
 import { useAirport } from "@/contexts/AirportContext";
 import {
   deleteMeasurement,
   downloadMeasurementReport,
   listAirportMeasurements,
+  listMeasurementIterations,
   updateMeasurement,
 } from "@/api/measurements";
-import type { MeasurementListItem } from "@/types/measurement";
+import type {
+  MeasurementIteration,
+  MeasurementListItem,
+} from "@/types/measurement";
 import Button from "@/components/common/Button";
 import Input from "@/components/common/Input";
 import Modal from "@/components/common/Modal";
 import MeasurementStatusChip from "@/components/results/MeasurementStatusChip";
+import UploadIterationDialog from "@/components/mission/UploadIterationDialog";
 import CompactMeasurementSelector from "./CompactMeasurementSelector";
-
-// report sections in the results tab strip - only "all" for now, extensible
-const REPORT_SECTIONS = [{ key: "all", labelKey: "measurement.tab.all" }] as const;
 
 /** results workspace shell - measurements picker, section tabs, pass rollup, download, and outlet. */
 export default function MeasurementTabNav() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { measurementId } = useParams<{ measurementId: string }>();
   const { selectedAirport } = useAirport();
 
   const [rows, setRows] = useState<MeasurementListItem[]>([]);
+  const [iterations, setIterations] = useState<MeasurementIteration[]>([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeSection, setActiveSection] = useState<string>(REPORT_SECTIONS[0].key);
   const [downloading, setDownloading] = useState(false);
+
+  // section tabs route to the results index ("all") or the convergence compare
+  // view; the compare tab only appears once the group has 2+ runs
+  const resultsBase = `/operator-center/measurements/${measurementId}/results`;
+  const onCompare = location.pathname.endsWith("/compare");
+  const activeSection = onCompare ? "compare" : "all";
+  const sections = useMemo(() => {
+    const base = [{ key: "all", labelKey: "measurement.tab.all", path: resultsBase }];
+    if (iterations.length >= 2) {
+      base.push({
+        key: "compare",
+        labelKey: "results.tab.compare",
+        path: `${resultsBase}/compare`,
+      });
+    }
+    return base;
+  }, [iterations.length, resultsBase]);
 
   // rename/delete state lifted here from the results page so the picker drives them
   const [renameOpen, setRenameOpen] = useState(false);
@@ -60,6 +81,22 @@ export default function MeasurementTabNav() {
       cancelled = true;
     };
   }, [airportId]);
+
+  // the iteration switcher + compare tab read off the current run's group
+  useEffect(() => {
+    if (!measurementId) return;
+    let cancelled = false;
+    listMeasurementIterations(measurementId)
+      .then((data) => {
+        if (!cancelled) setIterations(data);
+      })
+      .catch(() => {
+        if (!cancelled) setIterations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [measurementId]);
 
   const currentRow = useMemo(
     () => rows.find((r) => r.id === measurementId) ?? null,
@@ -226,25 +263,57 @@ export default function MeasurementTabNav() {
 
         {/* right 70% - section tabs, download, pass rollup, status (aligned to the navbar columns) */}
         <div className="flex-1 flex items-center gap-4 min-w-0">
+          {/* iteration switcher - jump between runs in the current run's group */}
+          {iterations.length > 1 && (
+            <select
+              value={measurementId ?? ""}
+              onChange={(e) =>
+                navigate(`/operator-center/measurements/${e.target.value}/results`)
+              }
+              className="h-11 flex-shrink-0 rounded-full border border-tv-border bg-tv-surface px-3 text-sm text-tv-text-primary"
+              aria-label={t("results.iterationSwitcher.label")}
+              data-testid="iteration-switcher"
+            >
+              {iterations.map((it) => (
+                <option key={it.id} value={it.id}>
+                  {it.label || t("measurement.iteration.label", { index: it.iteration_index })}
+                </option>
+              ))}
+            </select>
+          )}
+
           <div
             className="flex flex-1 items-center justify-center gap-1 rounded-full bg-tv-surface p-1 h-11"
             data-testid="measurement-section-tabs"
           >
-            {REPORT_SECTIONS.map((section) => (
+            {sections.map((section) => (
               <button
                 key={section.key}
                 type="button"
-                onClick={() => setActiveSection(section.key)}
+                onClick={() => navigate(section.path)}
                 className={`px-5 h-9 rounded-full text-sm font-medium transition-colors flex items-center ${
                   activeSection === section.key
                     ? "bg-tv-nav-active-bg text-tv-nav-active-text"
                     : "text-tv-text-primary hover:bg-tv-surface-hover"
                 }`}
+                data-testid={`section-tab-${section.key}`}
               >
                 {t(section.labelKey)}
               </button>
             ))}
           </div>
+
+          {/* re-fly the same inspection from new footage, linked into the group */}
+          <button
+            type="button"
+            onClick={() => setUploadOpen(true)}
+            disabled={!measurementId}
+            className="flex items-center justify-center gap-2 flex-shrink-0 h-11 rounded-full px-4 text-sm font-semibold transition-colors border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="upload-iteration-btn"
+          >
+            <Upload className="h-4 w-4" />
+            {t("results.uploadIteration")}
+          </button>
 
           {/* download - aligns under the navbar airport picker */}
           <button
@@ -298,6 +367,13 @@ export default function MeasurementTabNav() {
       <div className="flex-1 min-h-0 overflow-y-auto">
         <Outlet />
       </div>
+
+      {uploadOpen && measurementId && (
+        <UploadIterationDialog
+          measurementId={measurementId}
+          onClose={() => setUploadOpen(false)}
+        />
+      )}
 
       <Modal
         isOpen={deleteOpen}

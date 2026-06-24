@@ -93,6 +93,8 @@ function row(over: Partial<MeasurementListItem>): MeasurementListItem {
     inspection_sequence_order: 1,
     status: "DONE",
     label: null,
+    iteration_group_id: null,
+    iteration_index: 1,
     created_at: "2026-06-01T10:00:00Z",
     has_results: true,
     pass_count: 3,
@@ -226,6 +228,58 @@ describe("MeasurementsListPage", () => {
     expect(screen.getByTestId("measurement-row-proc-1")).toBeInTheDocument();
   });
 
+  it("collapses an iteration group into one expandable row, latest on top", async () => {
+    listMock.mockResolvedValue([
+      row({
+        id: "iter-1",
+        iteration_group_id: "grp",
+        iteration_index: 1,
+        created_at: "2026-06-01T10:00:00Z",
+      }),
+      row({
+        id: "iter-2",
+        iteration_group_id: "grp",
+        iteration_index: 2,
+        created_at: "2026-06-02T10:00:00Z",
+      }),
+    ]);
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+
+    // only the latest run is shown collapsed, with a run-count badge
+    expect(screen.getByTestId("measurement-row-iter-2")).toBeInTheDocument();
+    expect(screen.queryByTestId("measurement-row-iter-1")).toBeNull();
+    expect(screen.getByTestId("run-count-grp")).toHaveTextContent("2 runs");
+
+    // expanding reveals every member run
+    fireEvent.click(screen.getByTestId("expand-group-grp"));
+    expect(screen.getByTestId("measurement-subrow-iter-1")).toBeInTheDocument();
+    expect(screen.getByTestId("measurement-subrow-iter-2")).toBeInTheDocument();
+  });
+
+  it("narrows the list by the inspection select filter", async () => {
+    listMock.mockResolvedValue([
+      row({ id: "a1", inspection_id: "i-a", inspection_sequence_order: 1 }),
+      row({ id: "b1", inspection_id: "i-b", inspection_sequence_order: 2 }),
+    ]);
+
+    render(<MeasurementsListPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("measurements-table")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("measurement-row-a1")).toBeInTheDocument();
+    expect(screen.getByTestId("measurement-row-b1")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("inspection-filter"), {
+      target: { value: "i-b" },
+    });
+    expect(screen.queryByTestId("measurement-row-a1")).toBeNull();
+    expect(screen.getByTestId("measurement-row-b1")).toBeInTheDocument();
+  });
+
   it("auto-refreshes the list while a run is still processing, then stops", async () => {
     vi.useFakeTimers();
     try {
@@ -323,6 +377,8 @@ describe("MeasurementsListPage", () => {
       inspection_id: "i1",
       status: "DONE",
       label: "named run",
+      iteration_group_id: "done-1",
+      iteration_index: 1,
       error_message: null,
     });
 

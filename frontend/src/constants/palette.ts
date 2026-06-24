@@ -67,6 +67,17 @@ export const INSPECTION_LIGHT_COLORS: Record<string, string> = {
 
 export const INSPECTION_LIGHT_FALLBACK_COLOR = "#6b6b6b";
 
+// one distinct line color per iteration on the convergence overlay charts; indexed
+// by iteration order and wrapping past the end. raw hex for the same recharts reason.
+export const ITERATION_SERIES_COLORS = [
+  "#4595e5",
+  "#e5a545",
+  "#3bbb3b",
+  "#9b59b6",
+  "#e54545",
+  "#1ab5b5",
+];
+
 // results chart chrome (axis, grid) - mirrors --tv-text-muted / --tv-border
 export const CHART_COLORS = {
   AXIS: "#757575",

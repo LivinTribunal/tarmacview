@@ -23,6 +23,7 @@ import AirportPage from "@/pages/operator-center/AirportPage";
 import OperatorDronesPage from "@/pages/operator-center/OperatorDronesPage";
 import OperatorDroneDetailPage from "@/pages/operator-center/OperatorDroneDetailPage";
 import ResultsPage from "@/pages/operator-center/ResultsPage";
+import IterationComparePage from "@/pages/operator-center/IterationComparePage";
 import MeasurementsListPage from "@/pages/operator-center/MeasurementsListPage";
 import AirportListPage from "@/pages/coordinator-center/AirportListPage";
 import AirportEditPage from "@/pages/coordinator-center/AirportEditPage";
@@ -83,6 +84,7 @@ function App() {
                 element={<MeasurementTabNav />}
               >
                 <Route index element={<ResultsPage />} />
+                <Route path="compare" element={<IterationComparePage />} />
               </Route>
               {/* airport-required routes - redirect to dashboard if no airport */}
               <Route element={<RequireAirport />}>

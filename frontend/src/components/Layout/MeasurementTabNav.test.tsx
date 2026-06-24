@@ -19,6 +19,7 @@ import {
   deleteMeasurement,
   downloadMeasurementReport,
   listAirportMeasurements,
+  listMeasurementIterations,
   updateMeasurement,
 } from "@/api/measurements";
 
@@ -66,12 +67,14 @@ vi.mock("@/contexts/AirportContext", () => ({
 
 vi.mock("@/api/measurements", () => ({
   listAirportMeasurements: vi.fn(),
+  listMeasurementIterations: vi.fn(),
   downloadMeasurementReport: vi.fn(),
   updateMeasurement: vi.fn(),
   deleteMeasurement: vi.fn(),
 }));
 
 const listMock = vi.mocked(listAirportMeasurements);
+const iterationsMock = vi.mocked(listMeasurementIterations);
 const downloadMock = vi.mocked(downloadMeasurementReport);
 const updateMock = vi.mocked(updateMeasurement);
 const deleteMock = vi.mocked(deleteMeasurement);
@@ -90,6 +93,8 @@ function row(over: Partial<MeasurementListItem>): MeasurementListItem {
     pass_count: 1,
     fail_count: 3,
     label: null,
+    iteration_group_id: null,
+    iteration_index: 1,
     error_message: null,
     ...over,
   };
@@ -123,6 +128,7 @@ describe("MeasurementTabNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     airportHolder.current = { id: "airport-1", name: "Demo Airport" };
+    iterationsMock.mockResolvedValue([]);
     listMock.mockResolvedValue([
       row({ id: "m1", mission_id: "mission-a", inspection_sequence_order: 1 }),
       row({
@@ -236,6 +242,8 @@ describe("MeasurementTabNav", () => {
       inspection_id: "i1",
       status: "DONE",
       label: "evening run",
+      iteration_group_id: "m1",
+      iteration_index: 1,
       error_message: null,
     });
     renderNav("m1");

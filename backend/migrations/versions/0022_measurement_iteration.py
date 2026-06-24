@@ -1,7 +1,7 @@
 """measurement iteration grouping
 
-Revision ID: 0021_measurement_iteration
-Revises: 0020_mission_status_measured
+Revision ID: 0022_measurement_iteration
+Revises: 0021_scan_length_anchor
 Create Date: 2026-06-21 00:00:00.000000
 
 links re-flies of the same inspection into an iteration group. adds both columns
@@ -15,8 +15,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0021_measurement_iteration"
-down_revision: Union[str, None] = "0020_mission_status_measured"
+revision: str = "0022_measurement_iteration"
+down_revision: Union[str, None] = "0021_scan_length_anchor"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

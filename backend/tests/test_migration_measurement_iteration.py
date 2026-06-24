@@ -1,4 +1,4 @@
-"""alembic round-trip for 0021_measurement_iteration on a fresh postgres (T3 migration)."""
+"""alembic round-trip for 0022_measurement_iteration on a fresh postgres (T3 migration)."""
 
 from pathlib import Path
 from uuid import uuid4
@@ -108,7 +108,7 @@ def _seed_measurement_at_prior(url: str) -> str:
 
 
 def test_iteration_columns_added_backfilled_and_round_trip(alembic_env, fresh_pg):
-    """0021 adds both columns + the index, backfills every existing row, and round-trips."""
+    """0022 adds both columns + the index, backfills every existing row, and round-trips."""
     command.upgrade(alembic_env, PRIOR_REVISION)
     measurement_id = _seed_measurement_at_prior(fresh_pg)
 

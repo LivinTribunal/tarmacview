@@ -2256,7 +2256,24 @@
       "intensityUnit": "Intensity",
       "chromaticity": "Chromaticity (red fraction) over time",
       "chromaticityUnit": "r / (r+g+b)",
-      "timeAxis": "Time (s)"
+      "timeAxis": "Time (s)",
+      "whatsThis": "What's this?",
+      "elevationOverlay": "Elevation angle (°)",
+      "horizontalAxis": "Horizontal angle (°)",
+      "explain": {
+        "angle": "Each light's measured elevation angle per frame. The shaded bands mark the red-to-white transition range; the dashed line is the detected transition midpoint.",
+        "intensity": "Measured brightness of each light per frame, with the elevation angle overlaid on the right axis so you can read intensity against where the drone was looking.",
+        "chromaticity": "The red fraction of each light's colour, r / (r+g+b). The right-axis overlay shows the elevation angle at the same moment.",
+        "perLightRgb": "Raw red, green and blue channel values (0-255) for the selected unit, with elevation angle on the right. The shaded band and dashed line mark the nominal transition angle.",
+        "perLightChroma": "Normalized red, green and blue chromaticity for the selected unit. The dashed white line at 1/3 is the neutral white point; the right axis carries the elevation angle.",
+        "redChroma": "Red chromaticity for all four units against elevation angle - how the colour shifts as the drone climbs through each unit's beam.",
+        "luminosity": "Measured brightness for all four units against elevation angle.",
+        "colorDiff": "Red minus green chromaticity - a single colour-balance number per frame. Crossing zero marks the colour transition.",
+        "lightArea": "Detected light blob area in pixels for each unit - a proxy for apparent size and bloom.",
+        "hRedChroma": "Red chromaticity plotted against horizontal angle. The centerline at 0° is straight ahead of the unit.",
+        "hLuminosity": "Brightness plotted against horizontal angle, showing how each unit falls off to the sides of its aim.",
+        "lightDirection": "The horizontal angle at which each unit was brightest - the direction it is effectively aimed."
+      }
     },
     "climb": {
       "title": "Climb profile",
@@ -2273,6 +2290,36 @@
       "enhanced": "Enhanced",
       "combined": "All PAPI lights",
       "fullscreen": "Fullscreen"
+    },
+    "perLight": {
+      "title": "Per-unit analysis",
+      "selectorAria": "Select PAPI unit",
+      "rgbTitle": "RGB channels + elevation angle",
+      "rgbUnit": "Channel value (0-255)",
+      "chromaTitle": "Chromaticity (R/G/B %) + elevation angle",
+      "chromaUnit": "Chromaticity fraction",
+      "channelRed": "Red",
+      "channelGreen": "Green",
+      "channelBlue": "Blue"
+    },
+    "vertical": {
+      "title": "Vertical analysis",
+      "redChroma": "Red chromaticity + elevation angle",
+      "luminosity": "Luminosity + elevation angle",
+      "colorDiff": "Colour difference (red − green)",
+      "colorDiffUnit": "r − g",
+      "lightArea": "Light area",
+      "lightAreaUnit": "Area (px²)"
+    },
+    "horizontal": {
+      "title": "Horizontal analysis",
+      "redChroma": "Red chromaticity vs horizontal angle",
+      "luminosity": "Luminosity vs horizontal angle"
+    },
+    "direction": {
+      "title": "Light direction",
+      "column": "Unit",
+      "angle": "Aim angle"
     }
   },
   "fieldOps": {

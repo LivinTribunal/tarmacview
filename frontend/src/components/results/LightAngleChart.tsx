@@ -8,6 +8,7 @@ export default function LightAngleChart({ lights }: { lights: LightSeries[] }) {
   return (
     <LightTimeseriesChart
       title={t("results.charts.angle")}
+      explanation={t("results.charts.explain.angle")}
       lights={lights}
       field="angle"
       yLabel={t("results.charts.angleUnit")}

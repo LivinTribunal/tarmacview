@@ -81,6 +81,21 @@ export const CHART_ZONE_COLORS = {
   WHITE: "#9aa7bd",
 };
 
+// fixed reference-line hexes for the results charts - svg presentation attrs
+// cannot resolve var(), so the raw hex lives here.
+export const CHART_REFERENCE_COLORS = {
+  NOMINAL: "#e5a545", // dashed nominal setting-angle line
+  CENTERLINE: "#757575", // horizontal-analysis centerline at 0 deg
+  WHITE_33: "#9aa7bd", // white-33% chromaticity line
+};
+
+// raw per-channel rgb line colors for the per-light rgb chart
+export const RGB_CHANNEL_COLORS = {
+  red: "#e54545",
+  green: "#3bbb3b",
+  blue: "#4595e5",
+};
+
 // qr modules must stay true black regardless of theme so scanners read them
 // reliably, so this is a fixed hex rather than a --tv-* variable.
 export const QR_DARK = "#000000";

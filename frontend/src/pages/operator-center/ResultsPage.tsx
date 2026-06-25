@@ -16,7 +16,11 @@ import VerticalAnalysisSection from "@/components/results/VerticalAnalysisSectio
 import HorizontalAnalysisSection from "@/components/results/HorizontalAnalysisSection";
 import TransitionAngleTable from "@/components/results/TransitionAngleTable";
 import DronePathMap from "@/components/results/DronePathMap";
-import ClimbProfileChart from "@/components/results/ClimbProfileChart";
+import DroneHeightProfileChart from "@/components/results/DroneHeightProfileChart";
+import TransitionDifferenceTable from "@/components/results/TransitionDifferenceTable";
+import GlidePathSummaryTable from "@/components/results/GlidePathSummaryTable";
+import ChromaticityComparisonTable from "@/components/results/ChromaticityComparisonTable";
+import LuminosityComparisonTable from "@/components/results/LuminosityComparisonTable";
 import AnnotatedVideoPlayer from "@/components/results/AnnotatedVideoPlayer";
 import ResultsLeftPanel from "@/components/results/ResultsLeftPanel";
 
@@ -165,7 +169,10 @@ export default function ResultsPage() {
                   />
                 </div>
               </Card>
-              <ClimbProfileChart dronePath={results.drone_path} />
+              <DroneHeightProfileChart
+                dronePath={results.drone_path}
+                referencePoints={results.reference_points}
+              />
             </div>
           </section>
 
@@ -196,6 +203,26 @@ export default function ResultsPage() {
               </h3>
               <TransitionAngleTable summaries={results.summaries} />
             </Card>
+            {/* derived PAPI data tables */}
+            <section data-testid="results-data-tables" className="space-y-4">
+              <h3 className="text-sm font-medium text-tv-text-primary">
+                {t("results.dataTables.title")}
+              </h3>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <Card>
+                  <TransitionDifferenceTable lights={results.lights} />
+                </Card>
+                <Card>
+                  <GlidePathSummaryTable lights={results.lights} />
+                </Card>
+                <Card>
+                  <ChromaticityComparisonTable lights={results.lights} />
+                </Card>
+                <Card>
+                  <LuminosityComparisonTable lights={results.lights} />
+                </Card>
+              </div>
+            </section>
           </section>
         </>
       )}

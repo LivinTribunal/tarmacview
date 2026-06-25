@@ -24,7 +24,7 @@ function fmt(value: number | null): string {
 }
 
 // solid pill tones matching the measurement status tags (DONE/ERROR), not faint tints
-const VERDICT_CLASS: Record<TransitionVerdict, string> = {
+export const VERDICT_CLASS: Record<TransitionVerdict, string> = {
   pass: "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",
   fail: "bg-[var(--tv-status-cancelled-bg)] text-[var(--tv-status-cancelled-text)]",
   unknown: "bg-tv-surface-hover text-tv-text-muted",

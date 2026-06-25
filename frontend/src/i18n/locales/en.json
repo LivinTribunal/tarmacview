@@ -2218,6 +2218,36 @@
       "fail": "FAIL",
       "unknown": "UNKNOWN"
     },
+    "summary": {
+      "title": "Measurement",
+      "method": "Method",
+      "sequence": "Sequence",
+      "runwayHeading": "Runway heading",
+      "processed": "Processed"
+    },
+    "verdictRollup": {
+      "title": "Overall verdict",
+      "pass": "PASS",
+      "fail": "FAIL",
+      "pending": "Pending"
+    },
+    "perPapi": {
+      "title": "Per-PAPI verdict",
+      "empty": "No per-light summaries available."
+    },
+    "glidePath": {
+      "title": "Glide-path angle",
+      "unavailable": "Not available"
+    },
+    "sections": {
+      "navTitle": "Jump to section",
+      "vertical": "PAPI Vertical Analysis",
+      "horizontal": "PAPI Horizontal Analysis",
+      "horizontalEmpty": "Horizontal analysis lands in a follow-up update.",
+      "dronePath": "Drone Path",
+      "video": "Annotated Video",
+      "dataTables": "Data Tables"
+    },
     "charts": {
       "angle": "Elevation angle over time",
       "angleUnit": "Angle (°)",

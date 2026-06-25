@@ -1,6 +1,6 @@
 """pure unit tests for the measurement results pivot helpers (no db)."""
 
-from app.services.measurement_service import _drone_path
+from app.services.measurement_service import _drone_path, _light_series, _rgb_channels
 
 
 def _engine_frame(i: int) -> dict:
@@ -69,3 +69,61 @@ def test_drone_path_allows_missing_elevation():
 
     assert len(path) == 1
     assert path[0].elevation is None
+
+
+def test_light_series_surfaces_rgb_and_distance():
+    """dict-shaped rgb + distance_ground ride onto each emitted point."""
+    frames = [
+        {
+            "frame_number": 0,
+            "timestamp": 0.0,
+            "papi_a_status": "red",
+            "papi_a_angle": 3.0,
+            "papi_a_rgb": {"r": 200, "g": 50, "b": 50},
+            "papi_a_distance_ground": 120.0,
+        }
+    ]
+
+    series = _light_series("PAPI_A", frames, None)
+
+    assert len(series.points) == 1
+    point = series.points[0]
+    assert (point.red, point.green, point.blue) == (200, 50, 50)
+    assert point.distance_ground == 120.0
+
+
+def test_light_series_rgb_missing_is_none():
+    """a frame with an angle but no rgb / distance leaves those four fields null."""
+    frames = [{"frame_number": 0, "timestamp": 0.0, "papi_a_angle": 3.0}]
+
+    point = _light_series("PAPI_A", frames, None).points[0]
+
+    assert point.red is None
+    assert point.green is None
+    assert point.blue is None
+    assert point.distance_ground is None
+
+
+def test_light_series_accepts_legacy_list_rgb():
+    """legacy [r, g, b] list shape resolves to the same raw channels."""
+    frames = [
+        {
+            "frame_number": 0,
+            "timestamp": 0.0,
+            "papi_a_angle": 3.0,
+            "papi_a_rgb": [10, 20, 30],
+        }
+    ]
+
+    point = _light_series("PAPI_A", frames, None).points[0]
+
+    assert (point.red, point.green, point.blue) == (10, 20, 30)
+
+
+def test_rgb_channels_handles_dict_list_and_garbage():
+    """the helper coerces dict + list, and degrades to None on empty/malformed input."""
+    assert _rgb_channels({"r": 1, "g": 2, "b": 3}) == (1, 2, 3)
+    assert _rgb_channels([4, 5, 6]) == (4, 5, 6)
+    assert _rgb_channels(None) == (None, None, None)
+    assert _rgb_channels([]) == (None, None, None)
+    assert _rgb_channels({"r": "x"}) == (None, None, None)

@@ -150,6 +150,13 @@ describe("MeasurementTabNav", () => {
     expect(within(tabs).getByText("All")).toBeInTheDocument();
   });
 
+  it("renders the left-panel portal slot", async () => {
+    renderNav();
+    await waitFor(() =>
+      expect(screen.getByTestId("results-left-panel")).toBeInTheDocument(),
+    );
+  });
+
   it("scopes the picker to the current mission and navigates on select", async () => {
     renderNav("m1");
     // wait for the airport list to load and seed the picker

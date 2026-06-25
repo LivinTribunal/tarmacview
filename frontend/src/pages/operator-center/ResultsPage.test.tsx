@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
-import type { MeasurementResults } from "@/types/measurement";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Outlet, Route, Routes } from "react-router";
+import type {
+  MeasurementListItem,
+  MeasurementResults,
+} from "@/types/measurement";
+import type { MeasurementTabOutletContext } from "@/components/Layout/MeasurementTabNav";
 import ResultsPage from "./ResultsPage";
 
 vi.mock("@/api/measurements", () => ({
@@ -54,14 +59,45 @@ const baseResults: MeasurementResults = {
   video_urls: {},
 };
 
+const currentRow: MeasurementListItem = {
+  id: "m1",
+  inspection_id: "i1",
+  mission_id: "mission-a",
+  mission_name: "Alpha",
+  inspection_method: "HORIZONTAL_RANGE",
+  inspection_sequence_order: 1,
+  status: "DONE",
+  label: null,
+  created_at: "2026-06-01T10:00:00Z",
+  has_results: true,
+  pass_count: 1,
+  fail_count: 0,
+  error_message: null,
+};
+
+// parent route mirroring MeasurementTabNav: a real div is the left-panel portal
+// target so the page's createPortal + useOutletContext resolve
+function OutletHarness() {
+  const [leftPanelEl, setLeftPanelEl] = useState<HTMLDivElement | null>(null);
+  const ctx = { leftPanelEl, currentRow } satisfies MeasurementTabOutletContext;
+  return (
+    <>
+      <div ref={setLeftPanelEl} data-testid="results-left-panel" />
+      <Outlet context={ctx} />
+    </>
+  );
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/measurements/m1/results"]}>
       <Routes>
-        <Route
-          path="/measurements/:measurementId/results"
-          element={<ResultsPage />}
-        />
+        <Route element={<OutletHarness />}>
+          <Route
+            path="/measurements/:measurementId/results"
+            element={<ResultsPage />}
+          />
+        </Route>
         <Route
           path="/operator-center/measurements"
           element={<div data-testid="measurements-list-landing" />}
@@ -132,5 +168,33 @@ describe("ResultsPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("results-error")).toBeInTheDocument(),
     );
+  });
+
+  it("renders the five anchored sections", async () => {
+    vi.mocked(getMeasurementResults).mockResolvedValue(baseResults);
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-page")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("section-papi-vertical")).toBeInTheDocument();
+    expect(screen.getByTestId("section-papi-horizontal")).toBeInTheDocument();
+    expect(screen.getByTestId("section-drone-path")).toBeInTheDocument();
+    expect(screen.getByTestId("section-annotated-video")).toBeInTheDocument();
+    expect(screen.getByTestId("section-data-tables")).toBeInTheDocument();
+  });
+
+  it("portals the left panel into the provided slot", async () => {
+    vi.mocked(getMeasurementResults).mockResolvedValue(baseResults);
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-page")).toBeInTheDocument(),
+    );
+    const slot = screen.getByTestId("results-left-panel");
+    expect(
+      within(slot).getByTestId("results-summary-card"),
+    ).toBeInTheDocument();
+    expect(within(slot).getByTestId("results-section-nav")).toBeInTheDocument();
   });
 });

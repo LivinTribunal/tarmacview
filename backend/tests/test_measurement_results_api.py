@@ -39,6 +39,7 @@ def _frame(i: int) -> dict:
         "papi_a_angle": 3.0 + i * 0.1,
         "papi_a_horizontal_angle": 0.2,
         "papi_a_area_pixels": 120 + i,
+        "papi_a_distance_ground": 120.0 + i,
         "papi_a_transition_angle_min": 2.8,
         "papi_a_transition_angle_middle": 3.0,
         "papi_a_transition_angle_max": 3.2,
@@ -174,6 +175,22 @@ def test_data_done_pivots_blob(client, db_engine, inspection_id, _stub_storage):
     assert body["drone_path"][0]["latitude"] == pytest.approx(48.1)
     assert body["video_urls"]["PAPI_A"] == "https://signed/measurements/x/PAPI_A.mp4"
     assert any(s["light_name"] == "PAPI_A" and s["passed"] for s in body["summaries"])
+
+
+def test_data_done_surfaces_rgb_and_distance(client, db_engine, inspection_id, _stub_storage):
+    """the per-frame raw rgb channels + ground distance ride through onto the series."""
+    mid = _create(client, inspection_id)
+    _drive_to_done(db_engine, mid)
+
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    papi_a = next(light for light in body["lights"] if light["light_name"] == "PAPI_A")
+
+    # frame 0 is a red-ish reading, a later frame (i > 1) is white
+    first = papi_a["points"][0]
+    assert (first["red"], first["green"], first["blue"]) == (200, 50, 50)
+    assert first["distance_ground"] == pytest.approx(120.0)
+    white = papi_a["points"][2]
+    assert (white["red"], white["green"], white["blue"]) == (200, 200, 200)
 
 
 def test_pdf_report_unknown_measurement_is_404(client):

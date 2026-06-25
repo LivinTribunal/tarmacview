@@ -26,6 +26,10 @@ function point(over: Partial<LightSeriesPoint>): LightSeriesPoint {
     area_pixels: 100,
     chromaticity_x: 0.33,
     chromaticity_y: 0.33,
+    red: 200,
+    green: 200,
+    blue: 200,
+    distance_ground: 120,
     ...over,
   };
 }

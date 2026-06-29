@@ -10,6 +10,10 @@ import Card from "@/components/common/Card";
 import LightAngleChart from "@/components/results/LightAngleChart";
 import ChromaticityChart from "@/components/results/ChromaticityChart";
 import IntensityChart from "@/components/results/IntensityChart";
+import PerLightRgbChart from "@/components/results/PerLightRgbChart";
+import PerLightChromaticityChart from "@/components/results/PerLightChromaticityChart";
+import VerticalAnalysisSection from "@/components/results/VerticalAnalysisSection";
+import HorizontalAnalysisSection from "@/components/results/HorizontalAnalysisSection";
 import TransitionAngleTable from "@/components/results/TransitionAngleTable";
 import DronePathMap from "@/components/results/DronePathMap";
 import ClimbProfileChart from "@/components/results/ClimbProfileChart";
@@ -114,6 +118,19 @@ export default function ResultsPage() {
               <IntensityChart lights={results.lights} />
               <ChromaticityChart lights={results.lights} />
             </div>
+            {/* per-papi-unit charts with an a/b/c/d selector */}
+            <h3 className="text-sm font-medium text-tv-text-primary">
+              {t("results.perLight.title")}
+            </h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <PerLightRgbChart lights={results.lights} />
+              <PerLightChromaticityChart lights={results.lights} />
+            </div>
+            {/* aggregate vertical analysis - all four lights overlaid */}
+            <h3 className="text-sm font-medium text-tv-text-primary">
+              {t("results.vertical.title")}
+            </h3>
+            <VerticalAnalysisSection lights={results.lights} />
           </section>
 
           <section
@@ -124,11 +141,7 @@ export default function ResultsPage() {
             <h2 className="text-sm font-semibold text-tv-text-primary">
               {t("results.sections.horizontal")}
             </h2>
-            <Card>
-              <p className="text-sm text-tv-text-muted">
-                {t("results.sections.horizontalEmpty")}
-              </p>
-            </Card>
+            <HorizontalAnalysisSection lights={results.lights} />
           </section>
 
           <section

@@ -12,9 +12,12 @@ export default function ChromaticityChart({
   return (
     <LightTimeseriesChart
       title={t("results.charts.chromaticity")}
+      explanation={t("results.charts.explain.chromaticity")}
       lights={lights}
       field="chromaticity_x"
       yLabel={t("results.charts.chromaticityUnit")}
+      rightField="angle"
+      rightLabel={t("results.charts.elevationOverlay")}
     />
   );
 }

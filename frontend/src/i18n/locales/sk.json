@@ -2260,7 +2260,24 @@
       "intensityUnit": "Intenzita",
       "chromaticity": "Chromatickosť (podiel červenej) v čase",
       "chromaticityUnit": "r / (r+g+b)",
-      "timeAxis": "Čas (s)"
+      "timeAxis": "Čas (s)",
+      "whatsThis": "Čo je to?",
+      "elevationOverlay": "Elevačný uhol (°)",
+      "horizontalAxis": "Horizontálny uhol (°)",
+      "explain": {
+        "angle": "Nameraný elevačný uhol každého svetla po snímkach. Šrafované pásma vyznačujú rozsah prechodu z červenej na bielu; prerušovaná čiara je zistený stred prechodu.",
+        "intensity": "Nameraný jas každého svetla po snímkach s elevačným uhlom na pravej osi, aby ste videli intenzitu voči smeru pohľadu drona.",
+        "chromaticity": "Podiel červenej vo farbe svetla, r / (r+g+b). Prekrytie na pravej osi ukazuje elevačný uhol v tom istom momente.",
+        "perLightRgb": "Surové hodnoty červeného, zeleného a modrého kanála (0-255) pre vybranú jednotku, s elevačným uhlom vpravo. Šrafované pásmo a prerušovaná čiara vyznačujú nominálny prechodový uhol.",
+        "perLightChroma": "Normalizovaná chromatickosť červenej, zelenej a modrej pre vybranú jednotku. Prerušovaná biela čiara pri 1/3 je neutrálny biely bod; pravá os nesie elevačný uhol.",
+        "redChroma": "Chromatickosť červenej pre všetky štyri jednotky voči elevačnému uhlu - ako sa farba posúva, keď dron stúpa lúčom jednotky.",
+        "luminosity": "Nameraný jas pre všetky štyri jednotky voči elevačnému uhlu.",
+        "colorDiff": "Červená mínus zelená chromatickosť - jedno číslo farebnej rovnováhy na snímku. Prechod cez nulu vyznačuje farebný prechod.",
+        "lightArea": "Zistená plocha škvrny svetla v pixeloch pre každú jednotku - ukazovateľ zdanlivej veľkosti a rozptylu.",
+        "hRedChroma": "Chromatickosť červenej vynesená voči horizontálnemu uhlu. Stredová čiara pri 0° je priamo pred jednotkou.",
+        "hLuminosity": "Jas vynesený voči horizontálnemu uhlu, ukazuje pokles každej jednotky do strán od jej zamierenia.",
+        "lightDirection": "Horizontálny uhol, pri ktorom bola každá jednotka najjasnejšia - smer, ktorým je fakticky zamierená."
+      }
     },
     "climb": {
       "title": "Profil stúpania",
@@ -2277,6 +2294,36 @@
       "enhanced": "Vylepšené",
       "combined": "Všetky PAPI svetlá",
       "fullscreen": "Celá obrazovka"
+    },
+    "perLight": {
+      "title": "Analýza po jednotkách",
+      "selectorAria": "Vyberte jednotku PAPI",
+      "rgbTitle": "RGB kanály + elevačný uhol",
+      "rgbUnit": "Hodnota kanála (0-255)",
+      "chromaTitle": "Chromatickosť (R/G/B %) + elevačný uhol",
+      "chromaUnit": "Podiel chromatickosti",
+      "channelRed": "Červená",
+      "channelGreen": "Zelená",
+      "channelBlue": "Modrá"
+    },
+    "vertical": {
+      "title": "Vertikálna analýza",
+      "redChroma": "Chromatickosť červenej + elevačný uhol",
+      "luminosity": "Svietivosť + elevačný uhol",
+      "colorDiff": "Farebný rozdiel (červená − zelená)",
+      "colorDiffUnit": "r − g",
+      "lightArea": "Plocha svetla",
+      "lightAreaUnit": "Plocha (px²)"
+    },
+    "horizontal": {
+      "title": "Horizontálna analýza",
+      "redChroma": "Chromatickosť červenej voči horizontálnemu uhlu",
+      "luminosity": "Svietivosť voči horizontálnemu uhlu"
+    },
+    "direction": {
+      "title": "Smer svetla",
+      "column": "Jednotka",
+      "angle": "Uhol zamierenia"
     }
   },
   "fieldOps": {

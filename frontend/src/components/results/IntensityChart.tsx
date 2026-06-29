@@ -8,9 +8,12 @@ export default function IntensityChart({ lights }: { lights: LightSeries[] }) {
   return (
     <LightTimeseriesChart
       title={t("results.charts.intensity")}
+      explanation={t("results.charts.explain.intensity")}
       lights={lights}
       field="intensity"
       yLabel={t("results.charts.intensityUnit")}
+      rightField="angle"
+      rightLabel={t("results.charts.elevationOverlay")}
     />
   );
 }

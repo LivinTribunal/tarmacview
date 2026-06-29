@@ -2240,10 +2240,6 @@
       "title": "Verdikt podľa PAPI",
       "empty": "Žiadne súhrny svetiel."
     },
-    "glidePath": {
-      "title": "Uhol zostupovej dráhy",
-      "unavailable": "Nedostupné"
-    },
     "sections": {
       "navTitle": "Prejsť na sekciu",
       "vertical": "Vertikálna analýza PAPI",
@@ -2327,7 +2323,8 @@
       "status": "Stav",
       "toPapi": "Zostupová dráha k PAPI",
       "toTouchPoint": "Zostupová dráha k dotykovému bodu",
-      "empty": "Uhol zostupovej dráhy nie je k dispozícii."
+      "empty": "Uhol zostupovej dráhy nie je k dispozícii.",
+      "unavailable": "Nedostupné"
     },
     "map": {
       "title": "Trasa dronu",

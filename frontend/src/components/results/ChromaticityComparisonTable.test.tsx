@@ -14,6 +14,10 @@ function pt(chromaticity_x: number | null): LightSeriesPoint {
     area_pixels: null,
     chromaticity_x,
     chromaticity_y: null,
+    red: null,
+    green: null,
+    blue: null,
+    distance_ground: null,
   };
 }
 

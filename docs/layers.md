@@ -50,9 +50,9 @@ graph TD
 
 - **Routes are thin.** A route function deserializes the request via a Pydantic schema, calls one or two service functions, and returns a Pydantic response. No SQLAlchemy queries, no business logic.
 
-- **Services own domain logic.** Trajectory generation, safety zone validation, inspection planning, and export formatting all live in service modules. Services receive a database session via dependency injection and query models directly.
+- **Services own orchestration and algorithms.** Trajectory generation, safety zone validation, inspection planning, and export formatting all live in service modules. Services receive a database session via dependency injection, query models directly, and call aggregate-root methods to mutate state.
 
-- **Models are pure mappings.** SQLAlchemy model classes define table structure and relationships. They do not contain business methods beyond basic property accessors.
+- **Aggregate roots own their invariants (DDD-Lite).** Per the root `CLAUDE.md` *DDD-Lite Patterns* section and the actual code, business rules that protect an aggregate's consistency live as methods on the model, not in services. `Mission.transition_to()` enforces the status state machine, `Mission.add_inspection()` / `remove_inspection()` regress to DRAFT, and `Airport.add_surface()` / `add_obstacle()` / `add_safety_zone()` create children through the root. Value objects (`backend/app/models/value_objects.py`) carry their own validation. A model method only touches its own aggregate's state and relationships - it never imports services, schemas, or routes.
 
 - **Schemas are shared but independent.** Pydantic schemas define the API contract. They can be imported by routes (for request/response typing) and services (for structured data passing), but they never import from application code.
 
@@ -99,7 +99,7 @@ These files require full test coverage and mandatory human review before merge. 
 ## Anti-Patterns to Avoid
 
 - **Fat routes**: putting query logic or business rules in route handlers instead of services
-- **Model methods**: adding complex business logic to SQLAlchemy model classes
+- **Bypassing aggregate roots**: assigning `mission.status` directly instead of calling `mission.transition_to()`, or attaching children without the `add_*` methods. Aggregate invariants belong *on* the model (DDD-Lite) - the anti-pattern is the bypass, not the method. Cross-aggregate orchestration and heavy algorithms (trajectory, export) still live in services.
 - **Schema imports in models**: models should never depend on Pydantic schemas
 - **Direct DB access in routes**: always go through a service, even for simple lookups
 - **Cross-layer imports**: services must not import from routes; models must not import from services

@@ -2370,7 +2370,6 @@
   },
   "fieldOps": {
     "refresh": "Obnoviť",
-    "hubOffline": "Terénny hub je offline. Cloudové misie môžu byť neaktuálne alebo nedostupné.",
     "cloudMissions": {
       "title": "Cloudové misie",
       "empty": "Na terénnom hube nie sú žiadne cloudové misie.",

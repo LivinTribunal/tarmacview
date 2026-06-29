@@ -61,6 +61,20 @@ jobs:
             - `shrink:` same logic in fewer lines — show the shorter form.
             A single smoke test or assert-based self-check is the ponytail minimum, never flag it as bloat. Keep correctness and security in the checks above; this lens is complexity only.
 
+            Spaghetti / structural lens (grain) — flag as REQUEST_CHANGES when the diff invents a second way to do something already done. One line each as `path:line — tag — what diverges — follows: <existing exemplar>`. Every finding MUST name the existing pattern it should match; no exemplar, no finding. Only divergences this PR introduces block — pre-existing ones it merely sits next to are noted, not blocked.
+            - `duplicate:` re-implements an existing helper/util/value-object/component. Name the one to call (`app.core.geometry` for WKT, `app/models/value_objects.py` for Coordinate/Speed/AltitudeRange/IcaoCode, `app.utils.audit.log_audit`, `components/common/`, `frontend/src/constants/`, `hooks/`).
+            - `layer:` import crosses a forbidden boundary (route→models, service→routes, model→service/schema, schema/core→app code). Enforced by `scripts/lint-architecture.ts` + `harness.config.json`; a line carrying an `arch-exempt` comment is intentionally waived — don't flag it.
+            - `reach-in:` mutates an aggregate's children or status directly instead of the root method — `mission.transition_to()`, `mission.add_inspection()`/`remove_inspection()`, `airport.add_surface()`/`add_obstacle()`/`add_safety_zone()`.
+            - `chain:` a route holds business logic or queries the ORM itself instead of `route → service function → model` (canonical exemplar: `api/routes/camera_presets.py` → `services/camera_preset_service.py`).
+            - `diverge:` / `inconsistent:` a second convention for something done one way — a schema not named `{Entity}Response|Create|Update`, a hardcoded JSX string instead of `t()`, a raw hex/Tailwind color instead of a `--tv-*` token, a raw float where siblings pass the value object.
+            Consistency beats cuts: if the ponytail lens above wants to delete a wrapper/method that matches a row of siblings, keep it (`keep: matches <N> siblings`). Compare a changed backend slice to the canonical `camera_presets` exemplar, not just its file-local neighbors. Business methods on `Mission`/`Airport`/value objects are the grain (CLAUDE.md DDD-Lite), not a layer violation — never cite the stale "model methods" anti-pattern in `docs/layers.md` against them.
+
+            Proof gate (no false positives) — applies to every correctness/bug finding before it can block:
+            - A finding may be `--request-changes` ONLY if you can state a concrete reproduction: the exact input/state, the exact wrong output or side effect, and — for integration findings — the real callee behavior you traced that makes it wrong (open and read the callee, don't assume). A finding you cannot ground this way is dropped, or demoted to `--comment` if still worth a human's eye.
+            - A "the code mocks the collaborator and asserts it was called" argument proves nothing — it re-states the implementation. Reproduce from the consumer's vantage.
+            - You have Read/Grep/Bash: when a finding is cheap to confirm, write and run a throwaway `pytest`/`vitest` to show it fails red on current code (`cd backend && pytest <path> -x -q` / `cd frontend && npx vitest run <path>`), then discard it — never commit test files. (Do not run full lint/type-check/build; CI owns those.)
+            - List dropped-but-considered correctness findings in one compact line so they aren't silently lost.
+
             OPSEC checks — flag as COMMENT (suggest the human edit before merge, do not block):
             - PR body that reads as obvious LLM output: emoji headers (✅, ✓, 🎉, 🚀), exhaustive checkmark lists, motivational closers, first-person phrasing like "I've implemented…" / "Let me…".
 

@@ -393,6 +393,22 @@ def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
     return r / total, g / total
 
 
+def _rgb_channels(rgb) -> tuple[int | None, int | None, int | None]:
+    """raw (r, g, b) ints 0-255 from an rgb reading - (None, None, None) if unusable.
+
+    accepts both the engine dict ``{"r", "g", "b"}`` and the legacy ``[r, g, b]`` list;
+    coerces to plain int so the numpy-free service never hands a numpy scalar to the schema.
+    """
+    if not rgb:
+        return None, None, None
+    try:
+        if isinstance(rgb, dict):
+            return int(rgb["r"]), int(rgb["g"]), int(rgb["b"])
+        return int(rgb[0]), int(rgb[1]), int(rgb[2])
+    except (TypeError, ValueError, KeyError, IndexError):
+        return None, None, None
+
+
 def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
     """roll one light's per-frame readings out of the blob into an ordered series."""
     key = name.lower()
@@ -400,7 +416,10 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
     for frame in frames:
         if f"{key}_angle" not in frame and f"{key}_status" not in frame:
             continue
-        cx, cy = _chromaticity_from_rgb(frame.get(f"{key}_rgb"))
+        rgb = frame.get(f"{key}_rgb")
+        cx, cy = _chromaticity_from_rgb(rgb)
+        red, green, blue = _rgb_channels(rgb)
+        dist = frame.get(f"{key}_distance_ground")
         points.append(
             LightSeriesPoint(
                 frame_number=int(frame.get("frame_number", 0)),
@@ -412,6 +431,10 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
                 area_pixels=frame.get(f"{key}_area_pixels"),
                 chromaticity_x=cx,
                 chromaticity_y=cy,
+                red=red,
+                green=green,
+                blue=blue,
+                distance_ground=float(dist) if dist is not None else None,
             )
         )
     # transition angles are injected identically onto every frame - read the first

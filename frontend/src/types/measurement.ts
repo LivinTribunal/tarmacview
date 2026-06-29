@@ -95,6 +95,12 @@ export interface LightSeriesPoint {
   // chromaticity derived from the per-frame rgb triple (normalized r/g)
   chromaticity_x: number | null;
   chromaticity_y: number | null;
+  // raw per-frame rgb (0-255) the chromaticity is derived from
+  red: number | null;
+  green: number | null;
+  blue: number | null;
+  // ground distance from the drone to the light, meters
+  distance_ground: number | null;
 }
 
 export interface LightSeries {

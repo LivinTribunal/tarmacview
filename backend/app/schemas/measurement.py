@@ -118,8 +118,9 @@ class MeasurementPreviewResponse(BaseModel):
 class LightSeriesPoint(BaseModel):
     """one frame's reading for a single light - the unit the timeseries plots.
 
-    chromaticity is derived from the per-frame rgb triple (normalized r/g), there
-    is no direct chromaticity key in the engine blob.
+    the raw per-frame rgb (0-255) the chromaticity is derived from rides alongside
+    the normalized chromaticity, plus the drone-to-light ground distance; there is
+    no direct chromaticity key in the engine blob.
     """
 
     frame_number: int
@@ -131,6 +132,10 @@ class LightSeriesPoint(BaseModel):
     area_pixels: int | None = None
     chromaticity_x: float | None = None
     chromaticity_y: float | None = None
+    red: int | None = None
+    green: int | None = None
+    blue: int | None = None
+    distance_ground: float | None = None  # meters, nullable
 
 
 class LightSeries(BaseModel):

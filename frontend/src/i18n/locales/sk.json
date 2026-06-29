@@ -2223,6 +2223,36 @@
       "fail": "NEVYHOVUJE",
       "unknown": "NEZNÁME"
     },
+    "summary": {
+      "title": "Meranie",
+      "method": "Metóda",
+      "sequence": "Poradie",
+      "runwayHeading": "Smer dráhy",
+      "processed": "Spracované"
+    },
+    "verdictRollup": {
+      "title": "Celkový verdikt",
+      "pass": "VYHOVEL",
+      "fail": "NEVYHOVEL",
+      "pending": "Čaká sa"
+    },
+    "perPapi": {
+      "title": "Verdikt podľa PAPI",
+      "empty": "Žiadne súhrny svetiel."
+    },
+    "glidePath": {
+      "title": "Uhol zostupovej dráhy",
+      "unavailable": "Nedostupné"
+    },
+    "sections": {
+      "navTitle": "Prejsť na sekciu",
+      "vertical": "Vertikálna analýza PAPI",
+      "horizontal": "Horizontálna analýza PAPI",
+      "horizontalEmpty": "Horizontálna analýza pribudne v ďalšej aktualizácii.",
+      "dronePath": "Dráha drona",
+      "video": "Anotované video",
+      "dataTables": "Dátové tabuľky"
+    },
     "charts": {
       "angle": "Elevačný uhol v čase",
       "angleUnit": "Uhol (°)",

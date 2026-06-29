@@ -19,6 +19,13 @@ import CompactMeasurementSelector from "./CompactMeasurementSelector";
 // report sections in the results tab strip - only "all" for now, extensible
 const REPORT_SECTIONS = [{ key: "all", labelKey: "measurement.tab.all" }] as const;
 
+export interface MeasurementTabOutletContext {
+  // portal target for the results page's stacked left panel
+  leftPanelEl: HTMLDivElement | null;
+  // the current run's list row - carries created_at for the summary card
+  currentRow: MeasurementListItem | null;
+}
+
 /** results workspace shell - measurements picker, section tabs, pass rollup, download, and outlet. */
 export default function MeasurementTabNav() {
   const { t } = useTranslation();
@@ -31,6 +38,9 @@ export default function MeasurementTabNav() {
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<string>(REPORT_SECTIONS[0].key);
   const [downloading, setDownloading] = useState(false);
+
+  // portal target for the results page's left panel
+  const [leftPanelEl, setLeftPanelEl] = useState<HTMLDivElement | null>(null);
 
   // rename/delete state lifted here from the results page so the picker drives them
   const [renameOpen, setRenameOpen] = useState(false);
@@ -192,6 +202,11 @@ export default function MeasurementTabNav() {
     }
   }, [measurementId]);
 
+  const outletContext = {
+    leftPanelEl,
+    currentRow,
+  } satisfies MeasurementTabOutletContext;
+
   return (
     <div className="flex flex-col h-[calc(100vh-5.25rem)] px-4 pt-2">
       {/* header row - mirrors the navbar 30/70 split */}
@@ -294,9 +309,29 @@ export default function MeasurementTabNav() {
         </div>
       </div>
 
-      {/* results content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <Outlet />
+      {/* results body - 30/70 split mirroring MissionTabNav */}
+      <div className="flex flex-1 min-h-0">
+        {/* left column - page left-panel portal target */}
+        <div className="w-[30%] flex-shrink-0 flex">
+          <div
+            className="flex-1 flex flex-col overflow-y-auto"
+            style={{ scrollbarGutter: "stable" }}
+          >
+            <div
+              ref={setLeftPanelEl}
+              className="flex flex-col gap-4 pb-2"
+              data-testid="results-left-panel"
+            />
+          </div>
+          <div className="w-6 flex-shrink-0" />
+        </div>
+
+        {/* right column - results sections */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <Outlet context={outletContext} />
+          </div>
+        </div>
       </div>
 
       <Modal

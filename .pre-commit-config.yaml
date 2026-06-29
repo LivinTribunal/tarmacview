@@ -1,6 +1,9 @@
 # pre-commit hooks — install with: pre-commit install
 # bypass in emergencies: git commit --no-verify
 
+# vendored verbatim reference — keep it byte-for-byte, never auto-format/lint/scan it
+exclude: '^docs/reference/rel/analyze_runway_lights\.py$'
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

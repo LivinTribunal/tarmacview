@@ -2240,10 +2240,6 @@
       "title": "Verdikt podľa PAPI",
       "empty": "Žiadne súhrny svetiel."
     },
-    "glidePath": {
-      "title": "Uhol zostupovej dráhy",
-      "unavailable": "Nedostupné"
-    },
     "sections": {
       "navTitle": "Prejsť na sekciu",
       "vertical": "Vertikálna analýza PAPI",
@@ -2279,10 +2275,56 @@
         "lightDirection": "Horizontálny uhol, pri ktorom bola každá jednotka najjasnejšia - smer, ktorým je fakticky zamierená."
       }
     },
-    "climb": {
-      "title": "Profil stúpania",
+    "dataTables": {
+      "title": "Dátové tabuľky"
+    },
+    "heightProfile": {
+      "title": "Výškový profil dronu",
+      "droneElevation": "Výška dronu (WGS84)",
       "elevationUnit": "Výška (m)",
+      "diffUnit": "Výškový rozdiel (m)",
+      "diffLight": "Δ k {{light}}",
+      "touchPoint": "Dotykový bod",
       "noData": "Nezaznamenaná žiadna výška."
+    },
+    "stats": {
+      "min": "Min",
+      "max": "Max",
+      "avg": "Priemer",
+      "range": "Rozsah"
+    },
+    "transitionDiff": {
+      "title": "Rozdiely prechodových uhlov PAPI",
+      "start": "Začiatok",
+      "middle": "Stred (80 %)",
+      "end": "Koniec",
+      "width": "Šírka",
+      "nominal": "Nominálny",
+      "correction": "Korekcia",
+      "result": "Výsledok",
+      "pairwiseTitle": "Párové rozdiely",
+      "pairwiseLabel": "{{from}} − {{to}}",
+      "empty": "Žiadne prechodové údaje pre svetlá."
+    },
+    "chromaticityCompare": {
+      "title": "Porovnanie červenej chromatickosti",
+      "empty": "Žiadne údaje o chromatickosti."
+    },
+    "luminosityCompare": {
+      "title": "Porovnanie svietivosti",
+      "empty": "Žiadne údaje o svietivosti."
+    },
+    "glidePath": {
+      "title": "Súhrn uhla zostupovej dráhy",
+      "metric": "Veličina",
+      "value": "Hodnota",
+      "nominal": "Nominálny",
+      "tolerance": "Tolerancia",
+      "status": "Stav",
+      "toPapi": "Zostupová dráha k PAPI",
+      "toTouchPoint": "Zostupová dráha k dotykovému bodu",
+      "empty": "Uhol zostupovej dráhy nie je k dispozícii.",
+      "unavailable": "Nedostupné"
     },
     "map": {
       "title": "Trasa dronu",

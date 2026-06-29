@@ -2236,10 +2236,6 @@
       "title": "Per-PAPI verdict",
       "empty": "No per-light summaries available."
     },
-    "glidePath": {
-      "title": "Glide-path angle",
-      "unavailable": "Not available"
-    },
     "sections": {
       "navTitle": "Jump to section",
       "vertical": "PAPI Vertical Analysis",
@@ -2275,10 +2271,56 @@
         "lightDirection": "The horizontal angle at which each unit was brightest - the direction it is effectively aimed."
       }
     },
-    "climb": {
-      "title": "Climb profile",
+    "dataTables": {
+      "title": "Data tables"
+    },
+    "heightProfile": {
+      "title": "Drone height profile",
+      "droneElevation": "Drone elevation (WGS84)",
       "elevationUnit": "Elevation (m)",
+      "diffUnit": "Altitude difference (m)",
+      "diffLight": "Δ to {{light}}",
+      "touchPoint": "Touch point",
       "noData": "No elevation recorded."
+    },
+    "stats": {
+      "min": "Min",
+      "max": "Max",
+      "avg": "Avg",
+      "range": "Range"
+    },
+    "transitionDiff": {
+      "title": "PAPI transition-angle differences",
+      "start": "Start",
+      "middle": "Middle (80%)",
+      "end": "End",
+      "width": "Width",
+      "nominal": "Nominal",
+      "correction": "Correction",
+      "result": "Result",
+      "pairwiseTitle": "Pairwise differences",
+      "pairwiseLabel": "{{from}} − {{to}}",
+      "empty": "No per-light transition data."
+    },
+    "chromaticityCompare": {
+      "title": "Red chromaticity comparison",
+      "empty": "No chromaticity data."
+    },
+    "luminosityCompare": {
+      "title": "Luminosity comparison",
+      "empty": "No luminosity data."
+    },
+    "glidePath": {
+      "title": "Glide-path angle summary",
+      "metric": "Metric",
+      "value": "Value",
+      "nominal": "Nominal",
+      "tolerance": "Tolerance",
+      "status": "Status",
+      "toPapi": "Glide-path to PAPI",
+      "toTouchPoint": "Glide-path to touch point",
+      "empty": "Glide-path angle unavailable.",
+      "unavailable": "Not available"
     },
     "map": {
       "title": "Drone path",

@@ -340,7 +340,7 @@ describe("UploadDroneMediaDialog", () => {
     expect(createMeasurement).toHaveBeenCalledWith("insp-2");
     // the two started runs are registered with the progress toast
     expect(trackMock).toHaveBeenCalledWith(["m1", "m2"]);
-    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements");
+    expect(navigateMock).toHaveBeenCalledWith("/operator-center/missions/mission-1/results");
     expect(onCloseMock).toHaveBeenCalled();
   });
 
@@ -381,7 +381,7 @@ describe("UploadDroneMediaDialog", () => {
     // one bad inspection must not block the other - both are attempted
     await waitFor(() => expect(createMeasurement).toHaveBeenCalledTimes(2));
     expect(trackMock).toHaveBeenCalledWith(["m1"]);
-    expect(navigateMock).toHaveBeenCalledWith("/operator-center/measurements");
+    expect(navigateMock).toHaveBeenCalledWith("/operator-center/missions/mission-1/results");
     expect(onCloseMock).toHaveBeenCalled();
   });
 

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import en from "@/i18n/locales/en.json";
+import type { InspectionResponse } from "@/types/mission";
+import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
 import type {
   LightSeries,
   MeasurementListItem,
@@ -58,11 +60,6 @@ function light(over: Partial<LightSeries>): LightSeries {
   };
 }
 
-const SECTIONS = [
-  { id: "papi-vertical", labelKey: "results.sections.vertical" },
-  { id: "papi-horizontal", labelKey: "results.sections.horizontal" },
-] as const;
-
 function results(over: Partial<MeasurementResults>): MeasurementResults {
   return {
     id: "m1",
@@ -78,6 +75,20 @@ function results(over: Partial<MeasurementResults>): MeasurementResults {
     lights: [],
     drone_path: [],
     video_urls: {},
+    ...over,
+  };
+}
+
+function inspection(over: Partial<InspectionResponse>): InspectionResponse {
+  return {
+    id: "i1",
+    mission_id: "mission-a",
+    template_id: "tpl-1",
+    config_id: null,
+    method: "HORIZONTAL_RANGE",
+    sequence_order: 1,
+    lha_ids: null,
+    config: null,
     ...over,
   };
 }
@@ -100,6 +111,25 @@ function listRow(over: Partial<MeasurementListItem>): MeasurementListItem {
     ...over,
   };
 }
+
+const templates = new Map<string, InspectionTemplateResponse>([
+  [
+    "tpl-1",
+    {
+      id: "tpl-1",
+      name: "PAPI North",
+      description: null,
+      angular_tolerances: null,
+      created_by: null,
+      created_at: null,
+      updated_at: null,
+      default_config: null,
+      target_agl_ids: [],
+      methods: ["HORIZONTAL_RANGE"],
+      mission_count: 0,
+    },
+  ],
+]);
 
 describe("computeGlidePathAngle", () => {
   it("returns the midpoint of B.max and C.min when both present", () => {
@@ -153,16 +183,12 @@ describe("overallVerdict", () => {
 });
 
 describe("ResultsLeftPanel", () => {
-  it("renders the summary, verdict, per-PAPI rows, glide path, and section nav", () => {
+  const inspections = [inspection({})];
+  const byInspection = new Map([["i1", listRow({})]]);
+
+  it("renders the picker, inspection info, and per-LHA rows; no summary card or section nav", () => {
     const data = results({
       summaries: [
-        {
-          light_name: "PAPI_A",
-          setting_angle: 3.0,
-          tolerance: 0.5,
-          measured_transition_angle: 3.1,
-          passed: true,
-        },
         {
           light_name: "PAPI_B",
           setting_angle: 3.0,
@@ -179,52 +205,69 @@ describe("ResultsLeftPanel", () => {
 
     render(
       <ResultsLeftPanel
+        inspections={inspections}
+        templates={templates}
+        measurementByInspection={byInspection}
+        selectedId="i1"
+        onSelect={vi.fn()}
         results={data}
         currentRow={listRow({})}
-        sections={SECTIONS}
       />,
     );
 
-    // summary card carries method / heading / processed date
-    const summary = screen.getByTestId("results-summary-card");
-    expect(within(summary).getByText("Horizontal Range")).toBeInTheDocument();
-    expect(within(summary).getByText("90°")).toBeInTheDocument();
+    // picker lists one row per inspection
+    expect(screen.getByTestId("results-inspection-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("results-inspection-row-i1")).toBeInTheDocument();
 
-    // overall verdict is FAIL (one scored light failed)
-    expect(
-      within(screen.getByTestId("results-overall-verdict")).getByText("FAIL"),
-    ).toBeInTheDocument();
+    // inspection info carries verdict + glide path + processed date
+    const info = screen.getByTestId("results-inspection-info");
+    expect(within(info).getByText("FAIL")).toBeInTheDocument();
+    expect(within(info).getByText("3.00°")).toBeInTheDocument();
+    expect(within(info).getByText("Horizontal Range")).toBeInTheDocument();
 
-    // one per-PAPI row per present summary
-    const perPapi = screen.getByTestId("results-per-papi");
-    expect(within(perPapi).getByText("PAPI_A")).toBeInTheDocument();
-    expect(within(perPapi).getByText("PAPI_B")).toBeInTheDocument();
+    // per-LHA renders one row per light in lights[]
+    const perLha = screen.getByTestId("results-per-lha");
+    expect(within(perLha).getByText("PAPI_B")).toBeInTheDocument();
+    expect(within(perLha).getByText("PAPI_C")).toBeInTheDocument();
 
-    // glide path = midpoint of B.max + C.min
-    expect(
-      within(screen.getByTestId("results-glide-path")).getByText("3.00°"),
-    ).toBeInTheDocument();
-
-    // one nav button per section entry
-    const nav = screen.getByTestId("results-section-nav");
-    expect(within(nav).getAllByRole("button")).toHaveLength(SECTIONS.length);
+    // legacy summary card + section nav are gone
+    expect(screen.queryByTestId("results-summary-card")).toBeNull();
+    expect(screen.queryByTestId("results-section-nav")).toBeNull();
   });
 
-  it("shows the empty per-PAPI state when there are no summaries", () => {
+  it("shows only the picker when no inspection results are loaded", () => {
     render(
       <ResultsLeftPanel
-        results={results({})}
+        inspections={inspections}
+        templates={templates}
+        measurementByInspection={byInspection}
+        selectedId={null}
+        onSelect={vi.fn()}
+        results={null}
         currentRow={null}
-        sections={SECTIONS}
+      />,
+    );
+    expect(screen.getByTestId("results-inspection-picker")).toBeInTheDocument();
+    expect(screen.queryByTestId("results-inspection-info")).toBeNull();
+    expect(screen.queryByTestId("results-per-lha")).toBeNull();
+  });
+
+  it("shows the empty per-LHA state when there are no lights", () => {
+    render(
+      <ResultsLeftPanel
+        inspections={inspections}
+        templates={templates}
+        measurementByInspection={byInspection}
+        selectedId="i1"
+        onSelect={vi.fn()}
+        results={results({ lights: [] })}
+        currentRow={listRow({})}
       />,
     );
     expect(
-      within(screen.getByTestId("results-per-papi")).getByText(
+      within(screen.getByTestId("results-per-lha")).getByText(
         "No per-light summaries available.",
       ),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId("results-glide-path")).getByText("Not available"),
     ).toBeInTheDocument();
   });
 });

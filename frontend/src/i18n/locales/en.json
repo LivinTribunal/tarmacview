@@ -55,7 +55,6 @@
     "dashboard": "Dashboard",
     "missions": "Missions",
     "airport": "Airport",
-    "results": "Results",
     "fieldOps": "Field Ops",
     "missionCenter": "Mission Center",
     "configuratorCenter": "Coordinator Center",
@@ -483,6 +482,7 @@
     "configuration": "Configuration",
     "map": "Map",
     "validationExport": "Validation & Export",
+    "results": "Results",
     "duplicate": "Duplicate",
     "overview": {
       "missionInfo": "Mission Info",
@@ -2201,6 +2201,12 @@
     "status": "Status: {{status}}",
     "loadError": "Could not load measurement results.",
     "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",
+    "noMeasurements": "No measurements yet for this mission. Start one from Validation & Export.",
+    "pickInspection": "Select a measured inspection to view its results.",
+    "inspectionInfo": "Inspection Info",
+    "picker": {
+      "notMeasured": "Not measured"
+    },
     "downloadPdf": "Download PDF Report",
     "generatingPdf": "Generating…",
     "passRollup": "{{pass}}/{{total}} pass",
@@ -2232,12 +2238,11 @@
       "fail": "FAIL",
       "pending": "Pending"
     },
-    "perPapi": {
-      "title": "Per-PAPI verdict",
+    "perLha": {
+      "title": "Per LHA verdict",
       "empty": "No per-light summaries available."
     },
     "sections": {
-      "navTitle": "Jump to section",
       "vertical": "PAPI Vertical Analysis",
       "horizontal": "PAPI Horizontal Analysis",
       "horizontalEmpty": "Horizontal analysis lands in a follow-up update.",

@@ -65,6 +65,24 @@ superseded by this HTTP posture; the TLS-only legs (STS→S3, MQTTS, the on-RC C
 are deferred to a later real-RC slice. `start-field.sh` takes the host Pilot
 dials (the laptop LAN IP, or `10.0.2.2` for an Android emulator).
 
+**Field Ops page merged** (#162) — an operator **Field Ops** page
+(`/operator-center/field-ops`) that manages the field hub's cloud-route library
+and the drone media returned from flights. *Cloud Missions* lists the waylines
+registered on the hub with per-row delete (removes the row *and* its KMZ
+object), backed by new shared-secret hub endpoints `GET`/`DELETE
+/internal/api/v1/waylines` and an operator proxy `GET`/`DELETE
+/api/v1/field-link/waylines` that degrades to an empty list when the hub is
+offline. *Drone Media* tables the returned files with a presigned view/download
+url per row (`GET /api/v1/drone-media/{id}/view-url`) and a per-row mission +
+inspection picker that links a video to an inspection and starts its measurement
+in one step (`assignDroneMedia` → `moveDroneMedia` → `createMeasurement`). Two
+folded-in field-test fixes rode along: the hub now pins the MinIO presign region
+so wayline KMZ download signs fully offline (was 500ing on a live bucket-region
+lookup the container couldn't route to), and the media-events ingest scrubs nul
+/ control bytes from `captured_at` + the raw callback and drops non-finite /
+out-of-range shoot positions so a dirty device callback degrades gracefully
+instead of 422ing.
+
 ## 1. Goal
 
 Close the two manual gaps in the inspection workflow without touching an SD
@@ -361,6 +379,13 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   `broker_connected` (hub↔broker link), and `devices[].online` (a drone live on
   MQTT). Since #28 it also proxies `connect_url` / `public_host` from the hub
   body; the degraded / no-hub shape leaves them `null`.
+- `GET` / `DELETE /api/v1/field-link/waylines` — operator-gated proxy over the
+  hub's wayline library. *Landed in #162*: `GET` lists the registered waylines
+  (degrades to an empty list when the hub is unconfigured/unreachable, mirroring
+  the status proxy); `DELETE /{wayline_id}` removes one wayline (404 when the hub
+  reports it absent, 502 when the hub is down). Backed by the hub's shared-secret
+  `GET` / `DELETE /internal/api/v1/waylines` — the delete drops the wayline row
+  *and* its KMZ object from MinIO.
 - `GET /api/v1/field-link/ca-cert` — operator-gated download of the local CA
   cert to install on each RC. *Landed in #28*: serves the file via
   `FileResponse` (stdlib only, no new backend dependency), 404 when the CA
@@ -377,6 +402,8 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   `POST /{media_id}/assign` manually moves one file (reassignment after
   ingest is 409); `POST /confirm-ingest` marks a mission's rows `INGESTED`,
   idempotent — the processing-pipeline hand-off behind it is still a stub.
+  #162 added `GET /{media_id}/view-url`, a presigned GET url so the browser can
+  stream or download one stored file.
 - New tables (**migrations are T3**):
   - `wayline_dispatch` (landed in #825, migration `0012_wayline_dispatch`,
     documented in the `SPEC.md` domain model) — mission_id FK (unique — a
@@ -412,6 +439,12 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   in #828* behind the *Upload Drone Media* header button on the validation
   page. Upload-progress display and results-page integration come later
   and reuse the same API.
+- `FieldOpsPage.tsx`: the operator **Field Ops** page
+  (`/operator-center/field-ops`, nav item `nav.fieldOps`). *Landed in #162*:
+  a *Cloud Missions* table (waylines on the hub + per-row delete) and a *Drone
+  Media* table (returned files with view/download + a mission/inspection
+  *Link & process* picker that starts the measurement in one step). Shows an
+  offline banner when the hub can't answer; EN + SK strings under `fieldOps.*`.
 - All new strings via `react-i18next`; styling per `--tv-*` design system.
 
 ### fieldhub service (new top-level dir `fieldhub/`)

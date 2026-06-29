@@ -160,8 +160,9 @@ Referenced throughout the app. Every list item (missions, airports, inspections,
 **Route:** `/operator-center/dashboard`
 
 **Layout:**
-- Top nav: TarmacView Mission Control Center | Dashboard | **Missions** | Airport | Results | Selected Airport dropdown | Username dropdown
+- Top nav: TarmacView Mission Control Center | Dashboard | **Missions** | Airport | Drones | Results | Field Ops | Selected Airport dropdown | Username dropdown
 - "Results" tab: live — routes to `/operator-center/measurements`, the airport-scoped measurements list (Page 15). Reads the selected airport from `AirportContext` and lists every measurement across that airport's missions; shows a "select an airport" prompt when none is selected
+- "Field Ops" tab: live — routes to `/operator-center/field-ops`, the field-hub cloud-mission + drone-media management page (Page 17)
 - "Configurator" access: only in Username dropdown menu, visible only to Coordinators
 - Light/Dark mode toggle and EN/SK language switcher live inside the username dropdown menu
 
@@ -604,6 +605,27 @@ Degrades gracefully when no airport is selected or the current row isn't in the 
 3. **Annotated videos** — `AnnotatedVideoPlayer` (defaults to "All PAPI lights"; a fixed `aspect-video` box the video stretches to fill via `object-fill` so tall per-light crops share the same frame as the full track, plus a Fullscreen button). The PDF download now lives in the header, not the body.
 
 **States:** loading spinner, error card, and the `has_results: false` "not ready" card. Strings under `results.*` + `measurement.*` (EN + SK).
+
+---
+
+### Page 17 — Field Ops (Operator)
+
+**Route:** `/operator-center/field-ops` (the "Field Ops" top-nav tab, added in #162)
+
+The operator surface for the field hub's cloud-route library and the media returned from flights. A header **Refresh** re-pulls both tables; an offline banner ("Field hub is offline. Cloud missions may be stale or unavailable.") shows when the hub can't answer. See SPEC.md "Field Ops page (cloud missions + drone media)" and `docs/specs/FIELD-HUB.md` top status + §5/§6.
+
+**Cloud Missions table:**
+- Lists the waylines registered on the field hub — columns: **Name**, **Drone model**, **Last updated** (`update_time`, epoch ms). Backed by `GET /api/v1/field-link/waylines` (the operator proxy over the hub's `GET /internal/api/v1/waylines`), degrading to an empty list when the hub is unconfigured/unreachable.
+- Each row has a **delete** action → confirm dialog ("Delete cloud mission \"{name}\"? This removes it from the field hub.") → `DELETE /api/v1/field-link/waylines/{id}`, which removes the wayline row **and** its KMZ object from the hub. 404 surfaces when the hub reports the wayline absent, 502 when the hub is down.
+- Empty state: "No cloud missions on the field hub."
+
+**Drone Media table:**
+- Tables the transferred media — columns: **File**, **Status** (`Received` / `Matched` / `Unassigned` / `Ingested`), **Size**, **Mission** (the matched mission, if any), **Captured** (device-reported time). Backed by `GET /api/v1/drone-media`. Shows transferred files only (no live in-flight progress — use Refresh); ingested media moves out of this list into the measurement results.
+- **Open media** — `GET /api/v1/drone-media/{media_id}/view-url` returns a presigned GET url the browser opens in a new tab to stream or download the file.
+- **Link & process** — a per-row mission + inspection picker (inspection auto-selected when the mission has exactly one). Confirm runs `assignDroneMedia` → `moveDroneMedia` → `createMeasurement` in order, so the video is linked to the inspection and its measurement starts in one step, then offers a **View results** link to `/operator-center/measurements/{id}/results`. A measurement consumes **all** videos currently assigned to the chosen inspection, in order — assign every video for a multi-video inspection before starting. Needs a selected airport to resolve the mission list.
+- Empty state: "No transferred drone media."
+
+Strings under `fieldOps.*` (EN + SK; `cloudMissions.*`, `droneMedia.*`, `linkProcess.*`). Wayline types in `frontend/src/types/fieldLink.ts` mirror `backend/app/schemas/field_link.py`.
 
 ---
 

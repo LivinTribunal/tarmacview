@@ -2,6 +2,7 @@ import type {
   AirportAdminResponse,
   AirportAssignmentUpdate,
   AuditLogEntry,
+  BackupListResponse,
   InvitationResponse,
   SystemSettingsResponse,
   SystemSettingsUpdate,
@@ -97,6 +98,16 @@ export async function updateSystemSettings(
   data: SystemSettingsUpdate,
 ): Promise<SystemSettingsResponse> {
   const res = await client.put("/admin/system-settings", data);
+  return res.data;
+}
+
+export async function listBackups(): Promise<BackupListResponse> {
+  const res = await client.get("/admin/backups");
+  return res.data;
+}
+
+export async function triggerBackup(): Promise<{ status: string }> {
+  const res = await client.post("/admin/backups");
   return res.data;
 }
 

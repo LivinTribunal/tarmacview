@@ -46,6 +46,7 @@ services:
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
       S3_BUCKET: ${S3_BUCKET:-tarmacview-media}
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-tarmacview-backups}
       S3_REGION: ${S3_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-tarmacview}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-tarmacview-minio}
@@ -239,6 +240,7 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-tarmacview} ${MINIO_ROOT_PASSWORD:-tarmacview-minio} &&
       mc mb --ignore-existing local/${S3_BUCKET:-tarmacview-media} &&
+      mc mb --ignore-existing local/${S3_BACKUP_BUCKET:-tarmacview-backups} &&
       echo 'minio bucket ready'
       "
     restart: "no"
@@ -276,6 +278,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
       S3_BUCKET: ${S3_BUCKET:-tarmacview-media}
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-tarmacview-backups}
       S3_REGION: ${S3_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-tarmacview}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-tarmacview-minio}
@@ -297,6 +300,26 @@ services:
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+
+  # celery beat - the single scheduler that ticks the backup dispatcher onto the
+  # queue. MUST stay at one replica: duplicate beats fire duplicate backups. it
+  # only emits tasks (needs just the broker); the worker executes the dump.
+  worker-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: tarmacview-worker-beat
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    restart: unless-stopped
+    # /tmp is writable for appuser; beat persists its last-run schedule there
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      redis:
         condition: service_healthy
 
 volumes:

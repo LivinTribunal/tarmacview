@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     s3_endpoint_url: str = ""
     s3_public_endpoint: str = ""
     s3_bucket: str = "tarmacview-media"
+    # dedicated bucket for scheduled db backups - kept separate from media artifacts
+    s3_backup_bucket: str = "tarmacview-backups"
     s3_region: str = "us-east-1"
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""

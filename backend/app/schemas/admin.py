@@ -91,6 +91,11 @@ class SystemSettingsResponse(BaseModel):
     elevation_api_fallback_enabled: bool = False
     elevation_api_provider: ElevationApiProviderStr = "OPEN_ELEVATION"
     elevation_api_key: str | None = None
+    backup_enabled: bool = False
+    backup_interval_hours: int = 24
+    backup_retention_count: int = 3
+    last_backup_at: datetime | None = None
+    last_backup_status: str | None = None
 
 
 class SystemSettingsUpdate(BaseModel):
@@ -102,6 +107,25 @@ class SystemSettingsUpdate(BaseModel):
     elevation_api_fallback_enabled: bool | None = None
     elevation_api_provider: ElevationApiProviderStr | None = None
     elevation_api_key: str | None = None
+    backup_enabled: bool | None = None
+    backup_interval_hours: int | None = Field(default=None, ge=1)
+    backup_retention_count: int | None = Field(default=None, ge=1)
+
+
+class BackupItemResponse(BaseModel):
+    """one stored db backup dump."""
+
+    key: str
+    size: int
+    last_modified: datetime
+
+
+class BackupListResponse(BaseModel):
+    """recent db backups + last-run metadata for the admin panel."""
+
+    backups: list[BackupItemResponse]
+    last_backup_at: datetime | None = None
+    last_backup_status: str | None = None
 
 
 class AuditLogResponse(BaseModel):

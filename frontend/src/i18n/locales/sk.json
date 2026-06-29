@@ -1968,7 +1968,9 @@
       "auditLogLoadFailed": "Načítanie audit logov zlyhalo",
       "auditLogExportFailed": "Export audit logu zlyhal",
       "systemSettingsLoadFailed": "Načítanie systémových nastavení zlyhalo",
-      "systemSettingsSaveFailed": "Uloženie nastavení zlyhalo"
+      "systemSettingsSaveFailed": "Uloženie nastavení zlyhalo",
+      "backupsLoadFailed": "Načítanie záloh zlyhalo",
+      "backupTriggerFailed": "Spustenie zálohy zlyhalo"
     }
   },
   "admin": {
@@ -2014,6 +2016,19 @@
     "elevationApiFallback": {
       "label": "Záložná elevácia z API podľa bodu",
       "help": "Keď je ZAPNUTÉ, letiská bez DEM dopytujú Open-Elevation pre každý bod, aby trajektórie sledovali terén. Vyžaduje dostupnosť externej API. VYPNUTÉ znamená konštantnú výšku letiska."
+    },
+    "backups": {
+      "title": "Zálohy databázy",
+      "enableLabel": "Plánované zálohy",
+      "enableDescription": "Keď je ZAPNUTÉ, databáza sa podľa plánu zálohuje do objektového úložiska a uchováva sa niekoľko najnovších záloh.",
+      "intervalLabel": "Interval (hodiny)",
+      "retentionLabel": "Ponechať najnovších",
+      "lastBackup": "Posledná záloha",
+      "never": "Nikdy",
+      "recentBackups": "Nedávne zálohy",
+      "noBackups": "Zatiaľ žiadne zálohy.",
+      "backupNow": "Zálohovať teraz",
+      "triggered": "Záloha zaradená"
     },
     "elevationApi": {
       "panelTitle": "Vzdialený poskytovateľ elevácie",
@@ -2123,7 +2138,8 @@
         "INVITE_USER": "Pozval používateľa",
         "DEACTIVATE_USER": "Deaktivoval používateľa",
         "ASSIGN_AIRPORT": "Priradil letiská",
-        "SYSTEM_SETTING_CHANGE": "Zmenil systémové nastavenia"
+        "SYSTEM_SETTING_CHANGE": "Zmenil systémové nastavenia",
+        "BACKUP": "Spustil zálohu"
       }
     },
     "airportDetail": {

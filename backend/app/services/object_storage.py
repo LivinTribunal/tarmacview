@@ -56,10 +56,10 @@ def presigned_get(object_key: str) -> str:
     )
 
 
-def delete_object(object_key: str) -> None:
+def delete_object(object_key: str, bucket: str | None = None) -> None:
     """best-effort delete of one stored object - an orphan never blocks the caller."""
     try:
-        _client(public=False).delete_object(Bucket=settings.s3_bucket, Key=object_key)
+        _client(public=False).delete_object(Bucket=bucket or settings.s3_bucket, Key=object_key)
     except Exception:
         logger.warning("failed to delete object %s from bucket", object_key, exc_info=True)
 
@@ -68,10 +68,14 @@ def delete_object(object_key: str) -> None:
 # internal endpoint (no presigning; the worker reaches the bucket directly).
 
 
-def put_object(object_key: str, body: bytes, content_type: str | None = None) -> None:
+def put_object(
+    object_key: str, body: bytes, content_type: str | None = None, bucket: str | None = None
+) -> None:
     """upload raw bytes to the bucket (gzipped results json, small artifacts)."""
     extra = {"ContentType": content_type} if content_type else {}
-    _client(public=False).put_object(Bucket=settings.s3_bucket, Key=object_key, Body=body, **extra)
+    _client(public=False).put_object(
+        Bucket=bucket or settings.s3_bucket, Key=object_key, Body=body, **extra
+    )
 
 
 def get_object(object_key: str) -> bytes:
@@ -80,14 +84,29 @@ def get_object(object_key: str) -> bytes:
     return resp["Body"].read()
 
 
-def upload_file(object_key: str, file_path: str, content_type: str | None = None) -> None:
-    """upload a local file to the bucket (annotated videos, first-frame image)."""
+def upload_file(
+    object_key: str, file_path: str, content_type: str | None = None, bucket: str | None = None
+) -> None:
+    """upload a local file to the bucket (annotated videos, first-frame image, db dumps)."""
     extra = {"ContentType": content_type} if content_type else {}
     _client(public=False).upload_file(
-        file_path, settings.s3_bucket, object_key, ExtraArgs=extra or None
+        file_path, bucket or settings.s3_bucket, object_key, ExtraArgs=extra or None
     )
 
 
 def download_file(object_key: str, dest_path: str) -> None:
     """download one stored object to a local path (input videos for the engine)."""
     _client(public=False).download_file(settings.s3_bucket, object_key, dest_path)
+
+
+def list_objects(prefix: str = "", bucket: str | None = None) -> list[dict]:
+    """list stored objects (key, size, last_modified) under an optional prefix."""
+    target = bucket or settings.s3_bucket
+    paginator = _client(public=False).get_paginator("list_objects_v2")
+    out: list[dict] = []
+    for page in paginator.paginate(Bucket=target, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            out.append(
+                {"key": obj["Key"], "size": obj["Size"], "last_modified": obj["LastModified"]}
+            )
+    return out

@@ -17,6 +17,7 @@ from app.schemas.drone_media import (
     MediaAssignRequest,
     MediaMoveRequest,
     MediaReorderRequest,
+    MediaViewUrlResponse,
     UploadUrlRequest,
     UploadUrlResponse,
 )
@@ -37,6 +38,16 @@ def list_drone_media(current_user: OperatorUser, db: Session = Depends(get_db)):
     result = drone_media_service.list_drone_media(db)
     db.commit()
     return result
+
+
+@router.get("/{media_id}/view-url", response_model=MediaViewUrlResponse)
+def get_media_view_url(
+    media_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """presigned GET url so the browser can stream or download one media file."""
+    return MediaViewUrlResponse(url=drone_media_service.get_view_url(db, media_id))
 
 
 @router.post("/confirm-ingest", response_model=ConfirmIngestResponse)

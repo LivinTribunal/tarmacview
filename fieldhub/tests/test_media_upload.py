@@ -130,6 +130,29 @@ def test_upload_callback_persists_and_reports(client, pilot_headers, captured_re
     assert report["body"]["raw_callback"] == callback
 
 
+def test_upload_callback_sanitizes_dirty_metadata(client, pilot_headers, captured_reports):
+    """nul-terminated capture time and out-of-range coords are cleaned before the report.
+
+    the m4t video callback appends a nul byte to created_time and reports garbage
+    shoot coordinates with no gps fix - the strict backend parser must not see them.
+    """
+    callback = make_upload_callback(
+        fingerprint="fp-dirty",
+        metadata={
+            "absolute_altitude": 0.0,
+            "created_time": "2026-06-24T13:23:11+00:00\x00",
+            "shoot_position": {"lat": 2.5e-170, "lng": -6.1e240},
+        },
+    )
+
+    response = client.post(CALLBACK_PATH, headers=pilot_headers, json=callback)
+
+    assert response.json()["code"] == 0
+    body = captured_reports[0]["body"]
+    assert body["captured_at"] == "2026-06-24T13:23:11+00:00"
+    assert body["position"] is None
+
+
 def test_upload_callback_acks_pilot_when_backend_down(
     client, pilot_headers, backend_configured, db_session, monkeypatch
 ):

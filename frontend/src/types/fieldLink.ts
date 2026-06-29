@@ -30,3 +30,20 @@ export interface WaylineDispatchResponse {
   status: string;
   dispatched_at: string;
 }
+
+// a wayline mission stored on the field hub - create_time/update_time are epoch ms
+export interface FieldLinkWayline {
+  id: string;
+  mission_id: string;
+  name: string;
+  drone_model_key: string | null;
+  payload_model_keys: string[];
+  favorited: boolean;
+  username: string | null;
+  create_time: number;
+  update_time: number;
+}
+
+export interface FieldLinkWaylineListResponse {
+  waylines: FieldLinkWayline[];
+}

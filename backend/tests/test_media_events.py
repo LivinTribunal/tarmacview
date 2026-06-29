@@ -98,6 +98,31 @@ def test_repost_same_fingerprint_is_idempotent(client, hub_secret, db_session):
     assert count == 1
 
 
+def test_dirty_metadata_is_cleaned_not_rejected(client, hub_secret, db_session):
+    """nul bytes in the capture time and verbatim raw_callback are scrubbed, not 500'd.
+
+    the m4t video callback appends a nul byte to created_time; it rides into the
+    jsonb raw_callback too, which postgres jsonb cannot store - both must be scrubbed.
+    """
+    response = client.post(
+        PATH,
+        json=_event(
+            "fp-dirty-time",
+            captured_at="2026-06-24T13:23:11+00:00\x00",
+            raw_callback={"metadata": {"created_time": "2026-06-24T13:23:11+00:00\x00"}},
+        ),
+        headers=hub_secret,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["captured_at"].startswith("2026-06-24T13:23:11")
+    row = (
+        db_session.query(DroneMediaFile).filter(DroneMediaFile.fingerprint == "fp-dirty-time").one()
+    )
+    assert row.captured_at is not None
+    assert "\x00" not in row.raw_callback["metadata"]["created_time"]
+
+
 def test_malformed_payload_returns_422(client, hub_secret):
     """missing fingerprint -> 422 at the schema boundary."""
     body = _event("fp-malformed")

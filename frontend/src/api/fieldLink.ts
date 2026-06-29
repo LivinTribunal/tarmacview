@@ -1,9 +1,21 @@
-import type { FieldLinkStatusResponse } from "@/types/fieldLink";
+import type {
+  FieldLinkStatusResponse,
+  FieldLinkWaylineListResponse,
+} from "@/types/fieldLink";
 import client from "./client";
 
 export async function getFieldLinkStatus(): Promise<FieldLinkStatusResponse> {
   const res = await client.get("/field-link/status");
   return res.data;
+}
+
+export async function listWaylines(): Promise<FieldLinkWaylineListResponse> {
+  const res = await client.get("/field-link/waylines");
+  return res.data;
+}
+
+export async function deleteWayline(id: string): Promise<void> {
+  await client.delete(`/field-link/waylines/${id}`);
 }
 
 // downloads the hub's local CA cert as a blob through the jwt client - the

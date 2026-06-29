@@ -1,5 +1,8 @@
 """internal endpoints for the tarmacview backend - shared-secret gated."""
 
+import logging
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
@@ -7,13 +10,51 @@ from app.core import pilot_session
 from app.core.config import settings
 from app.core.db import get_db
 from app.core.security import require_hub_secret
-from app.schemas.internal import InternalDeviceStatus, InternalStatusResponse
+from app.models.wayline import Wayline
+from app.schemas.internal import (
+    InternalDeviceStatus,
+    InternalStatusResponse,
+    InternalWaylineDeleteResponse,
+    InternalWaylineItem,
+    InternalWaylineListResponse,
+)
 from app.schemas.wayline import WaylineRegisterData
 from app.services import device_registry, mqtt_listener, object_store, wayline_library
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/internal/api/v1", tags=["internal"])
 
 KMZ_CONTENT_TYPE = "application/vnd.google-earth.kmz"
+
+# fetch the whole registry in one page - the backend reconciles the full list
+LIST_PAGE_SIZE = 1000
+
+
+def _millis(value: datetime) -> int:
+    """epoch milliseconds - the wire format for create/update times.
+
+    sqlite loses tzinfo on round-trip, so naive values are read back as utc.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return int(value.timestamp() * 1000)
+
+
+def _wayline_item(wayline: Wayline) -> InternalWaylineItem:
+    """internal wayline payload from an orm row."""
+    return InternalWaylineItem(
+        id=wayline.id,
+        mission_id=wayline.mission_id,
+        name=wayline.name,
+        drone_model_key=wayline.drone_model_key,
+        payload_model_keys=wayline.payload_model_keys or [],
+        favorited=wayline.favorited,
+        username=wayline.username,
+        create_time=_millis(wayline.create_time),
+        update_time=_millis(wayline.update_time),
+        object_key=wayline.object_key,
+    )
 
 
 @router.get("/status", response_model=InternalStatusResponse)
@@ -66,3 +107,34 @@ async def register_wayline(
     return WaylineRegisterData(
         wayline_id=wayline.id, mission_id=wayline.mission_id, object_key=wayline.object_key
     )
+
+
+@router.get("/waylines", response_model=InternalWaylineListResponse)
+def list_waylines(
+    _: None = Depends(require_hub_secret),
+    db: Session = Depends(get_db),
+) -> InternalWaylineListResponse:
+    """all dispatched waylines (newest first) for the backend to reconcile."""
+    waylines, _total = wayline_library.list_waylines(db, page=1, page_size=LIST_PAGE_SIZE)
+    return InternalWaylineListResponse(waylines=[_wayline_item(w) for w in waylines])
+
+
+@router.delete("/waylines/{wayline_id}", response_model=InternalWaylineDeleteResponse)
+def delete_wayline(
+    wayline_id: str,
+    _: None = Depends(require_hub_secret),
+    db: Session = Depends(get_db),
+) -> InternalWaylineDeleteResponse:
+    """remove a wayline row and its stored kmz - idempotent on a missing id."""
+    wayline = wayline_library.delete_wayline(db, wayline_id)
+    if wayline is None:
+        return InternalWaylineDeleteResponse(deleted=False)
+    object_key = wayline.object_key
+    db.commit()
+
+    # best effort - a stranded object must not fail the library delete
+    try:
+        object_store.remove_object(object_key)
+    except Exception:
+        logger.warning("wayline object cleanup failed for %s", object_key, exc_info=True)
+    return InternalWaylineDeleteResponse(deleted=True)

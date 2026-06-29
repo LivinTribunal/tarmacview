@@ -5,9 +5,27 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
+from app.core.exceptions import DomainError
 from app.main import app
 from app.schemas.field_link import FieldLinkStatusResponse
 from app.services import field_link_service
+
+WAYLINES_BODY = {
+    "waylines": [
+        {
+            "id": "wl-1",
+            "mission_id": "m-1",
+            "name": "PAPI sweep",
+            "drone_model_key": "0-99-1",
+            "payload_model_keys": ["1-89-0"],
+            "favorited": True,
+            "username": "pilot",
+            "create_time": 1700000000000,
+            "update_time": 1700000100000,
+            "object_key": "wayline/wl-1.kmz",
+        }
+    ]
+}
 
 HUB_BODY = {
     "broker_connected": True,
@@ -196,3 +214,184 @@ def test_ca_cert_404_when_file_missing(client, monkeypatch):
     monkeypatch.setattr(settings, "fieldhub_ca", "/no/such/ca.crt")
 
     assert client.get("/api/v1/field-link/ca-cert").status_code == 404
+
+
+# wayline list/delete service seam (no db - httpx.MockTransport)
+
+
+def test_list_waylines_maps_hub_payload(hub_configured):
+    """hub answers -> mapped waylines with the secret header sent, object_key dropped."""
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """fake hub wayline-list endpoint."""
+        seen["path"] = request.url.path
+        seen["secret"] = request.headers.get("X-Hub-Secret")
+        return httpx.Response(200, json=WAYLINES_BODY)
+
+    result = field_link_service.list_field_link_waylines(transport=httpx.MockTransport(handler))
+
+    assert seen["path"] == "/internal/api/v1/waylines"
+    assert seen["secret"] == "s3cret"
+    assert len(result.waylines) == 1
+    wl = result.waylines[0]
+    assert wl.id == "wl-1"
+    assert wl.mission_id == "m-1"
+    assert wl.name == "PAPI sweep"
+    assert wl.drone_model_key == "0-99-1"
+    assert wl.payload_model_keys == ["1-89-0"]
+    assert wl.favorited is True
+    assert wl.username == "pilot"
+    assert wl.create_time == 1700000000000
+    assert wl.update_time == 1700000100000
+    assert not hasattr(wl, "object_key")
+
+
+def test_list_waylines_degrades_when_hub_errors(hub_configured):
+    """hub 5xx -> empty list, not an exception."""
+    transport = httpx.MockTransport(lambda request: httpx.Response(503))
+
+    result = field_link_service.list_field_link_waylines(transport=transport)
+
+    assert result.waylines == []
+
+
+def test_list_waylines_degrades_on_malformed_body(hub_configured):
+    """a wayline missing required keys -> empty list, never a 500."""
+    body = {"waylines": [{"id": "wl-1"}]}
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=body))
+
+    result = field_link_service.list_field_link_waylines(transport=transport)
+
+    assert result.waylines == []
+
+
+def test_list_waylines_skips_network_when_unconfigured(monkeypatch):
+    """empty fieldhub_url -> empty list, no network attempt."""
+    monkeypatch.setattr(settings, "fieldhub_url", "")
+
+    def handler(request):
+        """fail the test if any request goes out."""
+        raise AssertionError("no request expected when fieldhub_url is unset")
+
+    result = field_link_service.list_field_link_waylines(transport=httpx.MockTransport(handler))
+
+    assert result.waylines == []
+
+
+def test_delete_wayline_returns_true_on_deleted(hub_configured):
+    """hub deleted:true -> True, DELETE verb + path + secret header sent."""
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        """fake hub wayline-delete endpoint."""
+        seen["method"] = request.method
+        seen["path"] = request.url.path
+        seen["secret"] = request.headers.get("X-Hub-Secret")
+        return httpx.Response(200, json={"deleted": True})
+
+    result = field_link_service.delete_field_link_wayline(
+        "wl-1", transport=httpx.MockTransport(handler)
+    )
+
+    assert seen["method"] == "DELETE"
+    assert seen["path"] == "/internal/api/v1/waylines/wl-1"
+    assert seen["secret"] == "s3cret"
+    assert result is True
+
+
+def test_delete_wayline_returns_false_when_absent(hub_configured):
+    """hub deleted:false -> False (route maps to 404)."""
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"deleted": False}))
+
+    result = field_link_service.delete_field_link_wayline("wl-1", transport=transport)
+
+    assert result is False
+
+
+def test_delete_wayline_raises_502_when_hub_unreachable(hub_configured):
+    """connection error -> DomainError(502), not a degraded bool."""
+
+    def handler(request):
+        """simulate a refused connection."""
+        raise httpx.ConnectError("refused")
+
+    with pytest.raises(DomainError) as exc:
+        field_link_service.delete_field_link_wayline("wl-1", transport=httpx.MockTransport(handler))
+
+    assert exc.value.status_code == 502
+
+
+def test_delete_wayline_raises_502_when_unconfigured(monkeypatch):
+    """empty fieldhub_url -> DomainError(502), no network attempt."""
+    monkeypatch.setattr(settings, "fieldhub_url", "")
+
+    def handler(request):
+        """fail the test if any request goes out."""
+        raise AssertionError("no request expected when fieldhub_url is unset")
+
+    with pytest.raises(DomainError) as exc:
+        field_link_service.delete_field_link_wayline("wl-1", transport=httpx.MockTransport(handler))
+
+    assert exc.value.status_code == 502
+
+
+# wayline list/delete routes (need the client fixture -> db)
+
+
+def test_route_list_waylines_serves_service_response(client, monkeypatch):
+    """route serves the service's mapped wayline list."""
+    monkeypatch.setattr(
+        field_link_service,
+        "list_field_link_waylines",
+        lambda: field_link_service.FieldLinkWaylineListResponse(
+            waylines=[
+                field_link_service.FieldLinkWayline(
+                    id="wl-1",
+                    mission_id="m-1",
+                    name="PAPI sweep",
+                    create_time=1,
+                    update_time=2,
+                )
+            ]
+        ),
+    )
+
+    response = client.get("/api/v1/field-link/waylines")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["waylines"]) == 1
+    assert body["waylines"][0]["id"] == "wl-1"
+
+
+def test_route_delete_wayline_204_on_deleted(client, monkeypatch):
+    """deleted:true -> 204 No Content."""
+    monkeypatch.setattr(field_link_service, "delete_field_link_wayline", lambda wid: True)
+
+    response = client.delete("/api/v1/field-link/waylines/wl-1")
+
+    assert response.status_code == 204
+
+
+def test_route_delete_wayline_404_when_absent(client, monkeypatch):
+    """deleted:false -> 404."""
+    monkeypatch.setattr(field_link_service, "delete_field_link_wayline", lambda wid: False)
+
+    response = client.delete("/api/v1/field-link/waylines/wl-1")
+
+    assert response.status_code == 404
+
+
+def test_route_delete_wayline_502_when_hub_down(client, monkeypatch):
+    """service DomainError(502) -> 502."""
+
+    def raise_502(wid):
+        """simulate hub unreachable."""
+        raise DomainError("field hub unreachable", status_code=502)
+
+    monkeypatch.setattr(field_link_service, "delete_field_link_wayline", raise_502)
+
+    response = client.delete("/api/v1/field-link/waylines/wl-1")
+
+    assert response.status_code == 502

@@ -56,6 +56,7 @@
     "missions": "Missions",
     "airport": "Airport",
     "results": "Results",
+    "fieldOps": "Field Ops",
     "missionCenter": "Mission Center",
     "configuratorCenter": "Coordinator Center",
     "airports": "Airports",
@@ -2242,6 +2243,58 @@
       "enhanced": "Enhanced",
       "combined": "All PAPI lights",
       "fullscreen": "Fullscreen"
+    }
+  },
+  "fieldOps": {
+    "refresh": "Refresh",
+    "hubOffline": "Field hub is offline. Cloud missions may be stale or unavailable.",
+    "cloudMissions": {
+      "title": "Cloud Missions",
+      "empty": "No cloud missions on the field hub.",
+      "loadError": "Could not load cloud missions.",
+      "deleteConfirm": "Delete cloud mission \"{{name}}\"? This removes it from the field hub.",
+      "columns": {
+        "name": "Name",
+        "drone": "Drone model",
+        "updated": "Last updated"
+      }
+    },
+    "droneMedia": {
+      "title": "Drone Media",
+      "empty": "No transferred drone media.",
+      "loadError": "Could not load drone media.",
+      "open": "Open media",
+      "openError": "Could not open this file.",
+      "columns": {
+        "file": "File",
+        "status": "Status",
+        "size": "Size",
+        "mission": "Mission",
+        "captured": "Captured"
+      },
+      "mediaStatus": {
+        "RECEIVED": "Received",
+        "MATCHED": "Matched",
+        "UNASSIGNED": "Unassigned",
+        "INGESTED": "Ingested"
+      }
+    },
+    "linkProcess": {
+      "open": "Link & process",
+      "help": "The measurement processes all videos currently assigned to the chosen inspection, in order. Assign every video for that inspection before starting.",
+      "noAirport": "Select an airport to link this video to one of its missions.",
+      "missionLabel": "Mission",
+      "missionPlaceholder": "Select a mission",
+      "missionsError": "Could not load missions.",
+      "inspectionLabel": "Inspection",
+      "inspectionPlaceholder": "Select an inspection",
+      "inspectionOption": "Inspection {{order}} · {{method}}",
+      "inspectionsError": "Could not load inspections.",
+      "confirm": "Link & start",
+      "starting": "Starting…",
+      "error": "Could not link and start the measurement.",
+      "success": "Processing started.",
+      "viewResults": "View results"
     }
   }
 }

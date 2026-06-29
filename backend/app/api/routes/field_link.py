@@ -10,9 +10,11 @@ from app.api.dependencies import OperatorUser, require_hub_secret
 from app.core.config import settings
 from app.core.dependencies import get_db
 from app.core.enums import AuditAction
+from app.core.exceptions import DomainError
 from app.schemas.field_link import (
     DroneMediaFileResponse,
     FieldLinkStatusResponse,
+    FieldLinkWaylineListResponse,
     MediaEventCreate,
 )
 from app.services import drone_media_service, field_link_service
@@ -36,6 +38,23 @@ def get_ca_cert(current_user: OperatorUser) -> FileResponse:
     if not ca_path or not os.path.isfile(ca_path):
         raise HTTPException(status_code=404, detail="field hub CA certificate not available")
     return FileResponse(ca_path, media_type=CA_CERT_MEDIA_TYPE, filename="fieldhub-ca.crt")
+
+
+@router.get("/waylines", response_model=FieldLinkWaylineListResponse)
+def list_waylines(current_user: OperatorUser):
+    """the hub's wayline library - empty list when the hub is absent/unreachable."""
+    return field_link_service.list_field_link_waylines()
+
+
+@router.delete("/waylines/{wayline_id}", status_code=204)
+def delete_wayline(wayline_id: str, current_user: OperatorUser):
+    """delete one wayline from the hub library - 404 when absent, 502 when hub is down."""
+    try:
+        deleted = field_link_service.delete_field_link_wayline(wayline_id)
+    except DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="wayline not found")
 
 
 @router.post("/media-events", status_code=201, response_model=DroneMediaFileResponse)

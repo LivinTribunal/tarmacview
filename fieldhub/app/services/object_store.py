@@ -14,13 +14,19 @@ from app.core.config import settings
 
 
 def _client_for(endpoint: str) -> Minio:
-    """minio client for an endpoint url like http://minio:9000."""
+    """minio client for an endpoint url like http://minio:9000.
+
+    region is pinned so presigning stays offline - without it the client makes
+    a live bucket-region lookup against the endpoint, which fails for the
+    lan-facing presign endpoint the container itself can't route to.
+    """
     parsed = urlparse(endpoint)
     return Minio(
         parsed.netloc,
         access_key=settings.minio_access_key,
         secret_key=settings.minio_secret_key,
         secure=parsed.scheme == "https",
+        region=settings.minio_region,
     )
 
 

@@ -102,7 +102,7 @@ if [[ -d "$FRONTEND_SRC" ]]; then
     [[ "$rel" == *"node_modules"* ]] && continue
     echo "::error file=${rel}::direct axios import outside api/ — use api/client.ts"
     ((VIOLATIONS++))
-  done < <(grep -rl "from ['\"]axios['\"]" "$FRONTEND_SRC" 2>/dev/null || true)
+  done < <(grep -rl --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' "from ['\"]axios['\"]" "$FRONTEND_SRC" 2>/dev/null || true)
 
   if (( VIOLATIONS == 0 )); then
     echo "  all API calls go through api/client.ts"

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { VERDICT_CLASS } from "./TransitionAngleTable";
 
 interface GlideSlopeToleranceCardProps {
   measured: number | null;
@@ -7,11 +8,11 @@ interface GlideSlopeToleranceCardProps {
   withinTolerance: boolean | null;
 }
 
-// solid pill tones matching the per-light verdict + overall status tags
+// reuse the per-light verdict tones (ok=pass, out=fail, unavailable=unknown)
 const STATUS_CLASS: Record<"ok" | "out" | "unavailable", string> = {
-  ok: "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",
-  out: "bg-[var(--tv-status-cancelled-bg)] text-[var(--tv-status-cancelled-text)]",
-  unavailable: "bg-tv-surface-hover text-tv-text-muted",
+  ok: VERDICT_CLASS.pass,
+  out: VERDICT_CLASS.fail,
+  unavailable: VERDICT_CLASS.unknown,
 };
 
 /** measured glidepath vs the configured glide slope ± tolerance, with an OK / out-of-tolerance pill. */
@@ -26,7 +27,7 @@ export default function GlideSlopeToleranceCard({
   const measuredLabel = measured != null ? `${measured.toFixed(2)}°` : "—";
   const configuredLabel =
     configured != null && tolerance != null
-      ? `${configured.toFixed(1)}±${tolerance.toFixed(1)}°`
+      ? `${configured.toFixed(2)}±${tolerance.toFixed(2)}°`
       : "—";
 
   const status =

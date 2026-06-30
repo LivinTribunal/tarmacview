@@ -209,23 +209,27 @@ def _glide_blob(b_max: float, c_min: float) -> bytes:
     return gzip.compress(json.dumps([frame]).encode("utf-8"))
 
 
-def _snapshot_glide(db_engine, measurement_id: str, *, angle: float | None) -> None:
-    """force the snapshotted configured glide slope on a run (no LHA/AGL in the fixture)."""
+def _snapshot_glide(
+    db_engine, measurement_id: str, *, angle: float | None, tolerance: float | None = 0.1
+) -> None:
+    """force the snapshotted glide slope + tolerance on a run (no LHA/AGL in the fixture)."""
     s = sessionmaker(bind=db_engine)()
     try:
         m = s.query(Measurement).filter(Measurement.id == UUID(measurement_id)).first()
         m.glide_slope_angle = angle
+        m.glide_slope_angle_tolerance = tolerance
         s.commit()
     finally:
         s.close()
 
 
-def test_data_exposes_tolerance_snapshot_pre_done(client, inspection_id):
-    """a QUEUED run already carries the snapshotted tolerance (default 0.1) + null angle."""
+def test_data_exposes_tolerance_snapshot_pre_done(client, db_engine, inspection_id):
+    """configured angle + tolerance surface pre-DONE; measured + verdict stay null until DONE."""
     mid = _create(client, inspection_id)
+    _snapshot_glide(db_engine, mid, angle=3.0)
     body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["configured_glide_slope_angle"] == pytest.approx(3.0)
     assert body["glide_slope_angle_tolerance"] == pytest.approx(0.1)
-    assert body["configured_glide_slope_angle"] is None
     # measured / verdict are unscoreable until the run is DONE
     assert body["measured_glide_slope_angle"] is None
     assert body["glide_slope_within_tolerance"] is None

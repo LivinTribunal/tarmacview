@@ -490,3 +490,12 @@ def test_create_measurement_glide_slope_tolerance_falls_back_to_default(
     """an AGL with no tolerance set falls back to the default verdict band."""
     _, tolerance = _snapshot_glide_slope(client, db_engine, template_id, {})
     assert tolerance == DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+
+
+def test_create_measurement_no_tolerance_band_without_glide_slope(client, db_engine, template_id):
+    """no configured glide slope - no tolerance band (fallback is gated on the angle)."""
+    angle, tolerance = _snapshot_glide_slope(
+        client, db_engine, template_id, {"glide_slope_angle": None}
+    )
+    assert angle is None
+    assert tolerance is None

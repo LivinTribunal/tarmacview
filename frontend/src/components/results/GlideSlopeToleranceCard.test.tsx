@@ -43,8 +43,23 @@ describe("GlideSlopeToleranceCard", () => {
     );
     const card = screen.getByTestId("results-glide-slope-tolerance");
     expect(card.textContent).toContain("3.00°");
-    expect(card.textContent).toContain("3.0±0.1°");
+    expect(card.textContent).toContain("3.00±0.10°");
     expect(card.textContent).toContain(en.results.glideSlopeTolerance.ok);
+  });
+
+  it("renders a sub-0.1 tolerance band faithfully (no toFixed(1) truncation)", () => {
+    render(
+      <GlideSlopeToleranceCard
+        measured={3.13}
+        configured={3.0}
+        tolerance={0.15}
+        withinTolerance={true}
+      />,
+    );
+    const card = screen.getByTestId("results-glide-slope-tolerance");
+    // the displayed band must reflect the real ±0.15, not a truncated ±0.1
+    expect(card.textContent).toContain("3.00±0.15°");
+    expect(card.textContent).not.toContain("±0.1°");
   });
 
   it("shows the out-of-tolerance pill when the verdict is false", () => {

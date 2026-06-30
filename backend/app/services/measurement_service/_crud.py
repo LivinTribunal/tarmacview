@@ -121,10 +121,14 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
         db, inspection
     )
 
-    # tolerance falls back to the default so an unset AGL still yields a verdict band
-    glide_slope_angle_tolerance = (
-        agl_tolerance if agl_tolerance is not None else DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
-    )
+    # tolerance falls back to the default so an unset AGL still yields a verdict band,
+    # but only when there is a configured glide slope to band around - no angle, no tolerance.
+    if glide_slope_angle is None:
+        glide_slope_angle_tolerance = None
+    else:
+        glide_slope_angle_tolerance = (
+            agl_tolerance if agl_tolerance is not None else DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+        )
 
     # measurement kickoff flips the parent mission VALIDATED/EXPORTED -> MEASURED
     # (idempotent for a multi-inspection mission)

@@ -243,7 +243,19 @@ describe("WarningsPanel default state per status", () => {
       />,
     );
     expect(screen.getByTestId("warnings-panel").getAttribute("data-collapsed")).toBe("true");
-    expect(screen.queryByTestId("warnings-sections")).toBeNull();
+  });
+
+  it("collapses when status transitions PLANNED -> VALIDATED (approve)", () => {
+    const warnings = [v("1", "warning", "speed", "WP1")];
+    const { rerender } = render(
+      <WarningsPanel warnings={warnings} hasTrajectory missionStatus="PLANNED" />,
+    );
+    const panel = screen.getByTestId("warnings-panel");
+    expect(panel.getAttribute("data-collapsed")).toBe("false");
+    rerender(
+      <WarningsPanel warnings={warnings} hasTrajectory missionStatus="VALIDATED" />,
+    );
+    expect(panel.getAttribute("data-collapsed")).toBe("true");
   });
 
   it("expanded by default when missionStatus is omitted (legacy)", () => {

@@ -201,10 +201,6 @@ export default function MissionResultsPage() {
       .catch(() => {});
   }, [airportId, id]);
 
-  const handleReview = useCallback((inspectionId: string) => {
-    setReviewInspectionId(inspectionId);
-  }, []);
-
   const handleReviewClose = useCallback(() => {
     setReviewInspectionId(null);
     // picks up AWAITING_CONFIRM -> PROCESSING after confirm; no-op on cancel
@@ -275,7 +271,7 @@ export default function MissionResultsPage() {
             measurementByInspection={measurementByInspection}
             selectedId={selectedInspectionId}
             onSelect={setSelectedInspectionId}
-            onReview={handleReview}
+            onReview={setReviewInspectionId}
             results={results}
             currentRow={currentRow}
           />,

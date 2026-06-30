@@ -254,11 +254,16 @@ export async function finalize(meta, { context, page, listenersCounts }) {
     const webmPath = join(videoDir, 'recording.webm');
     if (existsSync(webmPath)) {
       const mp4Path = join(videoDir, 'recording.mp4');
+      // stretch playback so a short flow is watchable instead of a flicker.
+      // setpts multiplies each frame's timestamp; -r forces a smooth CFR.
+      const slowdown = Math.max(1, Number(process.env.VERIFY_VIDEO_SLOWDOWN ?? 2));
       const r = spawnSync(
         'ffmpeg',
         [
           '-y', '-v', 'error',
           '-i', webmPath,
+          '-vf', `setpts=${slowdown}*PTS`,
+          '-r', '30',
           '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
           '-pix_fmt', 'yuv420p',
           '-movflags', '+faststart',

@@ -19,7 +19,7 @@ wrong algorithm. The two paths differ on every axis:
 
 | Axis | PAPI engine (wired) | REL experiment (reference) |
 |------|---------------------|----------------------------|
-| Light identity | fixed 4: `PAPI_A..D` (`backend/app/domain/measurement/entities.py::PAPI_LIGHT_NAMES`) | arbitrary N, auto-tracked, ordered by first-seen frame |
+| Light identity | fixed 4: `PAPI_A..D` (`backend/app/models/measurement.py::PAPI_LIGHT_NAMES`) | arbitrary N, auto-tracked, ordered by first-seen frame |
 | Core measurement | red/white **transition angle**, glide-path angle | **beam intensity / colour / shape** vs distance + angle |
 | Pass/fail basis | measured angle vs `setting_angle +/- tolerance` | relative z-scores + a 0-100 health score (no absolute spec) |
 | Per-frame GPS | `extract_gps_data` (DJI `.SRT` sidecar or demuxed embedded telemetry) | `exiftool -ee` shelled out |

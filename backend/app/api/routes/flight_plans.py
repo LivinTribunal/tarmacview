@@ -42,15 +42,6 @@ def generate(
     except NotFoundError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
-    scope = mission.flight_plan_scope or "FULL"
-    if scope != "MEASUREMENTS_ONLY" and (
-        not mission.takeoff_coordinate or not mission.landing_coordinate
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="Takeoff/landing coordinates must be set.",
-        )
-
     mission.mark_computing()
     db.commit()
 

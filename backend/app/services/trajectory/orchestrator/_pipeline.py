@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 import app.services.trajectory.orchestrator as _orch
 from app.core.enums import CameraAction, InspectionMethod, MissionStatus, WaypointType
 from app.core.exceptions import DomainError, NotFoundError, TrajectoryGenerationError
-from app.core.geometry import wkt_to_geojson
+from app.core.geometry import point_lonlatalt, wkt_to_geojson
 from app.models.agl import AGL
 from app.models.airport import AirfieldSurface, Airport, Obstacle, SafetyZone
 from app.models.flight_plan import FlightPlan
@@ -502,9 +502,7 @@ def _generate_trajectory_inner(
 
 def _waypoint_orm_to_data(wp) -> WaypointData:
     """materialize a persisted Waypoint row into WaypointData for revalidation."""
-    pos_geo = wkt_to_geojson(wp.position) if wp.position else None
-    coords = (pos_geo.get("coordinates") if pos_geo else None) or [0.0, 0.0, 0.0]
-    lon, lat, alt = coords[0], coords[1], coords[2] if len(coords) > 2 else 0.0
+    lon, lat, alt = point_lonlatalt(wp.position)
 
     camera_target = None
     if wp.camera_target is not None:

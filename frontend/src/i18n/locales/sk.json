@@ -2209,7 +2209,8 @@
     "pickInspection": "Vyberte zmeranú inšpekciu pre zobrazenie jej výsledkov.",
     "inspectionInfo": "Informácie o inšpekcii",
     "picker": {
-      "notMeasured": "Nezmerané"
+      "notMeasured": "Nezmerané",
+      "review": "Skontrolovať"
     },
     "downloadPdf": "Stiahnuť PDF report",
     "generatingPdf": "Generuje sa…",

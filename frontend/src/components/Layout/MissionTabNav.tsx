@@ -28,7 +28,7 @@ export interface ComputeContext {
   label?: string;
   tooltip?: string;
   variant?: "primary" | "secondary";
-  icon?: "upload";
+  icon?: "upload" | "file";
 }
 
 export interface MissionTabOutletContext {

@@ -63,6 +63,14 @@ export type SurfaceType = "RUNWAY" | "TAXIWAY";
 
 export type FlightPlanScope = "FULL" | "MEASUREMENTS_ONLY";
 
+// parity-guarded against backend app.core.enums.ConstraintType (test_enum_parity.py); keep even if unused in TS
+export type ConstraintType =
+  | "ALTITUDE"
+  | "SPEED"
+  | "GEOFENCE"
+  | "RUNWAY_BUFFER"
+  | "BATTERY";
+
 export type ComputationStatus = "IDLE" | "COMPUTING" | "COMPLETED" | "FAILED";
 
 export type UserRole = "OPERATOR" | "COORDINATOR" | "SUPER_ADMIN";

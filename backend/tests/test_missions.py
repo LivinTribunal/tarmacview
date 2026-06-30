@@ -388,19 +388,19 @@ def test_update_require_perpendicular_invalidates_trajectory(client, airport_id,
 # dji_heading_mode rollback toggle
 
 
-def test_create_mission_defaults_dji_heading_mode_to_smooth_transition(client, airport_id):
-    """new missions get dji_heading_mode='smoothTransition' from the column server default.
+def test_create_mission_defaults_dji_heading_mode_to_toward_poi(client, airport_id):
+    """new missions get dji_heading_mode='towardPOI' from the column server default.
 
-    smoothTransition is the documented all-models mode that interpolates
-    body yaw between per-WP angles - chosen as the default because it
-    works on every supported airframe without runtime POI math.
+    towardPOI is continuous POI tracking - the body aims at the LHA across the
+    whole arc via runtime POI math. it is the default heading mode for new
+    missions; the operator can switch per export.
     """
     response = client.post(
         "/api/v1/missions",
         json={"name": "Heading Default", "airport_id": airport_id},
     )
     assert response.status_code == 201
-    assert response.json()["dji_heading_mode"] == "smoothTransition"
+    assert response.json()["dji_heading_mode"] == "towardPOI"
 
 
 def test_update_mission_dji_heading_mode_does_not_regress_status(client, airport_id, db_session):
@@ -418,7 +418,7 @@ def test_update_mission_dji_heading_mode_does_not_regress_status(client, airport
         json={"name": "Heading Toggle", "airport_id": airport_id},
     ).json()
     mission_id = mission["id"]
-    assert mission["dji_heading_mode"] == "smoothTransition"
+    assert mission["dji_heading_mode"] == "towardPOI"
 
     # flip status directly so we don't need a full inspection fixture
     db_mission = db_session.query(Mission).filter(Mission.id == mission_id).first()
@@ -565,7 +565,7 @@ def test_export_request_override_wins_and_persists(client, _exportable_mission, 
     """dji_heading_mode_override on /export wins for the export AND writes back.
 
     contract:
-    - mission column starts at smoothTransition (server default)
+    - mission column starts at towardPOI (server default)
     - operator passes override='followWayline' on /export
     - the export uses followWayline (no schema-level proof in this test - byte
       shape is exercised by test_export_service; this test pins the route +
@@ -580,7 +580,7 @@ def test_export_request_override_wins_and_persists(client, _exportable_mission, 
 
     mission_id = _exportable_mission["mission_id"]
     pre = client.get(f"/api/v1/missions/{mission_id}").json()
-    assert pre["dji_heading_mode"] == "smoothTransition"
+    assert pre["dji_heading_mode"] == "towardPOI"
 
     response = client.post(
         f"/api/v1/missions/{mission_id}/export",
@@ -612,7 +612,7 @@ def test_export_request_no_override_preserves_persisted_value(
     db_session.expire_all()
     persisted = db_session.query(Mission).filter(Mission.id == mission_id).first()
     # unchanged from the server default
-    assert persisted.dji_heading_mode == "smoothTransition"
+    assert persisted.dji_heading_mode == "towardPOI"
 
 
 def test_export_request_invalid_override_returns_422(client, _exportable_mission):

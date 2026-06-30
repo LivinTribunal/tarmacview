@@ -11,18 +11,24 @@ import {
 } from "@/constants/exportCapabilities";
 import { isExportEligible } from "@/constants/mission";
 import { useFieldLinkStatus } from "@/hooks/useFieldLinkStatus";
+import { dispatchMission } from "@/api/missions";
+import { extractApiErrorMessage } from "@/utils/apiError";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import ExportFormatSection from "./ExportFormatSection";
 import MissionReportSection from "./MissionReportSection";
 import MissionLifecycleSection from "./MissionLifecycleSection";
-import SendToDroneSection from "./SendToDroneSection";
-import FieldHubDialog from "./FieldHubDialog";
 import AltitudeClampWarning from "./AltitudeClampWarning";
 
 const DJI_WPMZ_FORMATS = new Set(["KMZ", "WPML"]);
 
 const EMPTY_DRONE_PROFILES: DroneProfileResponse[] = [];
+
+type DispatchFeedback =
+  | { kind: "success" }
+  | { kind: "error"; message?: string }
+  | { kind: "clamps" }
+  | null;
 
 export interface ExportPanelProps {
   mission: MissionDetailResponse;
@@ -73,13 +79,8 @@ export default function ExportPanel({
 }: ExportPanelProps) {
   /** flight-plan export, report download, and mission lifecycle controls. */
   const { t } = useTranslation();
-  // one poll shared by the status chip, the send-to-drone gate, and the dialog
-  const {
-    status: fieldLinkStatus,
-    refresh: refreshFieldLink,
-    checking: fieldLinkChecking,
-    lastChecked: fieldLinkChecked,
-  } = useFieldLinkStatus();
+  // one poll drives the send-to-drone status dot + dispatch gate
+  const { status: fieldLinkStatus } = useFieldLinkStatus();
   const [exportCollapsed, setExportCollapsed] = useState(false);
   const [selectedFormats, setSelectedFormats] = useState<Set<string>>(
     new Set(["KMZ"]),
@@ -87,10 +88,11 @@ export default function ExportPanel({
   const [includeGeozones, setIncludeGeozones] = useState(false);
   const [includeRunwayBuffers, setIncludeRunwayBuffers] = useState(false);
   const [headingMode, setHeadingMode] = useState<DjiHeadingMode>(
-    mission.dji_heading_mode ?? "smoothTransition",
+    mission.dji_heading_mode ?? "towardPOI",
   );
   const [acknowledgeClamps, setAcknowledgeClamps] = useState(false);
-  const [fieldHubOpen, setFieldHubOpen] = useState(false);
+  const [isDispatching, setIsDispatching] = useState(false);
+  const [dispatchFeedback, setDispatchFeedback] = useState<DispatchFeedback>(null);
 
   // clear the operator's acknowledgment whenever the warning is dismissed or
   // a fresh clamp set arrives, so the next download requires a deliberate tick.
@@ -110,7 +112,7 @@ export default function ExportPanel({
   // resync the picker when the mission's persisted preference changes -
   // happens after a successful export side-effects the column.
   useEffect(() => {
-    setHeadingMode(mission.dji_heading_mode ?? "smoothTransition");
+    setHeadingMode(mission.dji_heading_mode ?? "towardPOI");
   }, [mission.dji_heading_mode]);
 
   const status = mission.status;
@@ -163,10 +165,14 @@ export default function ExportPanel({
     });
   }
 
-  function handleDownload() {
-    if (selectedFormats.size === 0) return;
-    const formats = Array.from(selectedFormats);
-    const options: Parameters<typeof onExport>[1] = {
+  // the export config shared by download + send-to-drone. both compute the
+  // file through the same backend engine (export_mission); only delivery
+  // differs. the clamp-ack flag is supplied per call site (the download
+  // checkbox vs the send-anyway retry).
+  function buildExportOptions(
+    acknowledgeClampsForCall: boolean,
+  ): NonNullable<Parameters<typeof onExport>[1]> {
+    return {
       include_geozones: includeGeozones && geozoneCheck.enabled,
       include_runway_buffers:
         includeGeozones && geozoneCheck.enabled && includeRunwayBuffers && mavlinkSelected,
@@ -174,8 +180,14 @@ export default function ExportPanel({
       // hidden (non-DJI mission, or no DJI WPMZ format selected), let the
       // backend fall back to mission.dji_heading_mode unchanged.
       ...(showHeadingModePicker ? { dji_heading_mode_override: headingMode } : {}),
-      ...(clampWarning && acknowledgeClamps ? { acknowledge_altitude_clamps: true } : {}),
+      ...(acknowledgeClampsForCall ? { acknowledge_altitude_clamps: true } : {}),
     };
+  }
+
+  function handleDownload() {
+    if (selectedFormats.size === 0) return;
+    const formats = Array.from(selectedFormats);
+    const options = buildExportOptions(!!(clampWarning && acknowledgeClamps));
 
     // intercept dji kmz/wpml exports for drones that aren't in the wpml
     // enum table - the backend falls back to the m4t enum so the operator
@@ -191,6 +203,31 @@ export default function ExportPanel({
   }
 
   const clampGateOpen = !clampWarning || acknowledgeClamps;
+
+  // sending only needs the hub reachable to register the wayline - the rc pulls
+  // the route library whenever it next connects, so don't gate on a live drone.
+  const hubReachable = !!fieldLinkStatus?.hub_online;
+  const sendDisabled = !hubReachable || !exportEnabled || isDispatching;
+
+  async function handleSendToDrone() {
+    setIsDispatching(true);
+    // a pending clamp warning turns the button into an explicit "send anyway"
+    const acknowledge = dispatchFeedback?.kind === "clamps";
+    setDispatchFeedback(null);
+    try {
+      const result = await dispatchMission(mission.id, buildExportOptions(acknowledge));
+      if (result.kind === "clamp_warning") {
+        setDispatchFeedback({ kind: "clamps" });
+        return;
+      }
+      setDispatchFeedback({ kind: "success" });
+      onDispatched?.();
+    } catch (err) {
+      setDispatchFeedback({ kind: "error", message: extractApiErrorMessage(err) ?? undefined });
+    } finally {
+      setIsDispatching(false);
+    }
+  }
 
   function handleConfirm() {
     if (confirmModal === "complete") onComplete();
@@ -277,7 +314,6 @@ export default function ExportPanel({
         showHeadingModePicker={showHeadingModePicker}
         headingMode={headingMode}
         onHeadingModeChange={setHeadingMode}
-        flightPlanScope={mission.flight_plan_scope}
         onDownload={handleDownload}
         isExporting={isExporting}
         downloadDisabled={!clampGateOpen}
@@ -291,41 +327,20 @@ export default function ExportPanel({
             />
           ) : null
         }
-      />
-
-      <SendToDroneSection
-        missionId={mission.id}
-        missionStatus={status}
-        linkStatus={fieldLinkStatus}
-        onDispatched={onDispatched}
-        onOpenFieldHub={() => setFieldHubOpen(true)}
-      />
-
-      <FieldHubDialog
-        isOpen={fieldHubOpen}
-        onClose={() => setFieldHubOpen(false)}
-        status={fieldLinkStatus}
-        onRefresh={refreshFieldLink}
-        checking={fieldLinkChecking}
-        lastChecked={fieldLinkChecked}
+        onSendToDrone={handleSendToDrone}
+        sendDisabled={sendDisabled}
+        isDispatching={isDispatching}
+        hubOnline={hubReachable}
+        linkStatusKnown={fieldLinkStatus !== null}
+        dispatchFeedback={dispatchFeedback}
       />
 
       <MissionReportSection
         onDownloadReport={onDownloadReport}
         isDownloadingReport={isDownloadingReport}
         hasFlightPlan={hasFlightPlan}
+        onViewResults={onViewResults}
       />
-
-      {onViewResults && (
-        <Button
-          variant="secondary"
-          onClick={onViewResults}
-          className="w-full"
-          data-testid="view-results-btn"
-        >
-          {t("measurementsList.viewResults")}
-        </Button>
-      )}
 
       <MissionLifecycleSection
         canComplete={canComplete}

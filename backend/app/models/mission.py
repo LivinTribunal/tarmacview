@@ -60,10 +60,10 @@ TRAJECTORY_FIELDS = {
 
 # dji wpml waypointHeadingMode values supported per-mission. mirrors the
 # CHECK constraint emitted by 0002_dji_heading_mode so the DB constraint
-# and the python literal cannot drift. smoothTransition is the default -
-# body yaw is interpolated between per-WP angles, no runtime POI math.
-# towardPOI is experimental (continuous POI tracking, hardware-dependent).
-# followWayline is the proven fallback that snaps body heading at each WP.
+# and the python literal cannot drift. towardPOI is the default - continuous
+# POI tracking aims the body at the LHA across the whole arc via runtime POI
+# math. smoothTransition interpolates body yaw between per-WP angles;
+# followWayline snaps body heading once at each WP.
 _DJI_HEADING_MODE_VALUES = ("smoothTransition", "towardPOI", "followWayline")
 
 
@@ -132,7 +132,7 @@ class Mission(Base):
     # override and writes it back here on success. NOT in TRAJECTORY_FIELDS -
     # flipping the export shape must not regress mission status to DRAFT.
     dji_heading_mode = Column(
-        String(20), nullable=True, default="smoothTransition", server_default="smoothTransition"
+        String(20), nullable=True, default="towardPOI", server_default="towardPOI"
     )
 
     # mission-level camera defaults - inspection overrides take precedence

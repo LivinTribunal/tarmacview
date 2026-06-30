@@ -1,15 +1,15 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import en from "@/i18n/locales/en.json";
 import ExportPanel, { type ExportPanelProps } from "./ExportPanel";
 import { useFieldLinkStatus } from "@/hooks/useFieldLinkStatus";
+import { dispatchMission } from "@/api/missions";
 import type { MissionDetailResponse } from "@/types/mission";
 import type { DroneProfileResponse } from "@/types/droneProfile";
-import type { FieldLinkStatusResponse } from "@/types/fieldLink";
+import type { FieldLinkStatusResponse, WaylineDispatchResponse } from "@/types/fieldLink";
 
-// the panel polls the backend through this hook (one poll shared by the chip
-// and the send-to-drone gate) - stub it so panel tests stay network-free;
-// chip behavior is covered in FieldLinkStatusChip.test.tsx
+// the panel polls the backend through this hook (one poll drives the
+// send-to-drone status dot + dispatch gate) - stub it so tests stay network-free
 vi.mock("@/hooks/useFieldLinkStatus", () => ({
   useFieldLinkStatus: vi.fn(() => ({
     status: null,
@@ -43,12 +43,22 @@ const ONLINE_M350: FieldLinkStatusResponse = {
   ],
 };
 
-// the send-to-drone section dispatches through this call - stub it so the
-// panel tests never touch the axios client; section behavior is covered in
-// SendToDroneSection.test.tsx
+// the send-to-drone button dispatches through this call - stub it so the
+// panel tests never touch the axios client
 vi.mock("@/api/missions", () => ({
   dispatchMission: vi.fn(),
 }));
+
+const mockedDispatch = vi.mocked(dispatchMission);
+
+const DISPATCH: WaylineDispatchResponse = {
+  id: "d-1",
+  mission_id: "m-1",
+  wayline_id: "w-1",
+  device_sn: null,
+  status: "DISPATCHED",
+  dispatched_at: "2026-06-10T10:00:00Z",
+};
 
 /** resolve a dotted i18n key against the real en.json bundle. */
 function resolveKey(key: string): string {
@@ -65,7 +75,7 @@ function resolveKey(key: string): string {
 }
 
 // override the global react-i18next mock with one backed by the real en.json
-// so capability-note assertions verify user-facing copy, not wiring keys.
+// so copy assertions verify user-facing text, not wiring keys.
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => resolveKey(key),
@@ -122,6 +132,12 @@ function makeMission(
 // switch the single-select format dropdown to a given format
 function selectFormat(fmt: string) {
   fireEvent.change(screen.getByTestId("format-select"), { target: { value: fmt } });
+}
+
+// geozone + dji heading controls live in the collapsed-by-default Advanced
+// Options section; expand it before asserting on those controls
+function openAdvanced() {
+  fireEvent.click(screen.getByTestId("advanced-options-toggle"));
 }
 
 function renderPanel(overrides: Partial<ExportPanelProps> = {}) {
@@ -185,57 +201,14 @@ describe("ExportPanel - mission report section", () => {
     renderPanel({ mission: makeMission({ status: "MEASURED" }) });
 
     expect(
-      screen.queryByText("Mission needs to be validated before export"),
+      screen.queryByText(resolveKey("mission.validationExportPage.needsValidation")),
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("format-select")).not.toBeDisabled();
     expect(screen.getByTestId("download-export-btn")).not.toBeDisabled();
   });
 });
 
-describe("ExportPanel - per-format capability notes", () => {
-  it("renders zoom-only English copy for the default KMZ and for WPML", () => {
-    renderPanel();
-
-    // KMZ is the default selection
-    expect(screen.getByTestId("capability-KMZ").textContent).toMatch(
-      /Carries optical zoom per inspection/,
-    );
-
-    selectFormat("WPML");
-    expect(screen.getByTestId("capability-WPML").textContent).toMatch(
-      /Carries optical zoom per inspection/,
-    );
-  });
-
-  it("renders full-coverage English copy for JSON", () => {
-    renderPanel();
-
-    selectFormat("JSON");
-    expect(screen.getByTestId("capability-JSON").textContent).toMatch(
-      /Carries all camera settings/,
-    );
-  });
-
-  it("renders the dedicated KML name+description note", () => {
-    renderPanel();
-
-    selectFormat("KML");
-    expect(screen.getByTestId("capability-KML").textContent).toMatch(
-      /KML carries waypoint name and description text only/,
-    );
-  });
-
-  it("renders no-camera-settings English copy for raw-coordinate formats", () => {
-    renderPanel();
-
-    for (const fmt of ["MAVLINK", "UGCS", "CSV", "GPX", "LITCHI", "DRONEDEPLOY"]) {
-      selectFormat(fmt);
-      expect(screen.getByTestId(`capability-${fmt}`).textContent).toMatch(
-        /No camera settings in this format/,
-      );
-    }
-  });
-
+describe("ExportPanel - format selection", () => {
   it("defaults the format dropdown to KMZ", () => {
     renderPanel();
 
@@ -263,6 +236,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     // KMZ is selected by default - it IS capable. switch to GPX (incapable).
     selectFormat("GPX");
 
@@ -278,6 +252,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     const checkbox = screen.getByTestId("include-geozones") as HTMLInputElement;
     expect(checkbox.disabled).toBe(true);
   });
@@ -290,6 +265,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     const checkbox = screen.getByTestId("include-geozones") as HTMLInputElement;
     expect(checkbox.disabled).toBe(true);
   });
@@ -302,6 +278,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     const checkbox = screen.getByTestId("include-geozones") as HTMLInputElement;
     expect(checkbox.disabled).toBe(false);
   });
@@ -314,6 +291,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     // hidden entirely while the geozones toggle is off
     expect(screen.queryByTestId("include-runway-buffers")).toBeNull();
 
@@ -342,6 +320,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     // KMZ (default) is an advisory format
     fireEvent.click(screen.getByTestId("include-geozones"));
     expect(screen.queryByTestId("advisory-note")).toBeInTheDocument();
@@ -361,6 +340,7 @@ describe("ExportPanel - geozones toggle", () => {
       }),
     });
 
+    openAdvanced();
     selectFormat("MAVLINK");
     fireEvent.click(screen.getByTestId("include-geozones"));
     fireEvent.click(screen.getByTestId("include-runway-buffers"));
@@ -444,6 +424,7 @@ describe("ExportPanel - dji heading mode picker", () => {
       droneProfiles: [makeDjiProfile({ id: "parrot-1", manufacturer: "Parrot" })],
     });
 
+    openAdvanced();
     // KMZ is selected by default - if the picker were unguarded by manufacturer
     // it would still render. assert it doesn't.
     expect(screen.queryByTestId("dji-heading-mode-select")).toBeNull();
@@ -454,11 +435,13 @@ describe("ExportPanel - dji heading mode picker", () => {
       mission: makeMission({ drone_profile_id: "p-1" }),
       droneProfiles: [makeDjiProfile({ id: "p-1", manufacturer: null })],
     });
+    openAdvanced();
     expect(screen.queryByTestId("dji-heading-mode-select")).toBeNull();
   });
 
   it("does not render the picker when no DJI WPMZ format is selected", () => {
     renderDjiPanel();
+    openAdvanced();
     // KMZ is the default WPMZ format - switch to JSON to hide the picker
     selectFormat("JSON");
     expect(screen.queryByTestId("dji-heading-mode-select")).toBeNull();
@@ -466,6 +449,7 @@ describe("ExportPanel - dji heading mode picker", () => {
 
   it("renders the picker when KMZ is selected on a DJI mission", () => {
     renderDjiPanel();
+    openAdvanced();
 
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     expect(select).toBeInTheDocument();
@@ -475,18 +459,21 @@ describe("ExportPanel - dji heading mode picker", () => {
 
   it("renders the picker when WPML is selected on a DJI mission", () => {
     renderDjiPanel();
+    openAdvanced();
     selectFormat("WPML");
     expect(screen.getByTestId("dji-heading-mode-select")).toBeInTheDocument();
   });
 
-  it("defaults the picker to smoothTransition when the column is null", () => {
+  it("defaults the picker to towardPOI when the column is null", () => {
     renderDjiPanel({ dji_heading_mode: null });
+    openAdvanced();
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
-    expect(select.value).toBe("smoothTransition");
+    expect(select.value).toBe("towardPOI");
   });
 
   it("pre-fills from mission.dji_heading_mode persisted preference", () => {
     renderDjiPanel({ dji_heading_mode: "followWayline" });
+    openAdvanced();
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     expect(select.value).toBe("followWayline");
   });
@@ -494,6 +481,7 @@ describe("ExportPanel - dji heading mode picker", () => {
   it("forwards dji_heading_mode_override on download", () => {
     const onExport = vi.fn();
     renderDjiPanel({ dji_heading_mode: "smoothTransition" }, onExport);
+    openAdvanced();
 
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "towardPOI" } });
@@ -736,28 +724,51 @@ describe("ExportPanel - lifecycle gating", () => {
   });
 });
 
-// field-link chip + send-to-drone - both fed by the panel's single poll
-describe("ExportPanel - field link wiring", () => {
+// send-to-drone button + status dot - fed by the panel's single poll
+describe("ExportPanel - send to drone", () => {
   afterEach(() => {
     vi.mocked(useFieldLinkStatus).mockReturnValue(poll(null));
+    mockedDispatch.mockReset();
   });
 
-  it("renders no chip and a disabled send button before the first status response", () => {
+  it("shows an offline dot and a disabled send button before the first status response", () => {
     renderPanel();
 
-    expect(screen.queryByTestId("field-link-chip")).toBeNull();
+    const status = screen.getByTestId("send-to-drone-status");
+    expect(status).toHaveAttribute("data-online", "false");
+    expect(status.textContent).toContain("Offline");
     expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();
   });
 
-  it("feeds the shared link status to the chip and the send-to-drone gate", () => {
+  it("shows an online dot and enables the button when the hub is reachable", () => {
     vi.mocked(useFieldLinkStatus).mockReturnValue(poll(ONLINE_M350));
     renderPanel();
 
-    const rc = screen.getByTestId("field-link-rc");
-    expect(rc).toHaveAttribute("data-state", "online");
-    expect(rc.textContent).toContain("RC connected");
-    // VALIDATED mission + online device -> dispatch allowed
+    const status = screen.getByTestId("send-to-drone-status");
+    expect(status).toHaveAttribute("data-online", "true");
+    expect(status.textContent).toContain("Online");
+    // VALIDATED mission + hub online -> dispatch allowed
     expect(screen.getByTestId("send-to-drone-btn")).not.toBeDisabled();
+  });
+
+  it("enables the button when the hub is online but no drone is connected", () => {
+    // sending only needs the hub - the rc pulls the route library whenever it
+    // next connects, so dispatch must not depend on a live drone link.
+    vi.mocked(useFieldLinkStatus).mockReturnValue(
+      poll({ ...ONLINE_M350, devices: [{ ...ONLINE_M350.devices[0], online: false }] }),
+    );
+    renderPanel();
+
+    expect(screen.getByTestId("send-to-drone-btn")).not.toBeDisabled();
+  });
+
+  it("disables the send button when the hub is offline", () => {
+    vi.mocked(useFieldLinkStatus).mockReturnValue(
+      poll({ ...ONLINE_M350, hub_online: false }),
+    );
+    renderPanel();
+
+    expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();
   });
 
   it("keeps the send button disabled for non-exportable missions even when online", () => {
@@ -765,5 +776,70 @@ describe("ExportPanel - field link wiring", () => {
     renderPanel({ mission: makeMission({ status: "DRAFT" }) });
 
     expect(screen.getByTestId("send-to-drone-btn")).toBeDisabled();
+  });
+
+  it("shows the success message and refetches after a dispatch", async () => {
+    mockedDispatch.mockResolvedValue({ kind: "dispatched", dispatch: DISPATCH });
+    vi.mocked(useFieldLinkStatus).mockReturnValue(poll(ONLINE_M350));
+    const onDispatched = vi.fn();
+    renderPanel({ onDispatched });
+
+    fireEvent.click(screen.getByTestId("send-to-drone-btn"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("send-to-drone-success")).toBeInTheDocument(),
+    );
+    expect(mockedDispatch).toHaveBeenCalledWith("m-1", {
+      include_geozones: false,
+      include_runway_buffers: false,
+    });
+    expect(onDispatched).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the backend detail message when the dispatch fails", async () => {
+    mockedDispatch.mockRejectedValue({
+      response: { data: { detail: { message: "field hub unreachable" } } },
+    });
+    vi.mocked(useFieldLinkStatus).mockReturnValue(poll(ONLINE_M350));
+    const onDispatched = vi.fn();
+    renderPanel({ onDispatched });
+
+    fireEvent.click(screen.getByTestId("send-to-drone-btn"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("send-to-drone-error")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("send-to-drone-error").textContent).toBe(
+      "field hub unreachable",
+    );
+    expect(onDispatched).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a clamp warning and re-dispatches with the acknowledgment", async () => {
+    mockedDispatch.mockResolvedValueOnce({ kind: "clamp_warning", clamps: [] });
+    mockedDispatch.mockResolvedValueOnce({ kind: "dispatched", dispatch: DISPATCH });
+    vi.mocked(useFieldLinkStatus).mockReturnValue(poll(ONLINE_M350));
+    const onDispatched = vi.fn();
+    renderPanel({ onDispatched });
+
+    fireEvent.click(screen.getByTestId("send-to-drone-btn"));
+    await waitFor(() =>
+      expect(screen.getByTestId("send-to-drone-clamps")).toBeInTheDocument(),
+    );
+    expect(onDispatched).not.toHaveBeenCalled();
+    expect(screen.getByTestId("send-to-drone-btn").textContent).toContain(
+      resolveKey("mission.sendToDrone.sendAnyway"),
+    );
+
+    fireEvent.click(screen.getByTestId("send-to-drone-btn"));
+    await waitFor(() =>
+      expect(screen.getByTestId("send-to-drone-success")).toBeInTheDocument(),
+    );
+    expect(mockedDispatch).toHaveBeenLastCalledWith("m-1", {
+      include_geozones: false,
+      include_runway_buffers: false,
+      acknowledge_altitude_clamps: true,
+    });
+    expect(onDispatched).toHaveBeenCalledTimes(1);
   });
 });

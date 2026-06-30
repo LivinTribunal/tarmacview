@@ -285,6 +285,8 @@ Config: `.github/workflows/ci.yml`. Risk-gated by `scripts/risk-policy-gate.sh`.
 
 The verify stage (`harnext-verify.yml`) no longer re-runs lint/test/typecheck/build - `ci.yml` (Gate 5 above) already runs those on every PR push, so verify's sole job is the browser UI check. It still builds the stack (backend + frontend are needed to drive the browser) and triggers the bundled `browser-verify` skill on the self-hosted runner (`harnext-tarmacview`) whenever the change has a user-visible surface - a `frontend/` path in the diff, an API response field rendered by the frontend, or a linked issue whose acceptance criteria mention a UI surface. Pure-refactor, test-only, dep-bump, CI/docs, and migration-only diffs skip with verdict `SKIPPED-NO-UI-SURFACE`. When browser-verify produces a proof video, the stage uploads it to Dropbox (via the `dropbox-upload` skill) and cites the public link in the PR comment; the upload is best-effort and falls back to a runner-local path if the `DROPBOX_*` secrets are absent.
 
+An **advisory** duplication gate (`.github/workflows/dedup-check.yml`) runs `jscpd` on every PR and warns when the change pushes duplication above the 2.63% baseline (fail threshold 3.0%). It is **not** a required check - advisory until opted into branch protection - so it never blocks merge. The same workflow runs a monthly scheduled repo-wide debt sweep, which is the only signal that catches inherited and cross-file clones that diff-scoped review (Gate 4) structurally cannot see. Background and the duplication families it watches are in [`audits/2026-06-30-unsloppify-audit.md`](audits/2026-06-30-unsloppify-audit.md).
+
 ### Gate 6 - Human review (manual, before merge)
 
 1. Read the code - you defend this at your thesis presentation

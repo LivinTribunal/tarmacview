@@ -58,15 +58,10 @@ def get_ordered_lha_positions(template, lha_ids: list | None = None) -> list[Poi
         for lha in ordered:
             if lha_id_set and str(lha.id) not in lha_id_set:
                 continue
-            try:
-                geojson = wkt_to_geojson(lha.position)
-                c = geojson.get("coordinates") if geojson else None
-                if not c or len(c) < 3:
-                    continue
-            except (KeyError, ValueError, TypeError):
-                logger.warning("failed to parse LHA position for lha %s", lha.id)
+            pos = _parse_lha_position(lha)
+            if pos is None:
                 continue
-            positions.append(Point3D(lon=c[0], lat=c[1], alt=c[2]))
+            positions.append(pos)
 
     return positions
 
@@ -134,17 +129,10 @@ def get_lha_positions(template, lha_ids: list | None = None) -> list[Point3D]:
         for lha in agl.lhas:
             if lha_id_set and str(lha.id) not in lha_id_set:
                 continue
-            if not lha.position:
+            pos = _parse_lha_position(lha)
+            if pos is None:
                 continue
-            try:
-                geojson = wkt_to_geojson(lha.position)
-                c = geojson.get("coordinates") if geojson else None
-                if not c or len(c) < 3:
-                    continue
-            except (KeyError, ValueError, TypeError):
-                logger.warning("failed to parse LHA position for lha %s", lha.id)
-                continue
-            positions.append(Point3D(lon=c[0], lat=c[1], alt=c[2]))
+            positions.append(pos)
 
     return positions
 
@@ -340,19 +328,10 @@ def get_runway_centerline_midpoint(template, surfaces) -> Point3D | None:
         for surface in surfaces:
             if surface.id != agl.surface_id or surface.geometry is None:
                 continue
-            try:
-                line = wkt_to_geojson(surface.geometry)
-            except (KeyError, ValueError, TypeError):
+            mid = get_surface_centerline_midpoint(surface)
+            if mid is None:
                 continue
-            coords = line.get("coordinates") if line else []
-            if len(coords) < 2:
-                continue
-            start = coords[0]
-            end = coords[-1]
-            mid_lon = (start[0] + end[0]) / 2
-            mid_lat = (start[1] + end[1]) / 2
-            mid_alt = (start[2] + end[2]) / 2 if len(start) >= 3 and len(end) >= 3 else 0.0
-            return Point3D(lon=mid_lon, lat=mid_lat, alt=mid_alt)
+            return mid
 
     return None
 

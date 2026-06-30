@@ -116,6 +116,7 @@ def _run_srtm_download(tmp_path, *, base_url="https://dem.test", read_side_effec
     mock_settings = MagicMock()
     mock_settings.terrain_grid_delta_deg = 0.045
     mock_settings.copernicus_dem_base_url = base_url
+    mock_settings.terrain_dir = tmp_path
 
     open_fn, read_calls = _patched_rasterio(
         write_calls, mosaic, transform, read_side_effect=read_side_effect
@@ -124,7 +125,6 @@ def _run_srtm_download(tmp_path, *, base_url="https://dem.test", read_side_effec
     from app.services.airport.terrain import download_srtm_for_location
 
     with ExitStack() as stack:
-        stack.enter_context(patch("app.services.airport.terrain.TERRAIN_DIR", tmp_path))
         stack.enter_context(patch("app.services.airport.terrain.settings", mock_settings))
         stack.enter_context(patch("rasterio.open", side_effect=open_fn))
         stack.enter_context(patch("rasterio.merge.merge", return_value=(mosaic, transform)))

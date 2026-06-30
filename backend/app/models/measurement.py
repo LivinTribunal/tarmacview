@@ -1,9 +1,9 @@
-"""measurement orm row - a dumb data holder for the sqlalchemy adapter only.
+"""measurement orm row - one inspection's video-measurement run.
 
-all measurement business logic lives on the domain aggregate
-(``app.domain.measurement.entities.Measurement``); this table just persists it.
-the heavy per-frame results blob never lands here - ``object_key`` points at the
-gzipped json in object storage. reference points are snapshotted at create time.
+owns the run's status machine, per-light scoring, and the engine reference-point
+snapshot shape. the heavy per-frame results blob never lands here - ``object_key``
+points at the gzipped json in object storage. reference points / boxes / summaries
+are plain dict lists in their jsonb columns (``measurement_service`` builds them).
 """
 
 from uuid import uuid4
@@ -26,6 +26,27 @@ from app.core.database import Base
 from app.core.enums import MeasurementStatus, enum_check_values
 
 _MEASUREMENT_STATUS_VALUES = enum_check_values(MeasurementStatus)
+
+# the four PAPI light slots, left-to-right, the engine keys its output on.
+PAPI_LIGHT_NAMES: tuple[str, ...] = ("PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D")
+
+# legal forward transitions; ERROR is reachable from any non-terminal state.
+_TRANSITIONS: dict[MeasurementStatus, set[MeasurementStatus]] = {
+    MeasurementStatus.QUEUED: {MeasurementStatus.FIRST_FRAME, MeasurementStatus.ERROR},
+    MeasurementStatus.FIRST_FRAME: {
+        MeasurementStatus.AWAITING_CONFIRM,
+        MeasurementStatus.PROCESSING,
+        MeasurementStatus.ERROR,
+    },
+    MeasurementStatus.AWAITING_CONFIRM: {MeasurementStatus.PROCESSING, MeasurementStatus.ERROR},
+    MeasurementStatus.PROCESSING: {MeasurementStatus.DONE, MeasurementStatus.ERROR},
+    MeasurementStatus.DONE: set(),
+    MeasurementStatus.ERROR: set(),
+}
+
+
+class MeasurementError(Exception):
+    """raised on an illegal measurement state transition."""
 
 
 class Measurement(Base):
@@ -66,3 +87,78 @@ class Measurement(Base):
         ),
         Index("ix_measurement_inspection_id", "inspection_id"),
     )
+
+    def transition_to(self, target: MeasurementStatus) -> None:
+        """advance status through the state machine - raises on an illegal hop."""
+        current = MeasurementStatus(self.status)
+        if target not in _TRANSITIONS.get(current, set()):
+            raise MeasurementError(
+                f"illegal measurement transition {current.value} -> {target.value}"
+            )
+        self.status = target.value
+        if target != MeasurementStatus.ERROR:
+            self.error_message = None
+
+    def fail(self, message: str) -> None:
+        """move to ERROR from any non-terminal state, recording the reason."""
+        self.transition_to(MeasurementStatus.ERROR)
+        self.error_message = message
+
+    def confirm_boxes(self, boxes: list[dict]) -> None:
+        """persist operator-adjusted light boxes ahead of full processing."""
+        self.light_boxes = list(boxes)
+
+    def reference_point_payload(self) -> dict[str, dict]:
+        """reference points keyed by light name, the shape the engine consumes."""
+        return {
+            rp["light_name"]: {
+                "latitude": rp.get("latitude"),
+                "longitude": rp.get("longitude"),
+                "elevation_wgs84": rp.get("elevation"),
+                "nominal_angle": rp.get("setting_angle"),
+                "tolerance": rp.get("tolerance"),
+            }
+            for rp in (self.reference_points or [])
+        }
+
+    @staticmethod
+    def score_light(
+        light_name: str,
+        setting_angle: float | None,
+        tolerance: float | None,
+        measured_transition_angle: float | None,
+    ) -> dict:
+        """roll a measured transition angle up to PASS/FAIL vs setting +/- tolerance.
+
+        passed is None (unknown) when the ground truth or the measurement is missing -
+        an absent setting angle is not a failure, it's an unscoreable light.
+        """
+        passed: bool | None = None
+        if (
+            setting_angle is not None
+            and tolerance is not None
+            and measured_transition_angle is not None
+        ):
+            passed = abs(measured_transition_angle - setting_angle) <= tolerance
+        return {
+            "light_name": light_name,
+            "setting_angle": setting_angle,
+            "tolerance": tolerance,
+            "measured_transition_angle": measured_transition_angle,
+            "passed": passed,
+        }
+
+    def with_summaries_from(self, measured: dict[str, float | None]) -> None:
+        """rebuild per-light summaries from measured transition angles by light name."""
+        by_name = {rp["light_name"]: rp for rp in (self.reference_points or [])}
+        summaries: list[dict] = []
+        for name in PAPI_LIGHT_NAMES:
+            rp = by_name.get(name)
+            if rp is None:
+                continue
+            summaries.append(
+                self.score_light(
+                    name, rp.get("setting_angle"), rp.get("tolerance"), measured.get(name)
+                )
+            )
+        self.summaries = summaries

@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
-from app.core.constants import MEDIA_MATCH_AREA_BUFFER_M
+from app.core.constants import MEDIA_MATCH_AREA_BUFFER_M, METERS_PER_DEG_LAT
 from app.core.enums import MediaFileStatus, MediaOrigin
 from app.core.exceptions import DomainError, NotFoundError
 from app.core.geometry import point_lonlatalt
@@ -27,9 +27,6 @@ from app.services import object_storage
 from app.utils.geo import distance_between
 
 logger = logging.getLogger(__name__)
-
-# equirectangular meters-per-degree at the equator, for bbox buffer padding
-_METERS_PER_DEG_LAT = 111_320.0
 
 # object-key prefix for browser-uploaded manual media
 _MANUAL_MEDIA_PREFIX = "drone-media/manual"
@@ -56,11 +53,11 @@ def _mission_area_contains(db: Session, mission_id: UUID, lon: float, lat: float
     if not lons:
         return False
 
-    lat_pad = MEDIA_MATCH_AREA_BUFFER_M / _METERS_PER_DEG_LAT
+    lat_pad = MEDIA_MATCH_AREA_BUFFER_M / METERS_PER_DEG_LAT
     mid_lat = (min(lats) + max(lats)) / 2
     # clamp cos away from zero so polar-degenerate input cannot divide by ~0
     cos_lat = max(math.cos(math.radians(mid_lat)), 0.01)
-    lon_pad = MEDIA_MATCH_AREA_BUFFER_M / (_METERS_PER_DEG_LAT * cos_lat)
+    lon_pad = MEDIA_MATCH_AREA_BUFFER_M / (METERS_PER_DEG_LAT * cos_lat)
 
     return (min(lons) - lon_pad <= lon <= max(lons) + lon_pad) and (
         min(lats) - lat_pad <= lat <= max(lats) + lat_pad

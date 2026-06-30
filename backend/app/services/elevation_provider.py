@@ -198,7 +198,7 @@ class _RemoteAwareFlatProvider(ElevationProvider):
     ``runtime_settings`` cache so the per-call site does not hit the DB and
     super-admin toggles take effect on the next request.
 
-    cache is in-process LRU keyed on rounded (lat, lon); a single instance is
+    cache is in-process FIFO keyed on rounded (lat, lon); a single instance is
     shared within one request through ``_normalize_position_altitude`` and the
     renormalize-airport loop.
 
@@ -242,7 +242,7 @@ class _RemoteAwareFlatProvider(ElevationProvider):
             return self._fallback.get_elevation(lat, lon), False
         with self._lock:
             if len(self._cache) >= _REMOTE_CACHE_MAX:
-                # crude LRU - drop one arbitrary entry; the working set is tiny
+                # crude FIFO - drop the oldest inserted entry; the working set is tiny
                 self._cache.pop(next(iter(self._cache)))
             self._cache[key] = value
         return value, True

@@ -1,6 +1,11 @@
 """pure unit tests for the measurement results pivot helpers (no db)."""
 
-from app.services.measurement_service import _drone_path, _light_series, _rgb_channels
+from app.services.measurement_service import (
+    _drone_path,
+    _light_series,
+    _parse_rgb_floats,
+    _rgb_channels,
+)
 
 
 def _engine_frame(i: int) -> dict:
@@ -127,3 +132,13 @@ def test_rgb_channels_handles_dict_list_and_garbage():
     assert _rgb_channels(None) == (None, None, None)
     assert _rgb_channels([]) == (None, None, None)
     assert _rgb_channels({"r": "x"}) == (None, None, None)
+
+
+def test_parse_rgb_floats_accepts_dict_list_and_rejects_junk():
+    """the shared decode handles the engine dict + legacy list, None on anything else."""
+    assert _parse_rgb_floats({"r": 1, "g": 2, "b": 3}) == (1.0, 2.0, 3.0)
+    assert _parse_rgb_floats([4, 5, 6]) == (4.0, 5.0, 6.0)
+    assert _parse_rgb_floats(None) is None
+    assert _parse_rgb_floats([]) is None
+    assert _parse_rgb_floats({"r": "x"}) is None
+    assert _parse_rgb_floats([1, 2]) is None

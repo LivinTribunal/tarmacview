@@ -28,6 +28,7 @@ import type {
 } from "@/types/flightPlan";
 import type { MapFeature, MapLayerConfig } from "@/types/map";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
+import PageLoadState from "@/components/common/PageLoadState";
 import AirportMap, { buildWaypointFeatureFromResponse } from "@/components/map/AirportMap";
 import type { AirportMapHandle } from "@/components/map/AirportMap";
 import LegendPanel from "@/components/map/overlays/LegendPanel";
@@ -606,26 +607,13 @@ export default function MissionMapPage() {
   );
 
   // loading state
-  if (loading) {
+  if (loading || error || !mission) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-tv-accent" />
-      </div>
-    );
-  }
-
-  if (error || !mission) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <p className="text-sm text-tv-error">{error ?? t("common.error")}</p>
-        <button
-          type="button"
-          onClick={fetchData}
-          className="px-4 py-2 rounded-full text-sm font-semibold bg-tv-accent text-tv-accent-text hover:bg-tv-accent-hover transition-colors"
-        >
-          {t("common.retry")}
-        </button>
-      </div>
+      <PageLoadState
+        loading={loading}
+        error={loading ? null : error ?? t("common.error")}
+        onRetry={fetchData}
+      />
     );
   }
 

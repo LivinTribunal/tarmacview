@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { useAirport } from "@/contexts/AirportContext";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
-import Input from "@/components/common/Input";
+import RenameModal from "@/components/common/RenameModal";
 import {
   ListPageContainer,
   ListPageContent,
@@ -132,38 +132,18 @@ export default function MissionListPage() {
         </div>
       </Modal>
 
-      <Modal
+      <RenameModal
         isOpen={renameTarget !== null}
         onClose={() => setRenameTarget(null)}
         title={t("missionList.renameTitle")}
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleRenameConfirm();
-          }}
-        >
-          <Input
-            id="rename-input"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            placeholder={t("missionList.renamePlaceholder")}
-            data-testid="rename-input"
-          />
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setRenameTarget(null)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={!renameValue.trim()}>
-              {t("common.save")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        value={renameValue}
+        onChange={setRenameValue}
+        onSubmit={handleRenameConfirm}
+        placeholder={t("missionList.renamePlaceholder")}
+        inputId="rename-input"
+        inputTestId="rename-input"
+        submitDisabledWhenEmpty
+      />
     </ListPageContainer>
   );
 }

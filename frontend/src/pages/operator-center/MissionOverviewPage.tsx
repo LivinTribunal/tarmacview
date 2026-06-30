@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate, useOutletContext } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
 import { useAirport } from "@/contexts/AirportContext";
 import { useComputation } from "@/contexts/ComputationContext";
 import { useOnComputationCompleted } from "@/hooks/useOnComputationCompleted";
@@ -13,13 +12,12 @@ import type { MissionDetailResponse } from "@/types/mission";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 import type { FlightPlanResponse, ValidationViolation } from "@/types/flightPlan";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
+import PageLoadState from "@/components/common/PageLoadState";
 import MissionInfoPanel from "@/components/mission/MissionInfoPanel";
 import WarningsPanel from "@/components/mission/WarningsPanel";
 import StatsPanel from "@/components/mission/StatsPanel";
 import ValidationStatusPanel from "@/components/mission/ValidationStatusPanel";
-import AirportMap from "@/components/map/AirportMap";
-import TerrainToggle from "@/components/map/overlays/TerrainToggle";
-import PoiInfoPanel from "@/components/map/overlays/PoiInfoPanel";
+import MissionMapPanel from "@/components/mission/MissionMapPanel";
 import type { MapFeature } from "@/types/map";
 
 /** read-only mission overview with info, validation, and simplified map. */
@@ -148,34 +146,13 @@ export default function MissionOverviewPage() {
     return names.join(", ");
   }, [airportDetail, mission]);
 
-  const poiPanel = useMemo(
-    () =>
-      selectedFeature ? (
-        <PoiInfoPanel feature={selectedFeature} onClose={() => setSelectedFeature(null)} />
-      ) : undefined,
-    [selectedFeature],
-  );
-
-  if (loading) {
+  if (loading || error || !mission) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-tv-accent" />
-      </div>
-    );
-  }
-
-  if (error || !mission) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <p className="text-sm text-tv-error">{error ?? t("common.error")}</p>
-        <button
-          type="button"
-          onClick={fetchData}
-          className="px-4 py-2 rounded-full text-sm font-semibold bg-tv-accent text-tv-accent-text hover:bg-tv-accent-hover transition-colors"
-        >
-          {t("common.retry")}
-        </button>
-      </div>
+      <PageLoadState
+        loading={loading}
+        error={loading ? null : error ?? t("common.error")}
+        onRetry={fetchData}
+      />
     );
   }
 
@@ -231,49 +208,23 @@ export default function MissionOverviewPage() {
 
       {/* right panel - map */}
       <div className="flex flex-col h-full" data-testid="mission-overview-page">
-        {airportDetail ? (
-          <div className="flex-1 relative rounded-2xl overflow-hidden border border-tv-border">
-            <AirportMap
-              airport={airportDetail}
-              helpVariant="preview"
-              terrainMode={terrainMode}
-              onTerrainChange={setTerrainMode}
-              showTerrainToggle={false}
-              showWaypointList={false}
-              showPoiInfo={false}
-              leftPanelChildren={poiPanel}
-              simplifiedTrajectory
-              is3D={is3D}
-              onToggle3D={setIs3D}
-              layers={{
-                simplifiedTrajectory: true,
-                trajectory: false,
-                transitWaypoints: false,
-                measurementWaypoints: false,
-                path: false,
-                takeoffLanding: !!(mission.takeoff_coordinate || mission.landing_coordinate),
-                cameraHeading: false,
-                pathHeading: false,
-              }}
-              waypoints={flightPlan?.waypoints ?? []}
-              selectedWaypointId={selectedWaypointId}
-              onWaypointClick={setSelectedWaypointId}
-              missionStatus={mission.status}
-              flightPlanScope={mission.flight_plan_scope}
-              takeoffCoordinate={mission.takeoff_coordinate}
-              landingCoordinate={mission.landing_coordinate}
-              inspectionIndexMap={inspectionIndexMap}
-              onFeatureClick={setSelectedFeature}
-              focusFeature={selectedFeature}
-              highlightedWaypointIds={selectedWarning?.waypoint_ids}
-              highlightSeverity={selectedWarning?.severity}
-              selectedWarning={selectedWarning}
-              onWarningClose={() => setSelectedWarning(null)}
-            />
-
-
-            {/* bottom bar */}
-            <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2">
+        <MissionMapPanel
+          airportDetail={airportDetail}
+          mission={mission}
+          flightPlan={flightPlan}
+          inspectionIndexMap={inspectionIndexMap}
+          selectedWarning={selectedWarning}
+          onWarningClose={() => setSelectedWarning(null)}
+          selectedWaypointId={selectedWaypointId}
+          onWaypointClick={setSelectedWaypointId}
+          selectedFeature={selectedFeature}
+          onFeatureClick={setSelectedFeature}
+          terrainMode={terrainMode}
+          onTerrainChange={setTerrainMode}
+          is3D={is3D}
+          onToggle3D={setIs3D}
+          footerActions={
+            <>
               <button
                 type="button"
                 onClick={() => navigate(`/operator-center/missions/${id}/configuration`)}
@@ -290,34 +241,9 @@ export default function MissionOverviewPage() {
               >
                 {t("mission.overview.openMap")}
               </button>
-              <div className="flex rounded-full border border-tv-border bg-tv-surface p-1">
-                <button
-                  type="button"
-                  onClick={() => setIs3D(false)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
-                    !is3D ? "bg-tv-accent text-tv-accent-text" : "text-tv-text-secondary"
-                  }`}
-                >
-                  {t("common.2d")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIs3D(true)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
-                    is3D ? "bg-tv-accent text-tv-accent-text" : "text-tv-text-secondary"
-                  }`}
-                >
-                  {t("common.3d")}
-                </button>
-              </div>
-              <TerrainToggle mode={terrainMode} onToggle={setTerrainMode} inline />
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-tv-surface rounded-2xl border border-tv-border">
-            <Loader2 className="h-6 w-6 animate-spin text-tv-accent" />
-          </div>
-        )}
+            </>
+          }
+        />
       </div>
 
     </>

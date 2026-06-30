@@ -3,8 +3,8 @@ import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useAirport } from "@/contexts/AirportContext";
 import Button from "@/components/common/Button";
-import Input from "@/components/common/Input";
 import Modal from "@/components/common/Modal";
+import RenameModal from "@/components/common/RenameModal";
 import {
   ListPageContainer,
   ListPageContent,
@@ -161,38 +161,18 @@ export default function MeasurementsListPage() {
         </div>
       </Modal>
 
-      <Modal
+      <RenameModal
         isOpen={renameTarget !== null}
         onClose={() => setRenameTarget(null)}
         title={t("measurementsList.renameTitle")}
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleRenameConfirm();
-          }}
-        >
-          <Input
-            id="measurement-rename-input"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            placeholder={t("measurementsList.renamePlaceholder")}
-            data-testid="measurement-rename-input"
-          />
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setRenameTarget(null)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" data-testid="confirm-rename-measurement">
-              {t("common.save")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        value={renameValue}
+        onChange={setRenameValue}
+        onSubmit={handleRenameConfirm}
+        placeholder={t("measurementsList.renamePlaceholder")}
+        inputId="measurement-rename-input"
+        inputTestId="measurement-rename-input"
+        submitTestId="confirm-rename-measurement"
+      />
     </ListPageContainer>
   );
 }

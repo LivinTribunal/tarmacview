@@ -48,6 +48,11 @@ PAPI_MAX_LIGHTS = 4
 # huge spacing/distance ratio cannot run away.
 MAX_EDGE_LIGHT_UNITS = 200
 
+# standard 4-box PAPI setting angles by box position (sequence 1..4 = A..D,
+# D closest to runway). seeded at bulk-generate; coordinator can still override
+# the request setting_angle or edit each LHA afterward.
+PAPI_DEFAULT_SETTING_ANGLES_DEG = (2.5, 2.86, 3.16, 3.5)
+
 
 def _apply_papi_invariant(db: Session, agl_id: UUID) -> None:
     """rewrite PAPI LHA unit_designators to chr(64 + sequence_number).
@@ -533,14 +538,9 @@ def bulk_generate_lhas(
         )
     count = min(count, remaining_slots, len(available_designators))
 
-    # default angle: RUNWAY_EDGE_LIGHTS uses 0, PAPI stays null for coordinator fill-in
+    # RUNWAY_EDGE_LIGHTS default 0.0; PAPI seeds the four standard setting angles
+    # by box position (computed per unit in the loop); explicit request value wins.
     is_edge_lights = agl.agl_type == "RUNWAY_EDGE_LIGHTS"
-    if schema.setting_angle is not None:
-        setting_angle = schema.setting_angle
-    elif is_edge_lights:
-        setting_angle = 0.0
-    else:
-        setting_angle = None
 
     # reuse one provider across the loop - DEM-backed providers open a
     # rasterio handle per instance, so creating one per iteration would
@@ -558,6 +558,21 @@ def bulk_generate_lhas(
             lat = first[1] + (last[1] - first[1]) * t
             ground = provider.get_elevation(lat, lon)
 
+            # seq is the final box position (A=1..D=4 after _apply_papi_invariant)
+            seq = next_seq + i
+            if schema.setting_angle is not None:
+                setting_angle = schema.setting_angle
+            elif is_papi:
+                setting_angle = (
+                    PAPI_DEFAULT_SETTING_ANGLES_DEG[seq - 1]
+                    if 1 <= seq <= len(PAPI_DEFAULT_SETTING_ANGLES_DEG)
+                    else None
+                )
+            elif is_edge_lights:
+                setting_angle = 0.0
+            else:
+                setting_angle = None
+
             wkt = f"POINT Z ({lon} {lat} {ground})"
             designator = available_designators[i]
             lha = LHA(
@@ -569,7 +584,7 @@ def bulk_generate_lhas(
                 tolerance=(
                     schema.tolerance if schema.tolerance is not None else DEFAULT_LHA_TOLERANCE_DEG
                 ),
-                sequence_number=next_seq + i,
+                sequence_number=seq,
             )
             db.add(lha)
             created.append(lha)

@@ -187,6 +187,13 @@ tarmacview/
 - One database (Postgres). One object store (minio/S3). One broker (redis).
 - Storage and broker are env-swappable; the measurement DB is port-swappable.
 
+> Superseded by #198: the `domain/measurement/` + `infra/measurement/` ports-and-adapters
+> layer (and §6's `MeasurementRepository` port) was collapsed onto the `Measurement` ORM
+> model in `backend/app/models/measurement.py`. The aggregate is the ORM row; the
+> `backend/app/services/measurement_service/` package orchestrates it directly. The single
+> never-used second adapter made the seam pure cost. The diagram and §6 below record the
+> original intent.
+
 ---
 
 ## 6. Deferring the database and cloud choice

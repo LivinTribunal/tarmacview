@@ -38,14 +38,13 @@ backend/app/
 ├── models/                # SQLAlchemy ORM models (geometry as WKT strings)
 ├── schemas/               # Pydantic v2 request/response DTOs
 ├── services/              # Business logic (trajectory, safety, export)
-│   └── video_processing/  # vendored OpenCV PAPI light-detection engine
-├── domain/                # persistence-agnostic aggregates + repository ports (measurement)
-├── infra/                 # port adapters — where ORM meets domain (measurement sqlalchemy repo)
+│   ├── video_processing/  # vendored OpenCV PAPI light-detection engine
+│   └── measurement_service/  # measurement run orchestration (_crud / _mapping / _results / _runners)
 ├── workers/               # Celery app + video-processing tasks (off-request)
 └── core/                  # Config, database session, auth, dependencies
 ```
 
-The `domain/` + `infra/` split is a ports-and-adapters seam introduced for the measurement bounded context: the domain aggregate has no ORM/DB/engine imports, persistence sits behind a `MeasurementRepository` port, and `infra/` holds the SQLAlchemy adapter (swapping the DB backing is one new adapter class, no domain change).
+Measurement business logic (status machine, scoring, reference snapshot) lives on the `Measurement` ORM model in `models/`, and the `services/measurement_service/` package drives it. An earlier `domain/` + `infra/` ports-and-adapters seam for the measurement context was removed in #198 - the single hardwired adapter made the port pure cost.
 
 Entry points:
 - **Local dev**: `uvicorn app.main:app --reload` (port 8000)
@@ -61,7 +60,7 @@ Separate FastAPI service for the field laptop — the device-facing DJI Cloud AP
 
 ### Video processing & measurement (imported)
 
-A PAPI light-detection engine (OpenCV, no ML/GPU) is vendored from the **airport-lights-detection** project into `backend/app/services/video_processing/` to turn TarmacView from a planning tool into a closed loop: after a flight, drone video is measured against the same `LHA` ground truth the mission was planned from. The long-running, multi-GB jobs run in a **Celery worker** (`backend/app/workers/`) off a Redis queue, with videos and result artifacts in S3-compatible object storage (MinIO locally). This shifts the backend's deployment from the single-Lambda monolith assumed in ADR-001 toward containers — the upstream engine itself needed AWS Step Functions to chunk the job around Lambda's 15-minute cap, which a worker container removes. The measurement domain sits behind a repository port so its database backing can be chosen later. Plan and rationale: `docs/specs/TARMACVIEW-MERGE-PLAN.md`.
+A PAPI light-detection engine (OpenCV, no ML/GPU) is vendored from the **airport-lights-detection** project into `backend/app/services/video_processing/` to turn TarmacView from a planning tool into a closed loop: after a flight, drone video is measured against the same `LHA` ground truth the mission was planned from. The long-running, multi-GB jobs run in a **Celery worker** (`backend/app/workers/`) off a Redis queue, with videos and result artifacts in S3-compatible object storage (MinIO locally). This shifts the backend's deployment from the single-Lambda monolith assumed in ADR-001 toward containers — the upstream engine itself needed AWS Step Functions to chunk the job around Lambda's 15-minute cap, which a worker container removes. Plan and rationale: `docs/specs/TARMACVIEW-MERGE-PLAN.md`.
 
 ## Architectural Pattern
 
@@ -118,14 +117,12 @@ graph TD
 |---|---|---|
 | `api/routes/` | HTTP handlers, request validation, auth | schemas, services |
 | `schemas/` | Pydantic DTOs (request/response contracts) | — (pure data) |
-| `services/` | Business logic, trajectory computation | models, domain, infra |
+| `services/` | Business logic, trajectory computation | models |
 | `models/` | SQLAlchemy ORM, WKT geometry in `String` columns | — (database mapping) |
-| `domain/` | Persistence-agnostic aggregates + repository ports (measurement) | — (pure python) |
-| `infra/` | Port adapters — ORM ↔ domain (measurement sqlalchemy repo) | models, domain |
 | `workers/` | Celery app + video-processing tasks (off-request) | services |
 | `core/` | Cross-cutting: config, database session, auth | — (infrastructure) |
 
-Dependency rule: **routes → services → models**. Schemas are shared across routes and services but never import from either. The measurement context adds a ports-and-adapters lane: `services` depends on a `domain` repository port, `infra` supplies the SQLAlchemy adapter, and the Celery `workers` drive the service runners off-request.
+Dependency rule: **routes → services → models**. Schemas are shared across routes and services but never import from either. The Celery `workers` drive the service runners off-request.
 
 ### Frontend Organization
 
@@ -147,7 +144,7 @@ Dependency rule: **routes → services → models**. Schemas are shared across r
 3. FastAPI router deserializes request body via Pydantic schema (MissionCreate)
 4. Router calls service function (e.g., mission_manager.create_mission())
 5. Service executes business logic, writes to database via SQLAlchemy
-6. Service returns domain object
+6. Service returns ORM model object
 7. Router serializes response via Pydantic schema (MissionResponse)
 8. JSON response sent to browser
 ```

@@ -82,6 +82,6 @@ describe("DroneHeightProfileChart", () => {
         referencePoints={[]}
       />,
     );
-    expect(screen.getByText("results.heightProfile.noData")).toBeInTheDocument();
+    expect(screen.getByText("results.noData")).toBeInTheDocument();
   });
 });

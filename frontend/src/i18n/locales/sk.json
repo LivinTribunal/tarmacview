@@ -2285,6 +2285,7 @@
     },
     "heightProfile": {
       "title": "Výškový profil dronu",
+      "explanation": "Zobrazuje nadmorskú výšku dronu (WGS84) v čase a rozdiel oproti každému svetlu PAPI a dotykovému bodu.",
       "droneElevation": "Výška dronu (WGS84)",
       "elevationUnit": "Výška (m)",
       "diffUnit": "Výškový rozdiel (m)",

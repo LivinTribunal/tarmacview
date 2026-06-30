@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
@@ -27,6 +27,7 @@ import {
   Pagination,
 } from "@/components/common/ListPageLayout";
 import useListFilters from "@/components/common/useListFilters";
+import useToast from "@/hooks/useToast";
 import type { FilterSpec } from "@/components/common/filterSpec";
 import { SLOW_NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
 import { DEFAULT_PAGE_SIZE } from "@/constants/pagination";
@@ -55,21 +56,7 @@ export default function InspectionListPage() {
   const [deleteTarget, setDeleteTarget] = useState<InspectionTemplateResponse | null>(null);
 
   // notification toast
-  const [notification, setNotification] = useState<string | null>(null);
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function showNotif(msg: string) {
-    /**show a temporary notification toast.*/
-    setNotification(msg);
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    notificationTimer.current = setTimeout(() => setNotification(null), SLOW_NOTIFICATION_TIMEOUT_MS);
-  }
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
+  const { message: notification, show: showNotif } = useToast(SLOW_NOTIFICATION_TIMEOUT_MS);
 
   // all agls from airport
   const allAgls = useMemo(() => {

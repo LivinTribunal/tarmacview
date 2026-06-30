@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
 import type { LightSeries } from "@/types/measurement";
 import {
-  VERDICT_CLASS,
   transitionVerdict,
   type TransitionVerdict,
 } from "./TransitionAngleTable";
+import VerdictBadge from "./VerdictBadge";
 
 function fmtDeg(value: number | null): string {
   return value === null ? "—" : `${value.toFixed(2)}°`;
@@ -117,11 +117,7 @@ export default function GlidePathSummaryTable({
                 {fmtDeg(r.tolerance)}
               </td>
               <td className="py-2">
-                <span
-                  className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[r.verdict]}`}
-                >
-                  {t(`results.verdict.${r.verdict}`)}
-                </span>
+                <VerdictBadge verdict={r.verdict} />
               </td>
             </tr>
           ))}

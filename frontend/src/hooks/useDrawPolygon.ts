@@ -1,7 +1,8 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState } from "react";
 import type maplibregl from "maplibre-gl";
 import { computePolygonArea, formatArea, pixelDistance } from "@/utils/geo";
 import useDrawingSources, { EMPTY_FC, type DrawingSourceSpec } from "./useDrawingSources";
+import useDrawTool from "./useDrawTool";
 
 const SNAP_PX = 15;
 const SRC_FILL = "draw-polygon-fill";
@@ -209,28 +210,16 @@ export default function useDrawPolygon(
     onCompleteRef.current(polygon);
   }, [reset]);
 
-  useEffect(() => {
-    if (!map || !active) {
-      if (map && verticesRef.current.length > 0) reset();
-      return;
-    }
-
-    if (map.isStyleLoaded()) {
-      ensure();
-    } else {
-      map.once("style.load", () => ensure());
-    }
-
-    map.getCanvas().style.cursor = "crosshair";
-
-    function handleClick(e: maplibregl.MapMouseEvent) {
-      if (!map) return;
+  useDrawTool(map, active, {
+    ensure,
+    reset,
+    onClick(e, m) {
       const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
       const verts = verticesRef.current;
 
       // snap to first vertex to close
       if (verts.length >= 3) {
-        const dist = pixelDistance(map, lngLat, verts[0]);
+        const dist = pixelDistance(m, lngLat, verts[0]);
         if (dist <= SNAP_PX) {
           closePolygon();
           return;
@@ -240,39 +229,18 @@ export default function useDrawPolygon(
       verticesRef.current = [...verts, lngLat];
       setIsDrawing(true);
       updatePreview();
-    }
-
-    function handleMouseMove(e: maplibregl.MapMouseEvent) {
+    },
+    onMouseMove(e) {
       cursorRef.current = [e.lngLat.lng, e.lngLat.lat];
       updatePreview();
-    }
-
-    function handleDblClick(e: maplibregl.MapMouseEvent) {
+    },
+    onDblClick(e) {
       e.preventDefault();
       if (verticesRef.current.length >= 3) {
         closePolygon();
       }
-    }
-
-    function handleContextMenu(e: maplibregl.MapMouseEvent) {
-      e.preventDefault();
-      reset();
-    }
-
-    map.on("click", handleClick);
-    map.on("mousemove", handleMouseMove);
-    map.on("dblclick", handleDblClick);
-    map.on("contextmenu", handleContextMenu);
-
-    return () => {
-      map.off("click", handleClick);
-      map.off("mousemove", handleMouseMove);
-      map.off("dblclick", handleDblClick);
-      map.off("contextmenu", handleContextMenu);
-      map.getCanvas().style.cursor = "";
-      clear();
-    };
-  }, [map, active, updatePreview, closePolygon, reset, ensure, clear]);
+    },
+  });
 
   return { isDrawing, cancel: reset };
 }

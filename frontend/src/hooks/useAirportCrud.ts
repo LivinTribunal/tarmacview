@@ -18,21 +18,7 @@ import {
 import type { AirportDetailResponse } from "@/types/airport";
 import type { MapFeature } from "@/types/map";
 import type { PendingChange } from "@/hooks/useDirtyHistory";
-
-/** pull the FastAPI DomainError detail out of an axios error, string or {message} form. */
-function extractApiErrorMessage(err: unknown): string | null {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-  if (typeof detail === "string") return detail;
-  if (
-    detail &&
-    typeof detail === "object" &&
-    "message" in detail &&
-    typeof (detail as { message: unknown }).message === "string"
-  ) {
-    return (detail as { message: string }).message;
-  }
-  return null;
-}
+import { extractApiErrorMessage } from "@/utils/apiError";
 
 interface UseAirportCrudParams {
   id: string | undefined;

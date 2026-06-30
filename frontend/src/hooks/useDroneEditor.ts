@@ -18,6 +18,7 @@ import {
 import { MAX_LIST_LIMIT } from "@/constants/pagination";
 import { getBundledModel } from "@/config/droneModels";
 import { FIELDS, droneToForm, formToPayload } from "@/config/droneFields";
+import useToast from "@/hooks/useToast";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 import type { MissionResponse } from "@/types/mission";
 
@@ -38,7 +39,7 @@ interface UseDroneEditorReturn {
   saving: boolean;
   saveError: boolean;
 
-  notification: string;
+  notification: string | null;
   showToast: (msg: string) => void;
 
   showCreateDialog: boolean;
@@ -90,8 +91,7 @@ export default function useDroneEditor(): UseDroneEditorReturn {
   const [error, setError] = useState(false);
 
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const [notification, setNotification] = useState("");
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { message: notification, show: showToast } = useToast(NOTIFICATION_TIMEOUT_MS);
 
   const [nameError, setNameError] = useState("");
 
@@ -179,7 +179,6 @@ export default function useDroneEditor(): UseDroneEditorReturn {
   useEffect(() => {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
     };
   }, []);
 
@@ -221,13 +220,6 @@ export default function useDroneEditor(): UseDroneEditorReturn {
   useEffect(() => {
     fetchDrone();
   }, [fetchDrone]);
-
-  /** show a temporary toast notification. */
-  function showToast(msg: string) {
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    setNotification(msg);
-    notificationTimer.current = setTimeout(() => setNotification(""), NOTIFICATION_TIMEOUT_MS);
-  }
 
   /** handle field value change and schedule autosave. */
   function handleFieldChange(key: string, value: string) {

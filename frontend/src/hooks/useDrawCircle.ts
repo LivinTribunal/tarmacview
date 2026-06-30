@@ -1,7 +1,8 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState } from "react";
 import type maplibregl from "maplibre-gl";
 import { haversineDistance, circleToPolygon, formatDistance } from "@/utils/geo";
 import useDrawingSources, { type DrawingSourceSpec } from "./useDrawingSources";
+import useDrawTool from "./useDrawTool";
 
 const SRC_FILL = "draw-circle-fill";
 const SRC_STROKE = "draw-circle-stroke";
@@ -184,24 +185,11 @@ export default function useDrawCircle(
     clear();
   }, [clear]);
 
-  useEffect(() => {
-    if (!map || !active) {
-      if (map && centerRef.current) reset();
-      return;
-    }
-
-    if (map.isStyleLoaded()) {
-      ensure();
-    } else {
-      map.once("style.load", () => ensure());
-    }
-
-    map.getCanvas().style.cursor = "crosshair";
-
-    function handleClick(e: maplibregl.MapMouseEvent) {
-      if (!map) return;
+  useDrawTool(map, active, {
+    ensure,
+    reset,
+    onClick(e) {
       const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-
       if (!centerRef.current) {
         centerRef.current = lngLat;
         setIsDrawing(true);
@@ -214,30 +202,12 @@ export default function useDrawCircle(
         reset();
         onCompleteRef.current({ polygon, center, radius });
       }
-    }
-
-    function handleMouseMove(e: maplibregl.MapMouseEvent) {
+    },
+    onMouseMove(e) {
       cursorRef.current = [e.lngLat.lng, e.lngLat.lat];
       if (centerRef.current) updatePreview();
-    }
-
-    function handleContextMenu(e: maplibregl.MapMouseEvent) {
-      e.preventDefault();
-      reset();
-    }
-
-    map.on("click", handleClick);
-    map.on("mousemove", handleMouseMove);
-    map.on("contextmenu", handleContextMenu);
-
-    return () => {
-      map.off("click", handleClick);
-      map.off("mousemove", handleMouseMove);
-      map.off("contextmenu", handleContextMenu);
-      map.getCanvas().style.cursor = "";
-      clear();
-    };
-  }, [map, active, updatePreview, reset, ensure, clear]);
+    },
+  });
 
   return { isDrawing, cancel: reset };
 }

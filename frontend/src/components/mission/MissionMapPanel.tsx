@@ -1,7 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
-import { useNavigate } from "react-router";
 import AirportMap from "@/components/map/AirportMap";
 import TerrainToggle from "@/components/map/overlays/TerrainToggle";
 import PoiInfoPanel from "@/components/map/overlays/PoiInfoPanel";
@@ -13,7 +12,7 @@ import type {
   ValidationViolation,
 } from "@/types/flightPlan";
 
-interface ValidationMapPanelProps {
+interface MissionMapPanelProps {
   airportDetail: AirportDetailResponse | null;
   mission: MissionDetailResponse;
   flightPlan: FlightPlanResponse | null;
@@ -28,11 +27,12 @@ interface ValidationMapPanelProps {
   onTerrainChange: (mode: "map" | "satellite") => void;
   is3D: boolean;
   onToggle3D: (next: boolean) => void;
-  missionId: string;
+  // page-specific footer buttons rendered left of the 2D/3D + terrain toggles
+  footerActions?: ReactNode;
 }
 
-/** map preview pane (with 2D/3D + terrain toggles) for the validation page. */
-export default function ValidationMapPanel({
+/** simplified map preview pane (2D/3D + terrain toggles) shared by the overview + validation pages. */
+export default function MissionMapPanel({
   airportDetail,
   mission,
   flightPlan,
@@ -47,10 +47,9 @@ export default function ValidationMapPanel({
   onTerrainChange,
   is3D,
   onToggle3D,
-  missionId,
-}: ValidationMapPanelProps) {
+  footerActions,
+}: MissionMapPanelProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const poiPanel = useMemo(
     () =>
@@ -111,14 +110,7 @@ export default function ValidationMapPanel({
       />
 
       <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => navigate(`/operator-center/missions/${missionId}/map`)}
-          className="px-4 py-2.5 rounded-full text-sm font-semibold border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-          data-testid="open-map-btn"
-        >
-          {t("mission.validationExportPage.openMap")}
-        </button>
+        {footerActions}
         <div className="flex rounded-full border border-tv-border bg-tv-surface p-1">
           <button
             type="button"
@@ -143,11 +135,7 @@ export default function ValidationMapPanel({
             {t("common.3d")}
           </button>
         </div>
-        <TerrainToggle
-          mode={terrainMode}
-          onToggle={onTerrainChange}
-          inline
-        />
+        <TerrainToggle mode={terrainMode} onToggle={onTerrainChange} inline />
       </div>
     </div>
   );

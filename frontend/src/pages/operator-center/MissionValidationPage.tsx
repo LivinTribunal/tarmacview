@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate, useOutletContext } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import PageLoadState from "@/components/common/PageLoadState";
 import { useAirport } from "@/contexts/AirportContext";
 import useMissionValidation from "@/hooks/useMissionValidation";
 import ValidationResultsPanel from "@/components/mission/ValidationResultsPanel";
@@ -10,7 +10,7 @@ import WarningsPanel from "@/components/mission/WarningsPanel";
 import StatsPanel from "@/components/mission/StatsPanel";
 import ExportPanel from "@/components/mission/ExportPanel";
 import UploadDroneMediaDialog from "@/components/mission/UploadDroneMediaDialog";
-import ValidationMapPanel from "@/components/mission/ValidationMapPanel";
+import MissionMapPanel from "@/components/mission/MissionMapPanel";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
 import type { ValidationViolation } from "@/types/flightPlan";
 import type { MapFeature } from "@/types/map";
@@ -108,26 +108,13 @@ export default function MissionValidationPage() {
     };
   }, [setComputeContext, t]);
 
-  if (isInitialLoad) {
+  if (isInitialLoad || error || !mission) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-tv-accent" />
-      </div>
-    );
-  }
-
-  if (error || !mission) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <p className="text-sm text-tv-error">{error ?? t("common.error")}</p>
-        <button
-          type="button"
-          onClick={fetchData}
-          className="px-4 py-2 rounded-full text-sm font-semibold bg-tv-accent text-tv-accent-text hover:bg-tv-accent-hover transition-colors"
-        >
-          {t("common.retry")}
-        </button>
-      </div>
+      <PageLoadState
+        loading={isInitialLoad}
+        error={isInitialLoad ? null : error ?? t("common.error")}
+        onRetry={fetchData}
+      />
     );
   }
 
@@ -182,7 +169,7 @@ export default function MissionValidationPage() {
         data-testid="mission-validation-page"
       >
         <div className="flex-1 flex flex-col gap-3 min-w-0">
-          <ValidationMapPanel
+          <MissionMapPanel
             airportDetail={airportDetail}
             mission={mission}
             flightPlan={flightPlan}
@@ -197,7 +184,16 @@ export default function MissionValidationPage() {
             onTerrainChange={setTerrainMode}
             is3D={is3D}
             onToggle3D={setIs3D}
-            missionId={id ?? ""}
+            footerActions={
+              <button
+                type="button"
+                onClick={() => navigate(`/operator-center/missions/${id ?? ""}/map`)}
+                className="px-4 py-2.5 rounded-full text-sm font-semibold border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
+                data-testid="open-map-btn"
+              >
+                {t("mission.validationExportPage.openMap")}
+              </button>
+            }
           />
         </div>
 

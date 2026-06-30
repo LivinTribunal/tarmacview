@@ -7,6 +7,7 @@ import {
   WAYPOINT_QUERY_LAYERS,
   buildInfraFeature,
   buildWaypointFeature,
+  buildWaypointFeatureFromResponse,
   resolveTransitInsertion,
 } from "./pickFeatureBuilders";
 import {
@@ -134,6 +135,29 @@ describe("buildWaypointFeature", () => {
       expect(built!.feature.data.stack_count).toBe(2);
       expect(built!.feature.data.seq_min).toBe(1);
       expect(built!.feature.data.seq_max).toBe(2);
+    }
+  });
+});
+
+describe("buildWaypointFeatureFromResponse", () => {
+  it("carries hover_duration through (the MissionMapPage list-row bug)", () => {
+    const wp = { ...makeWaypoint("wp-1"), hover_duration: 30 };
+    const feature = buildWaypointFeatureFromResponse(wp);
+    expect(feature.type).toBe("waypoint");
+    if (feature.type === "waypoint") {
+      expect(feature.data.hover_duration).toBe(30);
+      expect(feature.data.stack_count).toBe(1);
+      expect(feature.data.heading).toBe(90);
+      expect(feature.data.gimbal_pitch).toBe(-45);
+    }
+  });
+
+  it("maps a null hover_duration to null", () => {
+    const feature = buildWaypointFeatureFromResponse(makeWaypoint("wp-2"));
+    if (feature.type === "waypoint") {
+      expect(feature.data.hover_duration).toBeNull();
+      expect(feature.data.agl).toBeNull();
+      expect(feature.data.camera_target_agl).toBeNull();
     }
   });
 });

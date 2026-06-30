@@ -1,12 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { VERDICT_CLASS } from "./TransitionAngleTable";
 import type { TransitionVerdict } from "./TransitionAngleTable";
-
-// solid pill tones matching the transition-angle table verdict column
-const VERDICT_CLASS: Record<TransitionVerdict, string> = {
-  pass: "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",
-  fail: "bg-[var(--tv-status-cancelled-bg)] text-[var(--tv-status-cancelled-text)]",
-  unknown: "bg-tv-surface-hover text-tv-text-muted",
-};
 
 /** pass/fail/unknown pill for a per-light chart header. */
 export default function VerdictBadge({

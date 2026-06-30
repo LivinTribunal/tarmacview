@@ -3,7 +3,6 @@ import { Check, Minus, X } from "lucide-react";
 import type { InspectionResponse } from "@/types/mission";
 import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
 import type {
-  LightSeries,
   LightSummary,
   MeasurementListItem,
   MeasurementResults,
@@ -14,6 +13,7 @@ import {
 } from "@/constants/palette";
 import InspectionPicker from "./InspectionPicker";
 import InspectionInfoPanel from "./InspectionInfoPanel";
+import { computeGlidePathAngle } from "./resultsStats";
 import { transitionVerdict } from "./TransitionAngleTable";
 
 export type OverallVerdict = "pass" | "fail" | "pending";
@@ -23,16 +23,6 @@ export function overallVerdict(summaries: LightSummary[]): OverallVerdict {
   const scored = summaries.filter((s) => s.passed !== null);
   if (scored.length === 0) return "pending";
   return scored.some((s) => s.passed === false) ? "fail" : "pass";
-}
-
-/** nominal glide path = midpoint of PAPI_B upper transition and PAPI_C lower transition. */
-export function computeGlidePathAngle(lights: LightSeries[]): number | null {
-  const b =
-    lights.find((l) => l.light_name === "PAPI_B")?.transition_angle_max ?? null;
-  const c =
-    lights.find((l) => l.light_name === "PAPI_C")?.transition_angle_min ?? null;
-  if (b === null || c === null) return null;
-  return (b + c) / 2;
 }
 
 const CARD_CLASS = "bg-tv-surface border border-tv-border rounded-2xl p-4";

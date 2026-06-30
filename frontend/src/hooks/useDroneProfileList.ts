@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { listDroneProfiles } from "@/api/droneProfiles";
 import useListSort, { type SortDir } from "@/components/common/useListSort";
 import { getBundledModel } from "@/config/droneModels";
 import { DEFAULT_PAGE_SIZE, MAX_LIST_LIMIT } from "@/constants/pagination";
-import { NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
+import useToast from "@/hooks/useToast";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 
 export type DroneSortKey =
@@ -73,7 +73,7 @@ export interface UseDroneProfileListResult {
   setPage: (page: number) => void;
   handlePageSizeChange: (size: number) => void;
 
-  notification: string;
+  notification: string | null;
   showToast: (msg: string) => void;
 }
 
@@ -89,8 +89,7 @@ export default function useDroneProfileList(): UseDroneProfileListResult {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
-  const [notification, setNotification] = useState("");
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { message: notification, show: showToast } = useToast();
 
   const fetchDrones = useCallback(() => {
     /** fetch all drone profiles. */
@@ -105,21 +104,6 @@ export default function useDroneProfileList(): UseDroneProfileListResult {
   useEffect(() => {
     fetchDrones();
   }, [fetchDrones]);
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
-
-  const showToast = useCallback((msg: string) => {
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    setNotification(msg);
-    notificationTimer.current = setTimeout(
-      () => setNotification(""),
-      NOTIFICATION_TIMEOUT_MS,
-    );
-  }, []);
 
   const manufacturers = useMemo(() => {
     const set = new Set<string>();

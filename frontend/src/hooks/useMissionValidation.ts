@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listDroneProfiles } from "@/api/droneProfiles";
 import {
@@ -12,6 +12,9 @@ import {
 } from "@/api/missions";
 import { SLOW_NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
 import useDownloadMissionReport from "@/hooks/useDownloadMissionReport";
+import useToast from "@/hooks/useToast";
+import { extractApiErrorMessage } from "@/utils/apiError";
+import { buildInspectionIndexMap } from "@/utils/inspectionIndex";
 import type {
   DjiHeadingMode,
   MissionDetailResponse,
@@ -27,23 +30,6 @@ interface UseMissionValidationOptions {
   id: string | undefined;
   onMissionUpdated: (mission: MissionDetailResponse) => void;
   refreshMissions: () => void;
-}
-
-// surface fastapi's DomainError body: `{detail: "..."} | {detail: {message, ...}}`.
-// returns null when the error didn't carry a usable message so callers can
-// fall back to a generic i18n string.
-function extractApiErrorMessage(err: unknown): string | null {
-  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-  if (typeof detail === "string") return detail;
-  if (
-    detail &&
-    typeof detail === "object" &&
-    "message" in detail &&
-    typeof (detail as { message: unknown }).message === "string"
-  ) {
-    return (detail as { message: string }).message;
-  }
-  return null;
 }
 
 interface ExportOptions {
@@ -95,18 +81,14 @@ export default function useMissionValidation({
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [notification, setNotification] = useState<string | null>(null);
   const [clampWarning, setClampWarning] = useState<AltitudeClamp[] | null>(null);
+  const { message: notification, show: showNotification } = useToast(
+    SLOW_NOTIFICATION_TIMEOUT_MS,
+  );
 
   const dismissClampWarning = useCallback(() => setClampWarning(null), []);
 
-  const inspectionIndexMap = useMemo(() => {
-    if (!mission) return undefined;
-    const sorted = mission.inspections.slice().sort(
-      (a, b) => a.sequence_order - b.sequence_order,
-    );
-    return Object.fromEntries(sorted.map((insp, i) => [insp.id, i + 1]));
-  }, [mission]);
+  const inspectionIndexMap = useMemo(() => buildInspectionIndexMap(mission), [mission]);
 
   const fetchData = useCallback(async () => {
     /** load mission, drone profiles, and flight plan. */
@@ -173,23 +155,6 @@ export default function useMissionValidation({
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [fetchData]);
-
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
-
-  const showNotification = useCallback((msg: string) => {
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    setNotification(msg);
-    notificationTimer.current = setTimeout(
-      () => setNotification(null),
-      SLOW_NOTIFICATION_TIMEOUT_MS,
-    );
-  }, []);
 
   const { isDownloadingReport, handleDownloadReport } = useDownloadMissionReport(
     id,

@@ -28,7 +28,8 @@ import type {
 } from "@/types/flightPlan";
 import type { MapFeature, MapLayerConfig } from "@/types/map";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
-import AirportMap from "@/components/map/AirportMap";
+import PageLoadState from "@/components/common/PageLoadState";
+import AirportMap, { buildWaypointFeatureFromResponse } from "@/components/map/AirportMap";
 import type { AirportMapHandle } from "@/components/map/AirportMap";
 import LegendPanel from "@/components/map/overlays/LegendPanel";
 import AirportInfoPanel from "@/components/map/overlays/AirportInfoPanel";
@@ -46,6 +47,8 @@ import MeasureInfoCard from "@/components/map/overlays/MeasureInfoCard";
 import HeadingInfoCard from "@/components/map/overlays/HeadingInfoCard";
 import useWaypointEditing from "@/hooks/useWaypointEditing";
 import useMapInteractionTools from "@/hooks/useMapInteractionTools";
+import useToast from "@/hooks/useToast";
+import { buildInspectionIndexMap } from "@/utils/inspectionIndex";
 import { SLOW_NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
 
 export default function MissionMapPage() {
@@ -70,7 +73,9 @@ export default function MissionMapPage() {
   const [flightPlan, setFlightPlan] = useState<FlightPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notification, setNotification] = useState<string | null>(null);
+  const { message: notification, show: showNotification } = useToast(
+    SLOW_NOTIFICATION_TIMEOUT_MS,
+  );
   const [revalidating, setRevalidating] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [enduranceMinutes, setEnduranceMinutes] = useState<number | null>(null);
@@ -96,22 +101,8 @@ export default function MissionMapPage() {
     return t[0] === l[0] && t[1] === l[1] && t[2] === l[2];
   }, [mission?.takeoff_coordinate, mission?.landing_coordinate]);
 
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const isDraft = mission?.status === "DRAFT";
   const hasFlightPlan = flightPlan !== null;
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
-
-  function showNotification(msg: string) {
-    setNotification(msg);
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    notificationTimer.current = setTimeout(() => setNotification(null), SLOW_NOTIFICATION_TIMEOUT_MS);
-  }
 
   // elevation resolver - shared by handleSave (drag → ground snap for TAKEOFF/LANDING)
   // and handleMapClick (PLACE_TAKEOFF / PLACE_LANDING tool placement).
@@ -235,12 +226,7 @@ export default function MissionMapPage() {
     );
   }, [effectiveWaypoints, selectedInspectionId]);
 
-  // inspection index map
-  const inspectionIndexMap = useMemo(() => {
-    if (!mission) return undefined;
-    const sorted = mission.inspections.slice().sort((a, b) => a.sequence_order - b.sequence_order);
-    return Object.fromEntries(sorted.map((insp, i) => [insp.id, i + 1]));
-  }, [mission]);
+  const inspectionIndexMap = useMemo(() => buildInspectionIndexMap(mission), [mission]);
 
   const violations = useMemo((): ValidationViolation[] => {
     return flightPlan?.validation_result?.violations ?? [];
@@ -412,24 +398,7 @@ export default function MissionMapPage() {
       }
       const wp = effectiveWaypoints.find((w) => w.id === wpId);
       if (!wp) return null;
-      const [lon, lat, alt] = wp.position.coordinates;
-      return {
-        type: "waypoint",
-        data: {
-          id: wp.id,
-          waypoint_type: wp.waypoint_type,
-          sequence_order: wp.sequence_order,
-          position: { type: "Point", coordinates: [lon, lat, alt] },
-          stack_count: 1,
-          heading: wp.heading ?? null,
-          speed: wp.speed ?? null,
-          camera_action: wp.camera_action ?? null,
-          camera_target: wp.camera_target ?? null,
-          gimbal_pitch: wp.gimbal_pitch ?? null,
-          agl: wp.agl ?? null,
-          camera_target_agl: wp.camera_target_agl ?? null,
-        },
-      };
+      return buildWaypointFeatureFromResponse(wp);
     },
     [effectiveWaypoints, mission],
   );
@@ -638,26 +607,13 @@ export default function MissionMapPage() {
   );
 
   // loading state
-  if (loading) {
+  if (loading || error || !mission) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-tv-accent" />
-      </div>
-    );
-  }
-
-  if (error || !mission) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <p className="text-sm text-tv-error">{error ?? t("common.error")}</p>
-        <button
-          type="button"
-          onClick={fetchData}
-          className="px-4 py-2 rounded-full text-sm font-semibold bg-tv-accent text-tv-accent-text hover:bg-tv-accent-hover transition-colors"
-        >
-          {t("common.retry")}
-        </button>
-      </div>
+      <PageLoadState
+        loading={loading}
+        error={loading ? null : error ?? t("common.error")}
+        onRetry={fetchData}
+      />
     );
   }
 

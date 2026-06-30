@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { BUNDLED_DRONE_MODELS } from "@/config/droneModels";
+import { isValidModelFile } from "@/utils/droneModelFile";
 
 interface DroneModelSelectorProps {
   selectedModelId: string | null;
@@ -28,8 +29,7 @@ export default function DroneModelSelector({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const ext = file.name.toLowerCase().split(".").pop();
-    if (ext !== "glb" && ext !== "gltf") {
+    if (!isValidModelFile(file)) {
       onInvalidFile?.(t("drone.invalidFileType"));
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;

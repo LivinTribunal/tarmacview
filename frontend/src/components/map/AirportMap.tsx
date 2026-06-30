@@ -28,6 +28,7 @@ import { useInfraDragTool } from "./hooks/useInfraDragTool";
 import { useZoomTool } from "./hooks/useZoomTool";
 import { useMapHighlightLayers } from "./hooks/useMapHighlightLayers";
 import { usePickAndSelect } from "./hooks/usePickAndSelect";
+import { buildWaypointFeatureFromResponse } from "./hooks/pickFeatureBuilders";
 import { useMapLayerSync } from "./hooks/useMapLayerSync";
 import { useMapBootstrap, PENDING_PREVIEW_SOURCE } from "./hooks/useMapBootstrap";
 import { layerGroupMap, INTERACTIVE_LAYERS, POINTER_LAYERS, TOOL_CURSORS } from "./mapLayerGroups";
@@ -233,25 +234,7 @@ const AirportMap = forwardRef<AirportMapHandle, AirportMapProps & {
       }
       const wp = waypoints?.find((w) => w.id === wpId);
       if (!wp) return null;
-      const [lon, lat, alt] = wp.position.coordinates;
-      return {
-        type: "waypoint",
-        data: {
-          id: wp.id,
-          waypoint_type: wp.waypoint_type,
-          sequence_order: wp.sequence_order,
-          position: { type: "Point", coordinates: [lon, lat, alt] },
-          stack_count: 1,
-          heading: wp.heading ?? null,
-          speed: wp.speed ?? null,
-          camera_action: wp.camera_action ?? null,
-          camera_target: wp.camera_target ?? null,
-          gimbal_pitch: wp.gimbal_pitch ?? null,
-          hover_duration: wp.hover_duration ?? null,
-          agl: wp.agl ?? null,
-          camera_target_agl: wp.camera_target_agl ?? null,
-        },
-      };
+      return buildWaypointFeatureFromResponse(wp);
     },
     [waypoints, takeoffCoordinate, landingCoordinate],
   );
@@ -529,7 +512,6 @@ const AirportMap = forwardRef<AirportMapHandle, AirportMapProps & {
     flightPlanScope,
     terrainMode,
     setTerrainMode,
-    layerConfig,
     layerConfigRef,
     focusFeatureRef,
     focusLhaIdsRef,
@@ -698,3 +680,4 @@ const AirportMap = forwardRef<AirportMapHandle, AirportMapProps & {
 });
 
 export default AirportMap;
+export { buildWaypointFeatureFromResponse } from "./hooks/pickFeatureBuilders";

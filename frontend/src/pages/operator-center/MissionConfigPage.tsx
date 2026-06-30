@@ -3,7 +3,6 @@ import {
   useEffect,
   useCallback,
   useMemo,
-  useRef,
 } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate, useOutletContext } from "react-router";
@@ -30,10 +29,13 @@ import StatsPanel from "@/components/mission/StatsPanel";
 import AirportMap from "@/components/map/AirportMap";
 import TerrainToggle from "@/components/map/overlays/TerrainToggle";
 import Modal from "@/components/common/Modal";
+import PageLoadState from "@/components/common/PageLoadState";
 import type { MapFeature } from "@/types/map";
 import useInspectionEditing from "@/hooks/useInspectionEditing";
 import useMissionSave from "@/hooks/useMissionSave";
 import useTakeoffLandingPicker from "@/hooks/useTakeoffLandingPicker";
+import useToast from "@/hooks/useToast";
+import { buildInspectionIndexMap } from "@/utils/inspectionIndex";
 import { STATUS_ORDER, TERMINAL_STATUSES } from "@/constants/mission";
 import { SLOW_NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
 
@@ -66,7 +68,9 @@ export default function MissionConfigPage() {
     new Set(),
   );
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [notification, setNotification] = useState<string | null>(null);
+  const { message: notification, show: showNotification } = useToast(
+    SLOW_NOTIFICATION_TIMEOUT_MS,
+  );
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(
     null,
   );
@@ -80,8 +84,6 @@ export default function MissionConfigPage() {
   const [is3D, setIs3D] = useState(false);
 
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDraft = mission?.status === "DRAFT";
   // MEASURED is locked alongside the terminal states: editing the plan after
@@ -101,19 +103,6 @@ export default function MissionConfigPage() {
     if (!airportDetail) return [];
     return airportDetail.surfaces.flatMap((s) => s.agls);
   }, [airportDetail]);
-
-  // cleanup notification timer on unmount
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
-
-  function showNotification(msg: string) {
-    setNotification(msg);
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    notificationTimer.current = setTimeout(() => setNotification(null), SLOW_NOTIFICATION_TIMEOUT_MS);
-  }
 
   const updateMissionState = useCallback(
     (fresh: MissionDetailResponse, previousStatus?: string) => {
@@ -319,12 +308,7 @@ export default function MissionConfigPage() {
     [mission, selectedInspectionId],
   );
 
-  // inspection index map for waypoint labels
-  const inspectionIndexMap = useMemo(() => {
-    if (!mission) return undefined;
-    const sorted = mission.inspections.slice().sort((a, b) => a.sequence_order - b.sequence_order);
-    return Object.fromEntries(sorted.map((insp, i) => [insp.id, i + 1]));
-  }, [mission]);
+  const inspectionIndexMap = useMemo(() => buildInspectionIndexMap(mission), [mission]);
 
   const selectedTemplate = useMemo(
     () =>
@@ -345,28 +329,13 @@ export default function MissionConfigPage() {
   }, [selectedInspectionId, selectedLhas]);
 
   // loading state
-  if (loading) {
+  if (loading || error || !mission) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-tv-accent" />
-      </div>
-    );
-  }
-
-  if (error || !mission) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <p className="text-sm text-tv-error">{error ?? t("common.error")}</p>
-        <button
-          type="button"
-          onClick={() => {
-            void fetchData();
-          }}
-          className="px-4 py-2 rounded-full text-sm font-semibold bg-tv-accent text-tv-accent-text hover:bg-tv-accent-hover transition-colors"
-        >
-          {t("common.retry")}
-        </button>
-      </div>
+      <PageLoadState
+        loading={loading}
+        error={loading ? null : error ?? t("common.error")}
+        onRetry={() => void fetchData()}
+      />
     );
   }
 

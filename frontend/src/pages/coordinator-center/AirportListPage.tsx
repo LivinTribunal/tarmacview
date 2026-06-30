@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
 import { listAirportSummaries } from "@/api/airports";
 import { useAirport } from "@/contexts/AirportContext";
 import type { AirportSummaryResponse } from "@/types/airport";
@@ -11,36 +10,14 @@ import {
   ListPageContent,
   SearchBar,
   Pagination,
-  SortIndicator,
 } from "@/components/common/ListPageLayout";
 import useListSort from "@/components/common/useListSort";
+import AirportTable, {
+  compareAirport,
+  type AirportSortKey,
+} from "@/components/common/AirportTable";
 import CreateAirportDialog from "@/components/coordinator/CreateAirportDialog";
 import { DEFAULT_PAGE_SIZE } from "@/constants/pagination";
-
-type SortKey =
-  | "icao_code"
-  | "name"
-  | "city"
-  | "country"
-  | "surfaces_count"
-  | "agls_count"
-  | "missions_count";
-
-/** comparator for the airport-list columns; numeric and string. */
-function compareAirport(
-  a: AirportSummaryResponse,
-  b: AirportSummaryResponse,
-  key: SortKey,
-): number {
-  const av = a[key];
-  const bv = b[key];
-  if (av == null && bv == null) return 0;
-  if (av == null) return 1;
-  if (bv == null) return -1;
-  if (typeof av === "number" && typeof bv === "number") return av - bv;
-  if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv);
-  return 0;
-}
 
 /** airport list page with search, filters, sortable table, and pagination. */
 export default function AirportListPage() {
@@ -137,7 +114,7 @@ export default function AirportListPage() {
 
   const { sortedRows: sorted, sortKey, sortDir, handleSort } = useListSort<
     AirportSummaryResponse,
-    SortKey
+    AirportSortKey
   >(filtered, "icao_code", compareAirport, "asc", [
     "surfaces_count",
     "agls_count",
@@ -147,7 +124,7 @@ export default function AirportListPage() {
   // pagination
   const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
 
-  const columns: { key: SortKey; label: string }[] = [
+  const columns: { key: AirportSortKey; label: string }[] = [
     { key: "icao_code", label: t("coordinator.airportList.columns.icaoCode") },
     { key: "name", label: t("coordinator.airportList.columns.name") },
     { key: "city", label: t("coordinator.airportList.columns.city") },
@@ -202,73 +179,23 @@ export default function AirportListPage() {
 
       {/* airport table */}
       <ListPageContent className="rounded-2xl border border-tv-border bg-tv-surface overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-tv-text-muted" />
-          </div>
-        ) : error ? (
-          <div className="px-6 py-16 text-center text-sm text-tv-error">
-            {t("coordinator.airportList.loadError")}
-            <button type="button" onClick={fetchAirports} className="ml-2 underline hover:no-underline">
-              {t("common.retry")}
-            </button>
-          </div>
-        ) : sorted.length === 0 ? (
-          <div className="px-6 py-16 text-center text-sm text-tv-text-muted">
-            {airports.length === 0
+        <AirportTable
+          columns={columns}
+          rows={paged}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
+          onRowClick={handleRowClick}
+          loading={loading}
+          error={error}
+          loadErrorMessage={t("coordinator.airportList.loadError")}
+          emptyMessage={
+            airports.length === 0
               ? t("coordinator.airportList.noAirports")
-              : t("coordinator.airportList.noMatch")}
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-tv-border">
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    onClick={() => handleSort(col.key)}
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider
-                      text-tv-text-secondary cursor-pointer select-none hover:text-tv-text-primary transition-colors"
-                  >
-                    {col.label}
-                    <SortIndicator active={sortKey === col.key} dir={sortDir} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((airport) => (
-                <tr
-                  key={airport.id}
-                  onClick={() => handleRowClick(airport)}
-                  className="border-b border-tv-border last:border-b-0 cursor-pointer
-                    text-sm text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-                  data-testid={`airport-row-${airport.id}`}
-                >
-                  <td className="px-4 py-3 font-semibold text-tv-accent">
-                    {airport.icao_code}
-                  </td>
-                  <td className="px-4 py-3">{airport.name}</td>
-                  <td className="px-4 py-3 text-tv-text-secondary">
-                    {airport.city ?? "\u2014"}
-                  </td>
-                  <td className="px-4 py-3 text-tv-text-secondary">
-                    {airport.country ?? "\u2014"}
-                  </td>
-                  <td className="px-4 py-3 text-tv-text-secondary text-center">
-                    {airport.surfaces_count}
-                  </td>
-                  <td className="px-4 py-3 text-tv-text-secondary text-center">
-                    {airport.agls_count}
-                  </td>
-                  <td className="px-4 py-3 text-tv-text-secondary text-center">
-                    {airport.missions_count}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              : t("coordinator.airportList.noMatch")
+          }
+          onRetry={fetchAirports}
+        />
       </ListPageContent>
 
       {/* pagination */}

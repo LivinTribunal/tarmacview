@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronDown } from "lucide-react";
 import Badge from "@/components/common/Badge";
 import { formatDate } from "@/utils/format";
 import type { MissionResponse } from "@/types/mission";
@@ -15,23 +16,6 @@ interface DroneMissionsPanelProps {
   onMissionClick?: (mission: MissionResponse) => void;
   renderSubtitle?: (mission: MissionResponse) => ReactNode;
   maxHeightClass?: string;
-}
-
-/** chevron icon that rotates when expanded. */
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
 }
 
 /** collapsible panel listing missions that use the selected drone. */
@@ -79,7 +63,9 @@ export default function DroneMissionsPanel({
             {missions.length}
           </span>
         </div>
-        <ChevronIcon expanded={expanded} />
+        <ChevronDown
+          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+        />
       </button>
 
       {expanded && (

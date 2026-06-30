@@ -1,6 +1,6 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Star, ArrowLeftRight, Loader2 } from "lucide-react";
-import RowActionButtons from "@/components/common/RowActionButtons";
+import { Loader2 } from "lucide-react";
 import { SortIndicator } from "@/components/common/ListPageLayout";
 import type { SortDir } from "@/components/common/useListSort";
 import DroneModelThumbnail from "@/components/drone/DroneModelThumbnail";
@@ -10,50 +10,42 @@ import {
 } from "@/hooks/useDroneProfileList";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 
-interface OperatorDroneTableProps {
+interface DroneTableProps {
   rows: DroneProfileResponse[];
   totalDrones: number;
   loading: boolean;
   error: boolean;
-  defaultDroneId: string | null | undefined;
   sortKey: DroneSortKey;
   sortDir: SortDir;
   onSort: (key: DroneSortKey) => void;
   onRowClick: (drone: DroneProfileResponse) => void;
-  onToggleDefault: (drone: DroneProfileResponse) => void;
-  onBulkChange: () => void;
   onRetry: () => void;
+  renderRowActions: (drone: DroneProfileResponse, isDefault: boolean) => ReactNode;
+  defaultDroneId?: string | null;
 }
 
-/** operator-variant drone table with star (default) and bulk-change row actions. */
-export default function OperatorDroneTable({
+/** shared drone profile table; the action cell and default badge are the only variation points. */
+export default function DroneTable({
   rows,
   totalDrones,
   loading,
   error,
-  defaultDroneId,
   sortKey,
   sortDir,
   onSort,
   onRowClick,
-  onToggleDefault,
-  onBulkChange,
   onRetry,
-}: OperatorDroneTableProps) {
+  renderRowActions,
+  defaultDroneId,
+}: DroneTableProps) {
   const { t } = useTranslation();
 
   const columns: { key: DroneSortKey; label: string }[] = [
     { key: "name", label: t("coordinator.drones.columns.name") },
-    {
-      key: "manufacturer",
-      label: t("coordinator.drones.columns.manufacturer"),
-    },
+    { key: "manufacturer", label: t("coordinator.drones.columns.manufacturer") },
     { key: "model", label: t("coordinator.drones.columns.model") },
     { key: "max_speed", label: t("coordinator.drones.columns.maxSpeed") },
-    {
-      key: "endurance_minutes",
-      label: t("coordinator.drones.columns.endurance"),
-    },
+    { key: "endurance_minutes", label: t("coordinator.drones.columns.endurance") },
     { key: "mission_count", label: t("coordinator.drones.columns.missions") },
   ];
 
@@ -106,7 +98,7 @@ export default function OperatorDroneTable({
       </thead>
       <tbody>
         {rows.map((drone) => {
-          const isDefault = defaultDroneId === drone.id;
+          const isDefault = defaultDroneId != null && defaultDroneId === drone.id;
           return (
             <tr
               key={drone.id}
@@ -151,26 +143,7 @@ export default function OperatorDroneTable({
               <td className="px-4 py-3 text-tv-text-secondary">
                 {drone.mission_count}
               </td>
-              <td className="px-4 py-3">
-                <RowActionButtons
-                  actions={[
-                    {
-                      icon: Star,
-                      onClick: () => onToggleDefault(drone),
-                      title: isDefault
-                        ? t("operatorDrones.removeDefault")
-                        : t("operatorDrones.setDefault"),
-                      className: isDefault ? "text-tv-accent" : undefined,
-                      filled: isDefault,
-                    },
-                    {
-                      icon: ArrowLeftRight,
-                      onClick: () => onBulkChange(),
-                      title: t("operatorDrones.bulkChange"),
-                    },
-                  ]}
-                />
-              </td>
+              <td className="px-4 py-3">{renderRowActions(drone, isDefault)}</td>
             </tr>
           );
         })}

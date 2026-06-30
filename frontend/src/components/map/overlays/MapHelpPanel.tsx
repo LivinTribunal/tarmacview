@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-export type MapHelpVariant = "full" | "preview";
+export type MapHelpVariant = "full" | "preview" | "coordinator";
 
 interface MapHelpPanelProps {
   variant?: MapHelpVariant;
@@ -12,6 +12,15 @@ export default function MapHelpPanel({ variant = "full" }: MapHelpPanelProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const isCoordinator = variant === "coordinator";
+  const titleKey = isCoordinator ? "coordinator.airports.help.title" : "map.help.title";
+  const controlsKey = isCoordinator
+    ? "coordinator.airports.help.controls"
+    : "map.help.controls";
+  const hintKey = isCoordinator
+    ? "coordinator.airports.help.clickSelectDblLocate"
+    : "map.help.clickSelectDblLocate";
 
   useEffect(() => {
     if (!expanded) return;
@@ -30,11 +39,11 @@ export default function MapHelpPanel({ variant = "full" }: MapHelpPanelProps) {
         type="button"
         onClick={() => setExpanded(true)}
         className="flex items-center gap-1.5 rounded-full border border-tv-border bg-tv-surface px-3 py-1.5 text-xs text-tv-text-secondary hover:bg-tv-surface-hover transition-colors"
-        aria-label={t("map.help.title")}
+        aria-label={t(titleKey)}
         data-testid="map-help-btn"
       >
         <span className="font-medium">?</span>
-        <span>{t("map.help.controls")}</span>
+        <span>{t(controlsKey)}</span>
       </button>
     );
   }
@@ -60,6 +69,25 @@ export default function MapHelpPanel({ variant = "full" }: MapHelpPanelProps) {
     { key: t("map.help.scroll"), desc: t("map.help.shortcutScroll") },
   ];
 
+  // coordinator airport editor - drawing + vertex-editing shortcuts
+  const coordinatorShortcuts = [
+    { key: "S", desc: t("coordinator.airports.help.shortcutSelect") },
+    { key: "V", desc: t("coordinator.airports.help.shortcutMove") },
+    { key: "M", desc: t("coordinator.airports.help.shortcutMeasurement") },
+    { key: "G", desc: t("coordinator.airports.help.shortcutDrawPolygon") },
+    { key: "C", desc: t("coordinator.airports.help.shortcutDrawCircle") },
+    { key: "E", desc: t("coordinator.airports.help.shortcutDrawRectangle") },
+    { key: "T", desc: t("coordinator.airports.help.shortcutPlacePoint") },
+    { key: "Z", desc: t("coordinator.airports.help.shortcutZoom") },
+    { key: "R", desc: t("coordinator.airports.help.shortcutReset") },
+    { key: "Ctrl+Z", desc: t("coordinator.airports.help.shortcutUndo") },
+    { key: "Ctrl+Shift+Z", desc: t("coordinator.airports.help.shortcutRedo") },
+    { key: "Shift+Drag", desc: t("coordinator.airports.help.shortcutShiftDrag") },
+    { key: "Right-click", desc: t("coordinator.airports.help.shortcutRightClickVertex") },
+    { key: "Esc", desc: t("coordinator.airports.help.shortcutEscape") },
+    { key: "Del", desc: t("coordinator.airports.help.shortcutDelete") },
+  ];
+
   const previewTools = [
     { name: t("map.tools.select"), desc: t("map.help.descSelect") },
     { name: t("map.tools.zoom"), desc: t("map.help.descZoom") },
@@ -72,7 +100,11 @@ export default function MapHelpPanel({ variant = "full" }: MapHelpPanelProps) {
     { name: t("map.tools.zoom"), desc: t("map.help.descZoom") },
   ];
 
-  const shortcuts = variant === "preview" ? previewShortcuts : fullShortcuts;
+  const shortcuts = isCoordinator
+    ? coordinatorShortcuts
+    : variant === "preview"
+      ? previewShortcuts
+      : fullShortcuts;
   const tools = variant === "preview" ? previewTools : fullTools;
 
   return (
@@ -83,7 +115,7 @@ export default function MapHelpPanel({ variant = "full" }: MapHelpPanelProps) {
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-tv-text-primary">
-          {t("map.help.title")}
+          {t(titleKey)}
         </span>
         <button
           type="button"
@@ -119,24 +151,26 @@ export default function MapHelpPanel({ variant = "full" }: MapHelpPanelProps) {
       </div>
 
       {/* tool descriptions */}
-      <div>
-        <div className="text-xs font-semibold text-tv-text-secondary mb-1">
-          {t("map.help.toolDescriptions")}
+      {!isCoordinator && (
+        <div>
+          <div className="text-xs font-semibold text-tv-text-secondary mb-1">
+            {t("map.help.toolDescriptions")}
+          </div>
+          <div className="space-y-1">
+            {tools.map(({ name, desc }) => (
+              <div key={name} className="text-xs">
+                <span className="font-medium text-tv-text-primary">{name}:</span>{" "}
+                <span className="text-tv-text-secondary">{desc}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="space-y-1">
-          {tools.map(({ name, desc }) => (
-            <div key={name} className="text-xs">
-              <span className="font-medium text-tv-text-primary">{name}:</span>{" "}
-              <span className="text-tv-text-secondary">{desc}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* click interaction hint */}
       <div className="mt-2 pt-2 border-t border-tv-border">
         <p className="text-xs text-tv-text-secondary" data-testid="click-locate-hint">
-          {t("map.help.clickSelectDblLocate")}
+          {t(hintKey)}
         </p>
       </div>
     </div>

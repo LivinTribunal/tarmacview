@@ -29,7 +29,7 @@ vi.mock("@/components/coordinator/TerrainSettingsCard", () => ({
 vi.mock("@/components/coordinator/MapDrawingToolbar", () => ({
   default: () => <div data-testid="map-drawing-toolbar" />,
 }));
-vi.mock("@/components/coordinator/CoordinatorMapHelpPanel", () => ({
+vi.mock("@/components/map/overlays/MapHelpPanel", () => ({
   default: () => <div data-testid="map-help-panel" />,
 }));
 vi.mock("@/components/map/overlays/LegendPanel", () => ({

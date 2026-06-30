@@ -1,3 +1,5 @@
+import Map2D3DToggle from "@/components/common/Map2D3DToggle";
+
 interface MapViewTogglesProps {
   t: (key: string, opts?: Record<string, unknown>) => string;
   is3D: boolean;
@@ -17,30 +19,7 @@ export default function MapViewToggles({
   return (
     <>
       {/* 2D/3D toggle */}
-      <div className="flex items-center rounded-full border border-tv-border bg-tv-bg px-1 py-1">
-        <button
-          type="button"
-          onClick={() => onSet3D(false)}
-          title={t("map.tools.2d")}
-          className={`flex items-center justify-center rounded-full h-9 px-3 text-xs font-medium transition-colors ${
-            !is3D ? "bg-tv-accent text-tv-accent-text" : "text-tv-text-secondary hover:bg-tv-surface-hover"
-          }`}
-          data-testid="toggle-2d"
-        >
-          2D
-        </button>
-        <button
-          type="button"
-          onClick={() => onSet3D(true)}
-          title={t("map.tools.3d")}
-          className={`flex items-center justify-center rounded-full h-9 px-3 text-xs font-medium transition-colors ${
-            is3D ? "bg-tv-accent text-tv-accent-text" : "text-tv-text-secondary hover:bg-tv-surface-hover"
-          }`}
-          data-testid="toggle-3d"
-        >
-          3D
-        </button>
-      </div>
+      <Map2D3DToggle is3D={is3D} onSet3D={onSet3D} />
 
       {/* map/satellite toggle */}
       <div className="flex items-center rounded-full border border-tv-border bg-tv-bg px-1 py-1">

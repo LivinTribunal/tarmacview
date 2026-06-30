@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown } from "lucide-react";
 import { formatNumber } from "@/utils/format";
 import type { SafetyZoneResponse } from "@/types/airport";
 import type { MapFeature, MapLayerConfig } from "@/types/map";
 import { NEUTRAL, ZONE_COLORS, ZONE_FALLBACK_COLOR } from "@/constants/palette";
+import CollapsiblePanelHeader from "@/components/common/CollapsiblePanelHeader";
 
 interface SafetyZonesPanelProps {
   safetyZones: SafetyZoneResponse[];
@@ -60,23 +60,12 @@ export default function SafetyZonesPanel({
       className="rounded-2xl border border-tv-border bg-tv-bg"
       data-testid="safety-zones-panel"
     >
-      <button
-        type="button"
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex w-full items-center justify-between px-3 py-2"
-      >
-        <span className="rounded-full px-3 py-1 bg-tv-surface border border-tv-border text-xs font-semibold text-tv-text-primary">
-          {t("layers.safetyZonesAndBoundary")}
-        </span>
-        <div className="flex items-center gap-2">
-          <span
-            className="flex items-center justify-center min-w-[1.25rem] h-5 rounded-full px-1.5 text-[10px] font-semibold bg-tv-accent text-tv-accent-text"
-          >
-            {count}
-          </span>
-          <ChevronDown className={`h-3.5 w-3.5 text-tv-text-muted transition-transform duration-200 ${collapsed ? "" : "rotate-180"}`} />
-        </div>
-      </button>
+      <CollapsiblePanelHeader
+        title={t("layers.safetyZonesAndBoundary")}
+        count={count}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      />
 
       {!collapsed && (
         <div className="border-t border-tv-border max-h-60 overflow-y-auto">

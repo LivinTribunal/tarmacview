@@ -1485,6 +1485,8 @@
       "aglSideHelp": "Side of the runway the AGL sits on (Left or Right) when looking from the threshold. Determines on-screen placement and the trajectory's standoff side.",
       "aglGlideAngle": "Glide Slope Angle",
       "aglGlideAngleHelp": "Nominal approach beam angle of the PAPI in degrees (typical 3.0°). PAPI-only - edge lights have no defined glide slope.",
+      "aglGlideTolerance": "Glide Slope Angle Tolerance (°)",
+      "aglGlideToleranceHelp": "Allowed deviation of the measured glidepath from this PAPI's glide slope angle, checked at results time. PAPI-only - does not affect trajectory generation.",
       "aglDistance": "Distance from Threshold (m)",
       "aglDistanceHelp": "Distance from the runway threshold to the AGL position along the centerline. Used to render the approach beam.",
       "lhaUnitDesignator": "Unit",
@@ -1652,6 +1654,8 @@
       "aglSideHelp": "Side of the runway the AGL sits on (Left or Right) when looking from the threshold. Determines on-screen placement and the trajectory's standoff side.",
       "glideSlopeAngle": "Glide Slope Angle (°)",
       "glideSlopeAngleHelp": "Nominal approach beam angle of the PAPI in degrees (typical 3.0°). PAPI-only - edge lights have no defined glide slope.",
+      "glideSlopeAngleTolerance": "Glide Slope Angle Tolerance (°)",
+      "glideSlopeAngleToleranceHelp": "Allowed deviation of the measured glidepath from this PAPI's glide slope angle, checked at results time. PAPI-only - does not affect trajectory generation.",
       "distanceFromThreshold": "Distance from Threshold (m)",
       "distanceFromThresholdHelp": "Distance from the runway threshold to the AGL position along the centerline. Used to render the approach beam.",
       "surface": "Ground Surface",
@@ -2363,6 +2367,14 @@
       "title": "Light direction",
       "column": "Unit",
       "angle": "Aim angle"
+    },
+    "glideSlopeTolerance": {
+      "title": "Glidepath within tolerance",
+      "measured": "Measured glidepath",
+      "configured": "Configured ± tolerance",
+      "ok": "OK",
+      "outOfTolerance": "Out of tolerance",
+      "unavailable": "Not available"
     }
   },
   "fieldOps": {

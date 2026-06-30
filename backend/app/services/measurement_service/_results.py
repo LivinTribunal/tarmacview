@@ -104,6 +104,18 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
     )
 
 
+def _measured_glide_slope(lights: list[LightSeries]) -> float | None:
+    """mid glidepath angle from PAPI_B max + PAPI_C min; None when either is missing."""
+    by_name = {light.light_name: light for light in lights}
+    b = by_name.get("PAPI_B")
+    c = by_name.get("PAPI_C")
+    b_max = b.transition_angle_max if b else None
+    c_min = c.transition_angle_min if c else None
+    if b_max is None or c_min is None:
+        return None
+    return (b_max + c_min) / 2
+
+
 def _drone_path(frames: list[dict]) -> list[DronePathPoint]:
     """ordered drone positions pulled from each frame's gps telemetry.
 
@@ -148,6 +160,8 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
         inspection_method=inspection.method if inspection else None,
         inspection_sequence_order=inspection.sequence_order if inspection else None,
         runway_heading=measurement.runway_heading,
+        configured_glide_slope_angle=measurement.glide_slope_angle,
+        glide_slope_angle_tolerance=measurement.glide_slope_angle_tolerance,
         reference_points=_reference_point_responses(measurement),
         summaries=_summary_responses(measurement),
     )
@@ -161,6 +175,9 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
     response.lights = [
         _light_series(name, frames, summaries_by_name.get(name)) for name in PAPI_LIGHT_NAMES
     ]
+    measured = _measured_glide_slope(response.lights)
+    response.measured_glide_slope_angle = measured
+    response.glide_slope_within_tolerance = measurement.glide_slope_within_tolerance(measured)
     response.drone_path = _drone_path(frames)
     response.video_urls = {
         name: object_storage.presigned_get(key)

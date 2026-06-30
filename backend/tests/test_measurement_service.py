@@ -1,8 +1,10 @@
 """pure unit tests for the measurement results pivot helpers (no db)."""
 
+from app.schemas.measurement import LightSeries
 from app.services.measurement_service import (
     _drone_path,
     _light_series,
+    _measured_glide_slope,
     _parse_rgb_floats,
     _rgb_channels,
 )
@@ -132,6 +134,24 @@ def test_rgb_channels_handles_dict_list_and_garbage():
     assert _rgb_channels(None) == (None, None, None)
     assert _rgb_channels([]) == (None, None, None)
     assert _rgb_channels({"r": "x"}) == (None, None, None)
+
+
+def _series(name: str, *, t_min=None, t_max=None) -> LightSeries:
+    """a bare light series carrying just the transition angles the glidepath calc reads."""
+    return LightSeries(light_name=name, transition_angle_min=t_min, transition_angle_max=t_max)
+
+
+def test_measured_glide_slope_mid_of_b_max_c_min():
+    """measured glidepath is the midpoint of PAPI_B max and PAPI_C min."""
+    lights = [_series("PAPI_B", t_max=3.2), _series("PAPI_C", t_min=2.8)]
+    assert _measured_glide_slope(lights) == 3.0
+
+
+def test_measured_glide_slope_none_when_either_missing():
+    """a missing PAPI_B max or PAPI_C min yields None."""
+    assert _measured_glide_slope([_series("PAPI_B", t_max=3.2)]) is None
+    assert _measured_glide_slope([_series("PAPI_C", t_min=2.8)]) is None
+    assert _measured_glide_slope([]) is None
 
 
 def test_parse_rgb_floats_accepts_dict_list_and_rejects_junk():

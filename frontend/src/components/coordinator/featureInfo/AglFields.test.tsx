@@ -38,6 +38,7 @@ function makeAgl(overrides: Partial<AGLResponse> = {}): AGLResponse {
     position: { type: "Point", coordinates: [17.0, 48.0, 133] },
     side: "LEFT",
     glide_slope_angle: 3.0,
+    glide_slope_angle_tolerance: 0.1,
     distance_from_threshold: null,
     offset_from_centerline: null,
     lhas: [makeLha(1, "A"), makeLha(2, "B"), makeLha(3, "C"), makeLha(4, "D")],
@@ -113,5 +114,19 @@ describe("AglFields reverse numbering", () => {
     await waitFor(() => {
       expect(onLhasGenerated).toHaveBeenCalled();
     });
+  });
+});
+
+describe("AglFields glide slope tolerance", () => {
+  it("renders the glide-slope tolerance input for a PAPI agl", () => {
+    const { container } = renderAgl(makeAgl());
+    const input = container.querySelector("#feat-glide-tolerance") as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(input?.value).toBe("0.1");
+  });
+
+  it("hides the glide-slope tolerance input for a non-PAPI agl", () => {
+    const { container } = renderAgl(makeAgl({ agl_type: "RUNWAY_EDGE_LIGHTS" }));
+    expect(container.querySelector("#feat-glide-tolerance")).toBeNull();
   });
 });

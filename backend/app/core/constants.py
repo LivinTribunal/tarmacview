@@ -43,6 +43,13 @@ MAX_VERTICAL_PROFILE_ANGLE_DEG: float = 16.5
 # (where lon/lat scoring is independent of altitude).
 DEFAULT_GLIDE_SLOPE_DEG: float = 3.0
 
+# default glidepath tolerance (deg) - results-time verdict band for the measured
+# glidepath vs the configured AGL glide slope. mirrors the frontend
+# DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE; applied at the orm column default on
+# AGL.glide_slope_angle_tolerance and at the measurement snapshot when the AGL
+# leaves it unset. coordinator-edited like the AGL glide slope. NOT a trajectory input.
+DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG: float = 0.1
+
 # default LHA setting-angle tolerance (deg) - applied at the orm column default
 # on LHA.tolerance, at the bulk-generate request schema default, and at the
 # bulk-generate service fallback when the inbound payload omits it. shared so

@@ -95,6 +95,7 @@ export interface AGLResponse {
   position: PointZ;
   side: PAPISide | null;
   glide_slope_angle: number | null;
+  glide_slope_angle_tolerance: number | null;
   distance_from_threshold: number | null;
   offset_from_centerline: number | null;
   lhas: LHAResponse[];
@@ -249,6 +250,7 @@ export interface AGLCreate {
   position: PointZ;
   side?: PAPISide | null;
   glide_slope_angle?: number | null;
+  glide_slope_angle_tolerance?: number | null;
   distance_from_threshold?: number | null;
   offset_from_centerline?: number | null;
 }
@@ -259,6 +261,7 @@ export interface AGLUpdate {
   position?: PointZ;
   side?: PAPISide | null;
   glide_slope_angle?: number | null;
+  glide_slope_angle_tolerance?: number | null;
   distance_from_threshold?: number | null;
   offset_from_centerline?: number | null;
   preserve_altitude?: boolean;

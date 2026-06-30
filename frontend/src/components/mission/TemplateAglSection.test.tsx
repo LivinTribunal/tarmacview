@@ -35,6 +35,7 @@ function makeAgl(count: number): AGLResponse {
     position: { type: "Point", coordinates: [14.27, 50.1, 0] },
     side: null,
     glide_slope_angle: null,
+    glide_slope_angle_tolerance: null,
     distance_from_threshold: null,
     offset_from_centerline: null,
     lhas: Array.from({ length: count }, (_, i) =>

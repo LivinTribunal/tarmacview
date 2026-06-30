@@ -190,6 +190,86 @@ def test_data_done_surfaces_rgb_and_distance(client, db_engine, inspection_id, _
     assert (white["red"], white["green"], white["blue"]) == (200, 200, 200)
 
 
+def _glide_blob(b_max: float, c_min: float) -> bytes:
+    """gzipped one-frame blob carrying PAPI_B max + PAPI_C min so the glidepath mid resolves."""
+    frame = {
+        "frame_number": 0,
+        "timestamp": 0.0,
+        "papi_b_status": "white",
+        "papi_b_angle": b_max,
+        "papi_b_transition_angle_min": b_max,
+        "papi_b_transition_angle_middle": b_max,
+        "papi_b_transition_angle_max": b_max,
+        "papi_c_status": "white",
+        "papi_c_angle": c_min,
+        "papi_c_transition_angle_min": c_min,
+        "papi_c_transition_angle_middle": c_min,
+        "papi_c_transition_angle_max": c_min,
+    }
+    return gzip.compress(json.dumps([frame]).encode("utf-8"))
+
+
+def _snapshot_glide(
+    db_engine, measurement_id: str, *, angle: float | None, tolerance: float | None = 0.1
+) -> None:
+    """force the snapshotted glide slope + tolerance on a run (no LHA/AGL in the fixture)."""
+    s = sessionmaker(bind=db_engine)()
+    try:
+        m = s.query(Measurement).filter(Measurement.id == UUID(measurement_id)).first()
+        m.glide_slope_angle = angle
+        m.glide_slope_angle_tolerance = tolerance
+        s.commit()
+    finally:
+        s.close()
+
+
+def test_data_exposes_tolerance_snapshot_pre_done(client, db_engine, inspection_id):
+    """configured angle + tolerance surface pre-DONE; measured + verdict stay null until DONE."""
+    mid = _create(client, inspection_id)
+    _snapshot_glide(db_engine, mid, angle=3.0)
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["configured_glide_slope_angle"] == pytest.approx(3.0)
+    assert body["glide_slope_angle_tolerance"] == pytest.approx(0.1)
+    # measured / verdict are unscoreable until the run is DONE
+    assert body["measured_glide_slope_angle"] is None
+    assert body["glide_slope_within_tolerance"] is None
+
+
+def test_data_done_glidepath_within_tolerance(client, db_engine, inspection_id, monkeypatch):
+    """a DONE run measures mid(PAPI_B max, PAPI_C min) and verdicts it against the snapshot."""
+    mid = _create(client, inspection_id)
+    _snapshot_glide(db_engine, mid, angle=3.0)
+    _drive_to_done(db_engine, mid)
+    monkeypatch.setattr(
+        measurement_service.object_storage, "get_object", lambda key: _glide_blob(3.05, 2.95)
+    )
+    monkeypatch.setattr(
+        measurement_service.object_storage, "presigned_get", lambda key: f"https://signed/{key}"
+    )
+
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["measured_glide_slope_angle"] == pytest.approx(3.0)
+    assert body["configured_glide_slope_angle"] == pytest.approx(3.0)
+    assert body["glide_slope_within_tolerance"] is True
+
+
+def test_data_done_glidepath_out_of_tolerance(client, db_engine, inspection_id, monkeypatch):
+    """a measured glidepath outside the snapshotted band verdicts False."""
+    mid = _create(client, inspection_id)
+    _snapshot_glide(db_engine, mid, angle=3.0)
+    _drive_to_done(db_engine, mid)
+    monkeypatch.setattr(
+        measurement_service.object_storage, "get_object", lambda key: _glide_blob(3.5, 3.4)
+    )
+    monkeypatch.setattr(
+        measurement_service.object_storage, "presigned_get", lambda key: f"https://signed/{key}"
+    )
+
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["measured_glide_slope_angle"] == pytest.approx(3.45)
+    assert body["glide_slope_within_tolerance"] is False
+
+
 def test_pdf_report_unknown_measurement_is_404(client):
     """pdf for an unknown measurement 404."""
     assert client.get(f"/api/v1/measurements/{uuid4()}/pdf-report").status_code == 404

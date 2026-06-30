@@ -13,6 +13,7 @@ import { useResolvedAltitude } from "@/hooks/useResolvedAltitude";
 import {
   DEFAULT_BUFFER_DISTANCE,
   DEFAULT_GLIDE_SLOPE_ANGLE,
+  DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE,
   DEFAULT_LHA_SETTING_ANGLE,
   DEFAULT_LHA_TOLERANCE,
 } from "@/constants/infrastructureDefaults";
@@ -121,6 +122,9 @@ export function useCreationFormState(props: CreationFormProps, t: TFunction) {
   const [aglType, setAglType] = useState<"PAPI" | "RUNWAY_EDGE_LIGHTS">("PAPI");
   const [aglSide, setAglSide] = useState("LEFT");
   const [glideSlopeAngle, setGlideSlopeAngle] = useState(DEFAULT_GLIDE_SLOPE_ANGLE);
+  const [glideSlopeAngleTolerance, setGlideSlopeAngleTolerance] = useState(
+    DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE,
+  );
   const [distFromThreshold, setDistFromThreshold] = useState("");
   const [surfaceId, setSurfaceId] = useState(surfaces.length > 0 ? surfaces[0].id : "");
 
@@ -523,6 +527,9 @@ export function useCreationFormState(props: CreationFormProps, t: TFunction) {
         if (aglType === "PAPI" && glideSlopeAngle) {
           data.glide_slope_angle = parseFloat(glideSlopeAngle);
         }
+        if (aglType === "PAPI" && glideSlopeAngleTolerance) {
+          data.glide_slope_angle_tolerance = parseFloat(glideSlopeAngleTolerance);
+        }
         if (distFromThreshold) data.distance_from_threshold = parseFloat(distFromThreshold);
         data.surface_id = surfaceId;
         const lat = parseFloat(manualLat);
@@ -660,6 +667,8 @@ export function useCreationFormState(props: CreationFormProps, t: TFunction) {
     setAglSide,
     glideSlopeAngle,
     setGlideSlopeAngle,
+    glideSlopeAngleTolerance,
+    setGlideSlopeAngleTolerance,
     distFromThreshold,
     setDistFromThreshold,
     handleDistFromThresholdChange,

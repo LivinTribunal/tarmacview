@@ -14,6 +14,7 @@ import {
   DEFAULT_BUFFER_DISTANCE,
   DEFAULT_GLIDE_SLOPE_ANGLE,
   DEFAULT_LHA_SETTING_ANGLE,
+  DEFAULT_LHA_TOLERANCE,
 } from "@/constants/infrastructureDefaults";
 import {
   CIRCLE_CATEGORIES,
@@ -323,7 +324,7 @@ export function useCreationFormState(props: CreationFormProps, t: TFunction) {
     });
     const recent = sorted[sorted.length - 1];
     if (recent) {
-      setLhaTolerance(recent.tolerance != null ? String(recent.tolerance) : "0.2");
+      setLhaTolerance(recent.tolerance != null ? String(recent.tolerance) : DEFAULT_LHA_TOLERANCE);
       setLhaLampType(recent.lamp_type);
       if (agl.agl_type === "PAPI") {
         setLhaSettingAngle("");
@@ -331,7 +332,7 @@ export function useCreationFormState(props: CreationFormProps, t: TFunction) {
         setLhaSettingAngle(recent.setting_angle != null ? String(recent.setting_angle) : "");
       }
     } else {
-      setLhaTolerance("0.2");
+      setLhaTolerance(DEFAULT_LHA_TOLERANCE);
       setLhaLampType("HALOGEN");
       setLhaSettingAngle(agl.agl_type === "PAPI" ? "" : "0.0");
     }

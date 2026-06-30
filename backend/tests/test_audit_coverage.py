@@ -531,7 +531,7 @@ def test_bulk_create_templates_rolls_back_when_audit_fails(client, session, monk
 def _measured_mission(client, db_engine, airport_id: str, name: str) -> str:
     """create a mission and force it to MEASURED via direct sql; returns its id.
 
-    MEASURED is the only state the complete/cancel transitions accept.
+    MEASURED is the only state the complete transition accepts (cancel is broader).
     """
     from sqlalchemy import text
 

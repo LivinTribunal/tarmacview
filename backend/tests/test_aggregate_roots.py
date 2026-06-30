@@ -70,11 +70,11 @@ class TestMissionTransitions:
         with pytest.raises(ValueError, match="cannot transition"):
             m.transition_to("COMPLETED")
 
-    def test_invalid_exported_to_cancelled(self):
-        """EXPORTED cannot cancel directly - only a measured mission can."""
+    def test_exported_to_cancelled(self):
+        """EXPORTED can cancel directly - cancel is allowed from any non-terminal status."""
         m = self._make_mission("EXPORTED")
-        with pytest.raises(ValueError, match="cannot transition"):
-            m.transition_to("CANCELLED")
+        m.transition_to("CANCELLED")
+        assert m.status == "CANCELLED"
 
     def test_invalid_draft_to_validated(self):
         """invalid transition DRAFT -> VALIDATED raises ValueError."""
@@ -849,48 +849,6 @@ class TestTrajectoryFieldsCompleteness:
         from app.models.mission import TRAJECTORY_FIELDS
 
         assert "keep_inside_airport_boundary" in TRAJECTORY_FIELDS
-
-
-class TestMissionAssertDeletable:
-    """tests for Mission.assert_deletable terminal-state guard."""
-
-    def _make_mission(self, status="DRAFT"):
-        """create a mission with given status."""
-        m = Mission(id=uuid4(), name="test", status=status, airport_id=uuid4())
-        m.inspections = []
-        return m
-
-    def test_draft_is_deletable(self):
-        """DRAFT can be deleted."""
-        m = self._make_mission("DRAFT")
-        m.assert_deletable()
-
-    def test_planned_is_deletable(self):
-        """PLANNED can be deleted."""
-        m = self._make_mission("PLANNED")
-        m.assert_deletable()
-
-    def test_validated_is_deletable(self):
-        """VALIDATED can be deleted."""
-        m = self._make_mission("VALIDATED")
-        m.assert_deletable()
-
-    def test_exported_is_deletable(self):
-        """EXPORTED can be deleted."""
-        m = self._make_mission("EXPORTED")
-        m.assert_deletable()
-
-    def test_completed_raises(self):
-        """COMPLETED is terminal - cannot be deleted."""
-        m = self._make_mission("COMPLETED")
-        with pytest.raises(ValueError, match="completed or cancelled"):
-            m.assert_deletable()
-
-    def test_cancelled_raises(self):
-        """CANCELLED is terminal - cannot be deleted."""
-        m = self._make_mission("CANCELLED")
-        with pytest.raises(ValueError, match="completed or cancelled"):
-            m.assert_deletable()
 
 
 class TestMissionRegressIfTrajectoryChanged:

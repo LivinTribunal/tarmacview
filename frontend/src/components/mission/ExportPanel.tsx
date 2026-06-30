@@ -119,11 +119,13 @@ export default function ExportPanel({
   const exportEnabled = isExportEligible(status);
   const terminal = isTerminal(status);
 
-  // lifecycle button gating - a mission can only be completed or cancelled
-  // once it has been measured
+  // lifecycle button gating:
+  // - complete only once MEASURED
+  // - cancel from any non-terminal status (confirm-warning before cancelling)
+  // - delete anytime (confirm-warning before deleting)
   const canComplete = status === "MEASURED";
-  const canCancelMission = status === "MEASURED";
-  const canDelete = status !== "EXPORTED" && status !== "COMPLETED";
+  const canCancelMission = !terminal;
+  const canDelete = true;
 
   const formatList = useMemo(() => Array.from(selectedFormats), [selectedFormats]);
   const geozoneCheck = useMemo(

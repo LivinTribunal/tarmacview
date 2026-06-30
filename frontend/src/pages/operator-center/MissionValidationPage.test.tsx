@@ -286,16 +286,16 @@ describe("ExportPanel", () => {
     expect(screen.getByTestId("complete-btn")).not.toBeDisabled();
   });
 
-  it("cancel button disabled for VALIDATED status", () => {
+  it("cancel button enabled for VALIDATED status", () => {
     render(<ExportPanel {...defaultProps} />);
-    expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
   });
 
-  it("cancel button disabled for EXPORTED status", () => {
+  it("cancel button enabled for EXPORTED status", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("EXPORTED")} />,
     );
-    expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
   });
 
   it("cancel button enabled for MEASURED status", () => {
@@ -312,27 +312,27 @@ describe("ExportPanel", () => {
     expect(screen.getByTestId("delete-btn")).not.toBeDisabled();
   });
 
-  it("delete button disabled for EXPORTED status", () => {
+  it("delete button enabled for EXPORTED status", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("EXPORTED")} />,
     );
-    expect(screen.getByTestId("delete-btn")).toBeDisabled();
+    expect(screen.getByTestId("delete-btn")).not.toBeDisabled();
   });
 
-  it("delete button disabled for COMPLETED status", () => {
+  it("delete button enabled for COMPLETED status", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("COMPLETED")} />,
     );
-    expect(screen.getByTestId("delete-btn")).toBeDisabled();
+    expect(screen.getByTestId("delete-btn")).not.toBeDisabled();
   });
 
-  it("all lifecycle buttons disabled for terminal states", () => {
+  it("complete and cancel disabled but delete enabled for terminal states", () => {
     render(
       <ExportPanel {...defaultProps} mission={makeMission("COMPLETED")} />,
     );
     expect(screen.getByTestId("complete-btn")).toBeDisabled();
     expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
-    expect(screen.getByTestId("delete-btn")).toBeDisabled();
+    expect(screen.getByTestId("delete-btn")).not.toBeDisabled();
   });
 
   it("shows confirmation modal on delete click", () => {

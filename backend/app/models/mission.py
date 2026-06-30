@@ -26,14 +26,14 @@ MAX_INSPECTIONS = 10
 
 # status state machine - valid transitions.
 # MEASURED sits between EXPORTED and the terminal states; a mission measured
-# straight from VALIDATED skips EXPORTED. a mission can only be completed or
-# cancelled once it has been measured - the terminal states are reachable only
-# from MEASURED.
+# straight from VALIDATED skips EXPORTED. COMPLETED is reachable only from
+# MEASURED, but CANCELLED is reachable from any non-terminal status - an
+# operator can abandon a mission at any point in its lifecycle.
 TRANSITIONS = {
-    "DRAFT": ["PLANNED"],
-    "PLANNED": ["VALIDATED"],
-    "VALIDATED": ["EXPORTED", "MEASURED"],
-    "EXPORTED": ["MEASURED"],
+    "DRAFT": ["PLANNED", "CANCELLED"],
+    "PLANNED": ["VALIDATED", "CANCELLED"],
+    "VALIDATED": ["EXPORTED", "MEASURED", "CANCELLED"],
+    "EXPORTED": ["MEASURED", "CANCELLED"],
     "MEASURED": ["COMPLETED", "CANCELLED"],
     "COMPLETED": [],
     "CANCELLED": [],
@@ -245,15 +245,6 @@ class Mission(Base):
 
     # mission has not yet been validated - safe for trajectory generation / drone swaps
     PRE_PLAN_STATUSES = frozenset({MissionStatus.DRAFT, MissionStatus.PLANNED})
-
-    def assert_deletable(self) -> None:
-        """raise ValueError if the mission is in a terminal status.
-
-        terminal missions are kept as immutable history; callers should
-        duplicate them rather than deleting.
-        """
-        if self.status in self.TERMINAL_STATUSES:
-            raise ValueError("cannot delete mission in completed or cancelled state")
 
     def has_trajectory_changes(self, data: dict) -> bool:
         """return True when `data` touches any trajectory-affecting field."""

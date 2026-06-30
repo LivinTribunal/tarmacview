@@ -8,6 +8,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ValidationViolation, ViolationSeverity } from "@/types/flightPlan";
+import type { MissionStatus } from "@/types/enums";
 import { cleanMessage, humanizeConstraintLabel } from "@/utils/violations";
 import {
   type SeveritySection,
@@ -20,6 +21,7 @@ import {
 interface WarningsPanelProps {
   warnings: ValidationViolation[] | null;
   hasTrajectory: boolean;
+  missionStatus?: MissionStatus;
   onWarningClick?: (violation: ValidationViolation | null) => void;
   selectedWarningId?: string | null;
 }
@@ -82,12 +84,16 @@ function buildInitialExpanded(sections: SeveritySection[]): Record<ViolationSeve
 export default function WarningsPanel({
   warnings,
   hasTrajectory,
+  missionStatus,
   onWarningClick,
   selectedWarningId,
 }: WarningsPanelProps) {
   /** grouped, collapsible warnings panel - violations / warnings / suggestions. */
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
+  // when missionStatus is wired in, default-expand only while PLANNED; omitted = legacy expanded.
+  const [collapsed, setCollapsed] = useState(
+    missionStatus !== undefined && missionStatus !== "PLANNED",
+  );
 
   const sections = useMemo(() => groupViolations(warnings), [warnings]);
   const totalCount = sections.reduce((acc, s) => acc + s.totalCount, 0);
@@ -122,9 +128,10 @@ export default function WarningsPanel({
   }
 
   return (
-    <div data-testid="warnings-panel">
+    <div data-testid="warnings-panel" data-collapsed={collapsed}>
       <button
         type="button"
+        data-testid="warnings-panel-toggle"
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center justify-between w-full text-sm font-semibold text-tv-text-primary"
       >

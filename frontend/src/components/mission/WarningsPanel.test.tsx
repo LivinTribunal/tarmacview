@@ -220,3 +220,49 @@ describe("WarningsPanel grouped sections", () => {
     expect(screen.getByText("battery margin tight")).toBeInTheDocument();
   });
 });
+
+describe("WarningsPanel default state per status", () => {
+  it("expanded by default when missionStatus is PLANNED", () => {
+    render(
+      <WarningsPanel
+        warnings={[v("1", "warning", "speed", "WP1")]}
+        hasTrajectory
+        missionStatus="PLANNED"
+      />,
+    );
+    expect(screen.getByTestId("warnings-panel").getAttribute("data-collapsed")).toBe("false");
+    expect(screen.getByTestId("warnings-sections")).toBeInTheDocument();
+  });
+
+  it("collapsed by default when missionStatus is not PLANNED", () => {
+    render(
+      <WarningsPanel
+        warnings={[v("1", "warning", "speed", "WP1")]}
+        hasTrajectory
+        missionStatus="VALIDATED"
+      />,
+    );
+    expect(screen.getByTestId("warnings-panel").getAttribute("data-collapsed")).toBe("true");
+    expect(screen.queryByTestId("warnings-sections")).toBeNull();
+  });
+
+  it("expanded by default when missionStatus is omitted (legacy)", () => {
+    render(<WarningsPanel warnings={[v("1", "warning", "speed", "WP1")]} hasTrajectory />);
+    expect(screen.getByTestId("warnings-panel").getAttribute("data-collapsed")).toBe("false");
+  });
+
+  it("remains user-toggleable", () => {
+    render(
+      <WarningsPanel
+        warnings={[v("1", "warning", "speed", "WP1")]}
+        hasTrajectory
+        missionStatus="VALIDATED"
+      />,
+    );
+    const panel = screen.getByTestId("warnings-panel");
+    expect(panel.getAttribute("data-collapsed")).toBe("true");
+    fireEvent.click(screen.getByTestId("warnings-panel-toggle"));
+    expect(panel.getAttribute("data-collapsed")).toBe("false");
+    expect(screen.getByTestId("warnings-sections")).toBeInTheDocument();
+  });
+});

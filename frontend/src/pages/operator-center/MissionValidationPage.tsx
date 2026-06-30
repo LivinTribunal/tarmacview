@@ -156,6 +156,7 @@ export default function MissionValidationPage() {
               <WarningsPanel
                 warnings={warnings}
                 hasTrajectory={flightPlan !== null}
+                missionStatus={mission.status}
                 onWarningClick={setSelectedWarning}
                 selectedWarningId={selectedWarning?.id}
               />

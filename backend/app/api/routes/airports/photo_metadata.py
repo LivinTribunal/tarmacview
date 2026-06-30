@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CoordinatorUser, check_airport_access
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.core.exceptions import DomainError, NotFoundError
 from app.schemas.airport import PhotoMetadataResponse
 from app.services import photo_metadata_service

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import OperatorUser, require_hub_secret
 from app.core.config import settings
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.core.enums import AuditAction
 from app.core.exceptions import DomainError
 from app.schemas.field_link import (

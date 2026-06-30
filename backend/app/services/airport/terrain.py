@@ -8,7 +8,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
 
-from app.core.config import TERRAIN_DIR, settings
+from app.core.config import settings
 from app.core.exceptions import DomainError, NotFoundError
 from app.core.geometry import wkt_to_geojson
 from app.models.airport import Airport
@@ -261,8 +261,8 @@ def download_terrain_for_location(
     # flip rows - raster origin is top-left
     data = np.flipud(data)
 
-    TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
-    final_path = TERRAIN_DIR / f"{airport_id}_api_cache.tif"
+    settings.terrain_dir.mkdir(parents=True, exist_ok=True)
+    final_path = settings.terrain_dir / f"{airport_id}_api_cache.tif"
 
     transform = from_bounds(min_lon, min_lat, max_lon, max_lat, width, height)
     _write_airport_geotiff(final_path, data, transform, height, width)
@@ -371,8 +371,8 @@ def download_srtm_for_location(
     data = mosaic[0].astype(np.float32)
     height, width = data.shape
 
-    TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
-    final_path = TERRAIN_DIR / f"{airport_id}_srtm_cache.tif"
+    settings.terrain_dir.mkdir(parents=True, exist_ok=True)
+    final_path = settings.terrain_dir / f"{airport_id}_srtm_cache.tif"
 
     _write_airport_geotiff(final_path, data, transform, height, width)
 

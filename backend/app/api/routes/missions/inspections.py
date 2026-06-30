@@ -9,7 +9,7 @@ from app.api.dependencies import (
     OperatorUser,
     check_mission_access,
 )
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.core.enums import AuditAction
 from app.schemas.common import DeleteResponse
 from app.schemas.mission import (

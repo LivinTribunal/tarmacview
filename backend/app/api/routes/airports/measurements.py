@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import OperatorUser, check_airport_access
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.schemas.measurement import MeasurementListItemResponse
 from app.services import measurement_service
 

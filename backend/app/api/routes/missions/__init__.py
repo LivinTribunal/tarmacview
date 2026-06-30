@@ -18,7 +18,7 @@ from app.api.dependencies import (
     check_airport_access,
     get_user_airport_ids,
 )
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.core.enums import AuditAction
 from app.schemas.common import ListMeta
 from app.schemas.mission import (

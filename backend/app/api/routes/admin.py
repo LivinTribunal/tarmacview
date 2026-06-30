@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import OperatorUser, SuperAdminUser
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.core.enums import AuditAction, UserRole
 from app.schemas.admin import (
     AirportAssignmentUpdate,

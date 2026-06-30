@@ -13,7 +13,7 @@ from app.api.routes.airports.photo_metadata import router as photo_metadata_rout
 from app.api.routes.airports.safety_zones import router as safety_zones_router
 from app.api.routes.airports.surfaces import router as surfaces_router
 from app.api.routes.airports.terrain import router as terrain_router
-from app.core.dependencies import get_db
+from app.core.database import get_db
 from app.core.enums import AuditAction, UserRole
 from app.schemas.airport import AirportCreate, AirportListResponse, AirportResponse
 from app.schemas.common import ListMeta

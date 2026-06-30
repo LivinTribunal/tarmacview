@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import type maplibregl from "maplibre-gl";
 import useDrawingSources, { type DrawingSourceSpec } from "./useDrawingSources";
+import useDrawTool from "./useDrawTool";
 
 const SRC_PREVIEW = "draw-point-preview";
 const LYR_PREVIEW = "draw-point-preview-layer";
@@ -33,27 +34,16 @@ export default function usePlacePoint(
   onCompleteRef.current = onComplete;
   const { ensure, clear } = useDrawingSources(map, SPEC);
 
-  useEffect(() => {
-    if (!map || !active) return;
-
-    if (map.isStyleLoaded()) {
-      ensure();
-    } else {
-      map.once("style.load", () => ensure());
-    }
-
-    map.getCanvas().style.cursor = "crosshair";
-
-    function handleClick(e: maplibregl.MapMouseEvent) {
-      if (!map) return;
+  useDrawTool(map, active, {
+    ensure,
+    reset: clear,
+    onClick(e) {
       clear();
       onCompleteRef.current([e.lngLat.lng, e.lngLat.lat]);
-    }
-
-    function handleMouseMove(e: maplibregl.MapMouseEvent) {
-      if (!map) return;
-      if (map.isStyleLoaded()) ensure();
-      const s = map.getSource(SRC_PREVIEW) as maplibregl.GeoJSONSource | undefined;
+    },
+    onMouseMove(e, m) {
+      if (m.isStyleLoaded()) ensure();
+      const s = m.getSource(SRC_PREVIEW) as maplibregl.GeoJSONSource | undefined;
       if (s) {
         s.setData({
           type: "FeatureCollection",
@@ -64,23 +54,6 @@ export default function usePlacePoint(
           }],
         });
       }
-    }
-
-    function handleContextMenu(e: maplibregl.MapMouseEvent) {
-      e.preventDefault();
-      // right-click does nothing special for point, just prevents context menu
-    }
-
-    map.on("click", handleClick);
-    map.on("mousemove", handleMouseMove);
-    map.on("contextmenu", handleContextMenu);
-
-    return () => {
-      map.off("click", handleClick);
-      map.off("mousemove", handleMouseMove);
-      map.off("contextmenu", handleContextMenu);
-      map.getCanvas().style.cursor = "";
-      clear();
-    };
-  }, [map, active, ensure, clear]);
+    },
+  });
 }

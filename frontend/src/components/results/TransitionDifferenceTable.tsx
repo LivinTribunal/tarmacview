@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { LightSeries } from "@/types/measurement";
-import { VERDICT_CLASS, type TransitionVerdict } from "./TransitionAngleTable";
+import { type TransitionVerdict } from "./TransitionAngleTable";
+import VerdictBadge from "./VerdictBadge";
 
 function fmtDeg(value: number | null): string {
   return value === null ? "—" : `${value.toFixed(2)}°`;
@@ -100,11 +101,7 @@ export default function TransitionDifferenceTable({
                   {fmtDeg(diff(l.transition_angle_middle, l.setting_angle))}
                 </td>
                 <td className="py-2">
-                  <span
-                    className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[verdict]}`}
-                  >
-                    {t(`results.verdict.${verdict}`)}
-                  </span>
+                  <VerdictBadge verdict={verdict} />
                 </td>
               </tr>
             );

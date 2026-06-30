@@ -4,10 +4,27 @@
 // resolve css var(), so the raw hex must be defined there.
 
 import {
+  CHART_COLORS,
   INSPECTION_LIGHT_COLORS,
   INSPECTION_LIGHT_FALLBACK_COLOR,
 } from "@/constants/palette";
 
 export function lightColor(name: string): string {
   return INSPECTION_LIGHT_COLORS[name] ?? INSPECTION_LIGHT_FALLBACK_COLOR;
+}
+
+/** shared recharts left-Y-axis props for the light timeseries charts. */
+export function leftYAxisProps(yLabel: string) {
+  return {
+    yAxisId: "left" as const,
+    stroke: CHART_COLORS.AXIS,
+    tick: { fontSize: 11, fill: CHART_COLORS.AXIS },
+    label: {
+      value: yLabel,
+      angle: -90,
+      position: "insideLeft" as const,
+      fontSize: 11,
+      fill: CHART_COLORS.AXIS,
+    },
+  };
 }

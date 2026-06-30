@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { LightSummary } from "@/types/measurement";
+import VerdictBadge from "./VerdictBadge";
 
 export type TransitionVerdict = "pass" | "fail" | "unknown";
 
@@ -86,11 +87,7 @@ export default function TransitionAngleTable({
                 {fmt(s.measured_transition_angle)}
               </td>
               <td className="py-2">
-                <span
-                  className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[verdict]}`}
-                >
-                  {t(`results.verdict.${verdict}`)}
-                </span>
+                <VerdictBadge verdict={verdict} />
               </td>
             </tr>
           );

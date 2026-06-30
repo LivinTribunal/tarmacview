@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Check, Minus, X } from "lucide-react";
 import type {
-  LightSeries,
   LightSummary,
   MeasurementListItem,
   MeasurementResults,
@@ -13,6 +12,7 @@ import {
 import { formatDate } from "@/utils/format";
 import MeasurementStatusChip from "./MeasurementStatusChip";
 import { measurementDisplayName } from "./MeasurementListTable";
+import { computeGlidePathAngle } from "./resultsStats";
 import { transitionVerdict } from "./TransitionAngleTable";
 
 const PAPI_NAMES = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"] as const;
@@ -27,15 +27,6 @@ export function overallVerdict(summaries: LightSummary[]): OverallVerdict {
 }
 
 /** nominal glide path = midpoint of PAPI_B upper transition and PAPI_C lower transition. */
-export function computeGlidePathAngle(lights: LightSeries[]): number | null {
-  const b =
-    lights.find((l) => l.light_name === "PAPI_B")?.transition_angle_max ?? null;
-  const c =
-    lights.find((l) => l.light_name === "PAPI_C")?.transition_angle_min ?? null;
-  if (b === null || c === null) return null;
-  return (b + c) / 2;
-}
-
 // solid pill tones matching TransitionAngleTable / the measurement status tags
 const OVERALL_CLASS: Record<OverallVerdict, string> = {
   pass: "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",

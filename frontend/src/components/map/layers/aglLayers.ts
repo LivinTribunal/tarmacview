@@ -56,25 +56,6 @@ export function addAglLayers(
     },
   });
 
-  // agl labels
-  map.addLayer({
-    id: AGL_LABEL_LAYER,
-    type: "symbol",
-    source: AGL_SOURCE,
-    layout: {
-      "text-field": ["get", "displayName"],
-      "text-size": 11,
-      "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-      "text-offset": [0, 1.5],
-      "text-anchor": "top",
-    },
-    paint: {
-      "text-color": ["get", "color"],
-      "text-halo-color": "#000000",
-      "text-halo-width": 1,
-    },
-  });
-
   // lha markers - visible only when zoomed in. edge-light LHAs render smaller
   // and have a thin connecting line drawn across the full row.
   if (lhas.length > 0) {
@@ -157,6 +138,26 @@ export function addAglLayers(
       },
     });
   }
+
+  // agl labels - added after the lha layers so they win label collisions and
+  // stay visible when zoomed out
+  map.addLayer({
+    id: AGL_LABEL_LAYER,
+    type: "symbol",
+    source: AGL_SOURCE,
+    layout: {
+      "text-field": ["get", "displayName"],
+      "text-size": 11,
+      "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+      "text-offset": [0, 1.5],
+      "text-anchor": "top",
+    },
+    paint: {
+      "text-color": ["get", "color"],
+      "text-halo-color": "#000000",
+      "text-halo-width": 1,
+    },
+  });
 
   // connecting line across edge-light rows for at-a-glance orientation
   const edgeLightLines = agls.flatMap((a) => {

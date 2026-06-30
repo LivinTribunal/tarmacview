@@ -390,7 +390,7 @@ describe("CreationForm", () => {
       const aglSelect = screen.getByText("coordinator.creation.selectAgl").parentElement as HTMLSelectElement;
       fireEvent.change(aglSelect, { target: { value: "agl-empty" } });
 
-      const toleranceInput = screen.getByDisplayValue("0.2");
+      const toleranceInput = screen.getByDisplayValue("0.1");
       expect(toleranceInput).toBeInTheDocument();
 
       const angleInput = document.getElementById("create-lha-angle") as HTMLInputElement;

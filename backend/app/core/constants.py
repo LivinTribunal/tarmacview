@@ -47,7 +47,7 @@ DEFAULT_GLIDE_SLOPE_DEG: float = 3.0
 # on LHA.tolerance, at the bulk-generate request schema default, and at the
 # bulk-generate service fallback when the inbound payload omits it. shared so
 # the three layers cannot drift.
-DEFAULT_LHA_TOLERANCE_DEG: float = 0.2
+DEFAULT_LHA_TOLERANCE_DEG: float = 0.1
 
 # buffer (m) grown around a mission's flight-plan bounding box when testing
 # whether a media capture position belongs to that mission. wide enough to

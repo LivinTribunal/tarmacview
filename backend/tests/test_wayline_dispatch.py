@@ -269,6 +269,39 @@ def test_dispatch_logs_audit_row(client, dispatchable_mission, fake_hub, db_sess
     assert rows[0].details["acknowledge_altitude_clamps"] is False
 
 
+def test_dispatch_forwards_export_options(client, dispatchable_mission, fake_hub, db_session):
+    """dispatch threads the export options (geozones + heading mode) through
+    export_mission, so the dispatched KMZ matches a download of the same config.
+
+    proven via the heading write-back: export_mission persists the override as
+    the operator's last-used preference, exactly like a download export. the
+    audit row records every forwarded flag.
+    """
+    from app.models.audit_log import AuditLog
+    from app.models.mission import Mission
+
+    mission_id = dispatchable_mission["mission_id"]
+    resp = client.post(
+        f"/api/v1/missions/{mission_id}/dispatch",
+        json={"dji_heading_mode_override": "followWayline"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    db_session.expire_all()
+    persisted = db_session.query(Mission).filter(Mission.id == mission_id).first()
+    # export_mission applied + persisted the forwarded override
+    assert persisted.dji_heading_mode == "followWayline"
+
+    row = (
+        db_session.query(AuditLog)
+        .filter(AuditLog.action == "DISPATCH", AuditLog.entity_id == mission_id)
+        .one()
+    )
+    assert row.details["dji_heading_mode_override"] == "followWayline"
+    assert row.details["include_geozones"] is False
+    assert row.details["include_runway_buffers"] is False
+
+
 def test_dispatch_rolls_back_when_audit_fails(
     client, dispatchable_mission, fake_hub, db_session, monkeypatch
 ):

@@ -1004,6 +1004,7 @@
       "acceptError": "Validácia misie zlyhala",
       "export": "Exportovať údaje misie",
       "formatLabel": "Formát",
+      "advancedOptions": "Rozšírené možnosti",
       "formatKml": "KML",
       "formatKmlDesc": "Formát pre Google Earth viewer",
       "formatKmz": "KMZ (DJI)",
@@ -1027,7 +1028,7 @@
       "downloadExport": "Stiahnuť export",
       "downloading": "Sťahuje sa...",
       "validateFirst": "Najskôr validujte plán",
-      "needsValidation": "Misia musí byť pred exportom validovaná",
+      "needsValidation": "Validujte misiu na export",
       "uploadDroneMedia": "Nahrať médiá z drona",
       "exportError": "Export misie zlyhal",
       "exportDisabledTerminal": "Export nie je v tomto stave dostupný",
@@ -1066,17 +1067,13 @@
       "deleteBlocked": "Misiu v tomto stave nemožno vymazať",
       "openMap": "Otvoriť mapu",
       "mapPreview": "Náhľad mapy",
-      "scopeInfo": {
-        "full": "Export začína/končí vo výške preletu – bez vzletu a pristátia na zemi",
-        "measurementsOnly": "Export začína prvým meraním a končí posledným – bez vzletu a pristátia, ale prelety medzi inšpekciami sú stále plánované"
-      },
       "djiHeadingMode": {
         "label": "Režim natočenia DJI",
-        "hint": "Určuje, ako dron natáča telo počas meracích priebehov pri exporte do DJI WPML. Plynulé natáčanie tela interpoluje natočenie medzi bodmi (odporúčané). Plynulé sledovanie POI mieri na LHA počas celého oblúka (experimentálne – zatiaľ nepotvrdené hardvérom). Otočenie pri každom bode otočí telo raz na merací bod (overená záloha).",
+        "hint": "Určuje, ako dron natáča telo počas meracích priebehov pri exporte do DJI WPML. Plynulé natáčanie tela interpoluje natočenie medzi bodmi. Plynulé sledovanie POI mieri na LHA počas celého oblúka. Otočenie pri každom bode otočí telo raz na merací bod.",
         "options": {
-          "smoothTransition": "Plynulé natáčanie tela (odporúčané)",
-          "towardPOI": "Plynulé sledovanie POI (experimentálne)",
-          "followWayline": "Otočenie pri každom bode (overené)"
+          "smoothTransition": "Plynulé natáčanie tela",
+          "towardPOI": "Plynulé sledovanie POI",
+          "followWayline": "Otočenie pri každom bode"
         }
       },
       "capabilityNote": {
@@ -1102,7 +1099,7 @@
       }
     },
     "missionReport": {
-      "title": "Technický report misie",
+      "title": "Reporty a výsledky",
       "download": "Stiahnuť report misie (PDF)",
       "description": "Technický report s mapami, výškovým profilom a časovou osou",
       "generating": "Generuje sa report misie...",
@@ -1117,7 +1114,6 @@
       "telemetryOffline": "Telemetria offline"
     },
     "fieldHub": {
-      "open": "Field Hub",
       "title": "Pripojenie k Field Hubu",
       "connecting": "Zisťuje sa stav hubu…",
       "connectAddress": "Adresa pripojenia",
@@ -1149,16 +1145,15 @@
       "caError": "CA certifikát nie je dostupný"
     },
     "sendToDrone": {
-      "title": "Odoslať do drona",
-      "description": "Odošle misiu do knižnice trás DJI Pilot 2 cez field link",
       "send": "Odoslať do drona",
+      "online": "Online",
+      "offline": "Offline",
       "sendAnyway": "Potvrdiť orezanie a odoslať",
       "sending": "Odosiela sa...",
       "success": "Misia odoslaná – zobrazí sa v knižnici trás Pilota",
       "error": "Odoslanie misie do drona zlyhalo",
       "clampWarning": "Niektoré výšky boli orezané na referenčnú výšku vzletu. Skontrolujte výškové upozornenie a potvrďte odoslanie.",
-      "hubOffline": "Field hub nepripojený",
-      "statusGate": "Misia musí byť najskôr validovaná"
+      "hubOffline": "Field hub nepripojený"
     },
     "uploadDroneMediaDialog": {
       "title": "Nahrať médiá z drona",

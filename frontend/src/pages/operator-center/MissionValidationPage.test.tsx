@@ -220,6 +220,71 @@ describe("ValidationResultsPanel", () => {
     fireEvent.click(screen.getByTestId("accept-btn"));
     expect(onValidate).toHaveBeenCalled();
   });
+
+  it("expanded by default when PLANNED", () => {
+    render(
+      <ValidationResultsPanel
+        flightPlan={makeFlightPlan(true)}
+        missionStatus="PLANNED"
+        {...defaultProps}
+      />,
+    );
+    expect(
+      screen.getByTestId("validation-results-panel").getAttribute("data-collapsed"),
+    ).toBe("false");
+  });
+
+  it("collapsed by default when not PLANNED", () => {
+    render(
+      <ValidationResultsPanel
+        flightPlan={makeFlightPlan(true)}
+        missionStatus="VALIDATED"
+        {...defaultProps}
+      />,
+    );
+    expect(
+      screen.getByTestId("validation-results-panel").getAttribute("data-collapsed"),
+    ).toBe("true");
+  });
+
+  it("collapses when status transitions PLANNED -> VALIDATED (approve)", () => {
+    const { rerender } = render(
+      <ValidationResultsPanel
+        flightPlan={makeFlightPlan(true)}
+        missionStatus="PLANNED"
+        {...defaultProps}
+      />,
+    );
+    expect(
+      screen.getByTestId("validation-results-panel").getAttribute("data-collapsed"),
+    ).toBe("false");
+    rerender(
+      <ValidationResultsPanel
+        flightPlan={makeFlightPlan(true)}
+        missionStatus="VALIDATED"
+        {...defaultProps}
+      />,
+    );
+    expect(
+      screen.getByTestId("validation-results-panel").getAttribute("data-collapsed"),
+    ).toBe("true");
+  });
+
+  it("remains user-toggleable", () => {
+    render(
+      <ValidationResultsPanel
+        flightPlan={makeFlightPlan(true)}
+        missionStatus="PLANNED"
+        {...defaultProps}
+      />,
+    );
+    const panel = screen.getByTestId("validation-results-panel");
+    expect(panel.getAttribute("data-collapsed")).toBe("false");
+    fireEvent.click(screen.getByTestId("validation-results-toggle"));
+    expect(panel.getAttribute("data-collapsed")).toBe("true");
+    fireEvent.click(screen.getByTestId("validation-results-toggle"));
+    expect(panel.getAttribute("data-collapsed")).toBe("false");
+  });
 });
 
 describe("ExportPanel", () => {

@@ -78,6 +78,9 @@ def dispatch_mission(
     db: Session,
     mission_id: UUID,
     *,
+    include_geozones: bool = False,
+    include_runway_buffers: bool = False,
+    dji_heading_mode_override: str | None = None,
     acknowledge_altitude_clamps: bool = False,
     transport: httpx.BaseTransport | None = None,
 ) -> WaylineDispatch:
@@ -85,7 +88,10 @@ def dispatch_mission(
 
     reuses export_mission so dispatch inherits the export-eligibility gate
     (VALIDATED/EXPORTED/MEASURED), the VALIDATED -> EXPORTED transition, and
-    the 409 altitude-clamp gate.
+    the 409 altitude-clamp gate. the geozone bundle + dji heading mode flow
+    through unchanged so the dispatched KMZ is byte-for-byte what a download
+    of the same config would produce - dispatch and export share one engine,
+    diverging only on delivery.
     re-dispatch updates the existing row in place with a stable wayline uuid.
     flushes; the route logs the DISPATCH audit row and commits.
     """
@@ -93,6 +99,9 @@ def dispatch_mission(
         db,
         mission_id,
         ["KMZ"],
+        include_geozones=include_geozones,
+        include_runway_buffers=include_runway_buffers,
+        dji_heading_mode_override=dji_heading_mode_override,
         acknowledge_altitude_clamps=acknowledge_altitude_clamps,
     )
     kmz_bytes = next(iter(files.values()))[0]

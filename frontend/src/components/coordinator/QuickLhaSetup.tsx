@@ -5,7 +5,7 @@ import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
 import type { SurfaceResponse, AGLResponse } from "@/types/airport";
 import { bulkCreateLHAs } from "@/api/airports";
-import { DEFAULT_LHA_SPACING } from "@/constants/infrastructureDefaults";
+import { DEFAULT_LHA_SPACING, DEFAULT_LHA_TOLERANCE } from "@/constants/infrastructureDefaults";
 import { roundCoord, roundAlt } from "@/utils/coordRounding";
 
 export default function QuickLhaSetup({
@@ -124,7 +124,7 @@ export default function QuickLhaSetup({
         last_position: { type: "Point", coordinates: [lLon, lLat, lAlt] },
         spacing_m: sp,
         setting_angle: isEdgeLights ? 0 : null,
-        tolerance: 0.2,
+        tolerance: Number(DEFAULT_LHA_TOLERANCE),
         lamp_type: lampType,
       });
       setGeneratedCount(res.generated.length);

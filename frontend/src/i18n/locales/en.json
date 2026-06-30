@@ -1000,6 +1000,7 @@
       "acceptError": "Failed to validate mission",
       "export": "Export Mission Data",
       "formatLabel": "Format",
+      "advancedOptions": "Advanced Options",
       "formatKml": "KML",
       "formatKmlDesc": "Google Earth viewer format",
       "formatKmz": "KMZ (DJI)",
@@ -1023,7 +1024,7 @@
       "downloadExport": "Download Export",
       "downloading": "Downloading...",
       "validateFirst": "Validate the plan first",
-      "needsValidation": "Mission needs to be validated before export",
+      "needsValidation": "Validate mission to export",
       "uploadDroneMedia": "Upload Drone Media",
       "exportError": "Failed to export mission",
       "exportDisabledTerminal": "Export not available in this status",
@@ -1062,17 +1063,13 @@
       "deleteBlocked": "Cannot delete mission in this status",
       "openMap": "Open Map",
       "mapPreview": "Map Preview",
-      "scopeInfo": {
-        "full": "Export starts/ends at transit altitude - no ground-level takeoff or landing",
-        "measurementsOnly": "Export starts at first measurement and ends at last - no takeoff or landing, but transits between inspections are still planned"
-      },
       "djiHeadingMode": {
         "label": "DJI Heading Mode",
-        "hint": "Controls how the drone aims its body during inspection passes when exporting to DJI WPML. Smooth body tracking interpolates body yaw between waypoints (recommended). Continuous POI tracking aims at the LHA across the whole arc (experimental - not yet hardware-confirmed). Snap at each waypoint rotates the body once per measurement (proven fallback).",
+        "hint": "Controls how the drone aims its body during inspection passes when exporting to DJI WPML. Smooth body tracking interpolates body yaw between waypoints. Continuous POI tracking aims at the LHA across the whole arc. Snap at each waypoint rotates the body once per measurement.",
         "options": {
-          "smoothTransition": "Smooth body tracking (recommended)",
-          "towardPOI": "Continuous POI tracking (experimental)",
-          "followWayline": "Snap at each waypoint (reliable)"
+          "smoothTransition": "Smooth body tracking",
+          "towardPOI": "Continuous POI tracking",
+          "followWayline": "Snap at each waypoint"
         }
       },
       "capabilityNote": {
@@ -1098,7 +1095,7 @@
       }
     },
     "missionReport": {
-      "title": "Mission Technical Report",
+      "title": "Reports & Results",
       "download": "Download Mission Report (PDF)",
       "description": "Technical report with maps, altitude profile, and timeline",
       "generating": "Generating Mission Report...",
@@ -1113,7 +1110,6 @@
       "telemetryOffline": "Telemetry offline"
     },
     "fieldHub": {
-      "open": "Field Hub",
       "title": "Field Hub connection",
       "connecting": "Checking hub status…",
       "connectAddress": "Connect address",
@@ -1145,16 +1141,15 @@
       "caError": "CA certificate not available"
     },
     "sendToDrone": {
-      "title": "Send to Drone",
-      "description": "Push the mission into DJI Pilot 2's route library over the field link",
       "send": "Send to drone",
+      "online": "Online",
+      "offline": "Offline",
       "sendAnyway": "Acknowledge clamps and send",
       "sending": "Sending...",
       "success": "Mission sent – it will appear in Pilot's route library",
       "error": "Failed to send the mission to the drone",
       "clampWarning": "Some altitudes were clamped to the takeoff reference. Review the altitude warning, then acknowledge to send.",
-      "hubOffline": "Field hub not connected",
-      "statusGate": "Mission must be validated first"
+      "hubOffline": "Field hub not connected"
     },
     "uploadDroneMediaDialog": {
       "title": "Upload Drone Media",

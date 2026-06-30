@@ -234,8 +234,16 @@ def dispatch_mission(
     """export the KMZ and register it with the field hub's wayline library."""
     mission = check_mission_access(db, current_user, mission_id)
     acknowledge = body.acknowledge_altitude_clamps if body else False
+    include_geozones = body.include_geozones if body else False
+    include_runway_buffers = body.include_runway_buffers if body else False
+    heading_override = body.dji_heading_mode_override if body else None
     dispatch = wayline_dispatch_service.dispatch_mission(
-        db, mission_id, acknowledge_altitude_clamps=acknowledge
+        db,
+        mission_id,
+        include_geozones=include_geozones,
+        include_runway_buffers=include_runway_buffers,
+        dji_heading_mode_override=heading_override,
+        acknowledge_altitude_clamps=acknowledge,
     )
     log_audit(
         db,
@@ -246,6 +254,9 @@ def dispatch_mission(
         entity_name=mission.name,
         details={
             "wayline_id": str(dispatch.wayline_id),
+            "include_geozones": include_geozones,
+            "include_runway_buffers": include_runway_buffers,
+            "dji_heading_mode_override": heading_override,
             "acknowledge_altitude_clamps": acknowledge,
         },
         ip_address=request.client.host if request.client else None,

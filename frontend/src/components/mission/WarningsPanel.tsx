@@ -8,6 +8,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ValidationViolation, ViolationSeverity } from "@/types/flightPlan";
+import type { MissionStatus } from "@/types/enums";
 import { cleanMessage, humanizeConstraintLabel } from "@/utils/violations";
 import {
   type SeveritySection,
@@ -20,6 +21,7 @@ import {
 interface WarningsPanelProps {
   warnings: ValidationViolation[] | null;
   hasTrajectory: boolean;
+  missionStatus?: MissionStatus;
   onWarningClick?: (violation: ValidationViolation | null) => void;
   selectedWarningId?: string | null;
 }
@@ -82,12 +84,23 @@ function buildInitialExpanded(sections: SeveritySection[]): Record<ViolationSeve
 export default function WarningsPanel({
   warnings,
   hasTrajectory,
+  missionStatus,
   onWarningClick,
   selectedWarningId,
 }: WarningsPanelProps) {
   /** grouped, collapsible warnings panel - violations / warnings / suggestions. */
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
+  // when missionStatus is wired in, default-expand only while PLANNED; omitted = legacy expanded.
+  const [collapsed, setCollapsed] = useState(
+    missionStatus !== undefined && missionStatus !== "PLANNED",
+  );
+
+  // auto-collapse (animated) once the operator approves: PLANNED -> non-PLANNED.
+  const [prevStatus, setPrevStatus] = useState(missionStatus);
+  if (missionStatus !== prevStatus) {
+    setPrevStatus(missionStatus);
+    if (prevStatus === "PLANNED") setCollapsed(true);
+  }
 
   const sections = useMemo(() => groupViolations(warnings), [warnings]);
   const totalCount = sections.reduce((acc, s) => acc + s.totalCount, 0);
@@ -122,9 +135,10 @@ export default function WarningsPanel({
   }
 
   return (
-    <div data-testid="warnings-panel">
+    <div data-testid="warnings-panel" data-collapsed={collapsed}>
       <button
         type="button"
+        data-testid="warnings-panel-toggle"
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center justify-between w-full text-sm font-semibold text-tv-text-primary"
       >
@@ -147,49 +161,54 @@ export default function WarningsPanel({
           />
         </div>
       </button>
-      {!collapsed && <div className="border-b border-tv-border -mx-4 mt-3" />}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+          collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-b border-tv-border -mx-4 mt-3" />
+          <div className="mt-3">
+            {!hasTrajectory && (
+              <p className="text-sm text-tv-text-muted">
+                {t("mission.config.warningsPanel.noTrajectory")}
+              </p>
+            )}
 
-      {!collapsed && (
-        <div className="mt-3">
-          {!hasTrajectory && (
-            <p className="text-sm text-tv-text-muted">
-              {t("mission.config.warningsPanel.noTrajectory")}
-            </p>
-          )}
+            {hasTrajectory && totalCount === 0 && (
+              <div
+                data-testid="warnings-empty-state"
+                className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-tv-border bg-tv-bg px-4 py-6 text-center"
+              >
+                <CheckCircle2 className="h-7 w-7 text-tv-accent" />
+                <span className="text-sm font-semibold text-tv-text-primary">
+                  {t("mission.config.warningsPanel.noIssues")}
+                </span>
+                <span className="text-xs text-tv-text-muted">
+                  {t("mission.config.warningsPanel.noIssuesHint")}
+                </span>
+              </div>
+            )}
 
-          {hasTrajectory && totalCount === 0 && (
-            <div
-              data-testid="warnings-empty-state"
-              className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-tv-border bg-tv-bg px-4 py-6 text-center"
-            >
-              <CheckCircle2 className="h-7 w-7 text-tv-accent" />
-              <span className="text-sm font-semibold text-tv-text-primary">
-                {t("mission.config.warningsPanel.noIssues")}
-              </span>
-              <span className="text-xs text-tv-text-muted">
-                {t("mission.config.warningsPanel.noIssuesHint")}
-              </span>
-            </div>
-          )}
-
-          {hasTrajectory && totalCount > 0 && (
-            <div className="flex flex-col gap-2" data-testid="warnings-sections">
-              {sections.map((section) => (
-                <SeveritySectionView
-                  key={section.severity}
-                  section={section}
-                  expanded={expanded[section.severity]}
-                  onToggle={() => toggleSection(section.severity)}
-                  onGroupClick={handleGroupClick}
-                  rowClickable={Boolean(onWarningClick)}
-                  selectedWarningId={selectedWarningId}
-                  density="default"
-                />
-              ))}
-            </div>
-          )}
+            {hasTrajectory && totalCount > 0 && (
+              <div className="flex flex-col gap-2" data-testid="warnings-sections">
+                {sections.map((section) => (
+                  <SeveritySectionView
+                    key={section.severity}
+                    section={section}
+                    expanded={expanded[section.severity]}
+                    onToggle={() => toggleSection(section.severity)}
+                    onGroupClick={handleGroupClick}
+                    rowClickable={Boolean(onWarningClick)}
+                    selectedWarningId={selectedWarningId}
+                    density="default"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -418,22 +418,26 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
 
 ### Frontend
 
-- `ExportPanel.tsx`: *Send to drone* button + field-link status chip. *Landed*:
-  the chip in #822, the `SendToDroneSection` dispatch card in #825 (one shared
-  10 s status poll, status gate, altitude-clamp acknowledge retry). Since #109
-  the chip is two pills — **RC** (noHub / offline / online) and **Telemetry**
-  (on / off) — and *Send to drone* is gated only on the hub being reachable +
-  the mission being VALIDATED/EXPORTED/MEASURED, **not** on a drone being online
-  (you can stage waylines before the aircraft is up).
-- `FieldHubDialog.tsx`: the *Field Hub* connection dialog opened from a button
-  beside the link chip. *Landed in #28*: device-facing connect address with
-  copy + inline-rendered QR, the connected-device list (empty state included),
-  and a CA-cert download. Graceful states for hub-offline, online-but-no-host,
-  and the pre-first-poll connecting moment. Consumes the parent's single
-  `useFieldLinkStatus` poll - no second poll is introduced. Since #109 the
-  dialog renders all four signals (Hub / RC / Broker / Telemetry) and adds a
-  **Heartbeat Check** button (on-demand status refresh + "last checked"); the
-  connect address is `http://<host>:8080`.
+- `ExportPanel.tsx` + `ExportFormatSection.tsx`: the *Send to drone* button + a
+  green/red **Online/Offline** dot. *Landed*: the chip in #822, the dispatch
+  card in #825 (one shared 10 s status poll, status gate, altitude-clamp
+  acknowledge retry). **Reshaped in #217**: the separate `SendToDroneSection`
+  card and the two-pill `FieldLinkStatusChip` were removed — a *Send to Drone*
+  button now renders under **Download Export** with a centered label and the
+  status dot, and dispatch reuses the export pipeline's full option set
+  (geozones + heading mode) via one shared `buildExportOptions()`. Still gated
+  only on the hub being reachable + the mission being VALIDATED/EXPORTED/MEASURED,
+  **not** on a drone being online (you can stage waylines before the aircraft is
+  up).
+- `FieldHubPanel.tsx`: the *Field Hub* connection panel — device-facing connect
+  address with copy + inline-rendered QR, the connected-device list (empty state
+  included), a CA-cert download, all four signals (Hub / RC / Broker / Telemetry),
+  and a **Heartbeat Check** button (on-demand status refresh + "last checked").
+  Graceful states for hub-offline, online-but-no-host, and the pre-first-poll
+  connecting moment. *Landed in #28* as `FieldHubDialog` opened from the mission
+  page; **since #217 the mission-page dialog wrapper was removed**, so the panel
+  now renders only as the **Field Ops** page's left card (off that page's single
+  `useFieldLinkStatus` poll). The connect address is `http://<host>:8080`.
 - New `UploadDroneMediaDialog`: missions with received media, file counts,
   unassigned bucket, per-file reassignment, confirm-ingest action. *Landed
   in #828* behind the *Upload Drone Media* header button on the validation

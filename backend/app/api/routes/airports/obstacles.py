@@ -99,13 +99,14 @@ def delete_obstacle(
 ):
     """delete obstacle."""
     check_airport_access(current_user, airport_id)
-    airport_service.delete_obstacle(db, airport_id, obstacle_id)
+    obstacle = airport_service.delete_obstacle(db, airport_id, obstacle_id)
     log_audit(
         db,
         current_user,
         AuditAction.DELETE,
         entity_type="Obstacle",
         entity_id=obstacle_id,
+        entity_name=obstacle.name,
         details={"airport_id": str(airport_id)},
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,

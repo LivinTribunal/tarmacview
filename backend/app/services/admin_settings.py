@@ -30,11 +30,23 @@ def _get_setting(db: Session, key: str) -> str:
     return SETTINGS_DEFAULTS.get(key, "")
 
 
-def get_system_settings(db: Session) -> dict:
-    """get all system settings as a dict; api key is masked when set."""
+# fields blanked for non-super-admin callers on the widened (operator-readable)
+# GET path so credentials never leak. elevation_api_key blanks to None, the rest to "".
+SENSITIVE_SETTINGS_FIELDS = {
+    "cesium_ion_token": "",
+    "elevation_api_url": "",
+    "elevation_api_key": None,
+}
+
+
+def get_system_settings(db: Session, *, is_super_admin: bool = True) -> dict:
+    """get all system settings as a dict; api key is masked when set.
+
+    non-super-admin callers get the sensitive credential fields blanked.
+    """
     raw_key = _get_setting(db, "elevation_api_key")
     api_key_view = ELEVATION_API_KEY_MASK if raw_key else None
-    return {
+    result = {
         "maintenance_mode": _get_setting(db, "maintenance_mode") == "true",
         "cesium_ion_token": _get_setting(db, "cesium_ion_token"),
         "elevation_api_url": _get_setting(db, "elevation_api_url"),
@@ -44,6 +56,9 @@ def get_system_settings(db: Session) -> dict:
         or DEFAULT_REMOTE_PROVIDER_KEY,
         "elevation_api_key": api_key_view,
     }
+    if not is_super_admin:
+        result.update(SENSITIVE_SETTINGS_FIELDS)
+    return result
 
 
 def _collect_setting_updates(

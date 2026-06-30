@@ -317,6 +317,73 @@ class TestAuthEndpoints:
         assert resp.status_code == 200
         assert resp.json()["name"] == "Updated Name"
 
+    def test_update_me_logs_audit(self, seeded_auth_client, auth_session_factory):
+        """PUT /auth/me emits an UPDATE row on User carrying the email as entity_name."""
+        from app.models.audit_log import AuditLog
+
+        login = seeded_auth_client.post(
+            "/api/v1/auth/login",
+            json={"email": "operator@tmv.com", "password": "operator"},
+        )
+        token = login.json()["access_token"]
+
+        resp = seeded_auth_client.put(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "Audited Name"},
+        )
+        assert resp.status_code == 200
+
+        session = auth_session_factory()
+        try:
+            rows = (
+                session.query(AuditLog)
+                .filter(
+                    AuditLog.action == "UPDATE",
+                    AuditLog.entity_type == "User",
+                    AuditLog.user_email == "operator@tmv.com",
+                )
+                .all()
+            )
+        finally:
+            session.close()
+        assert len(rows) >= 1
+        assert all(row.entity_name == "operator@tmv.com" for row in rows)
+
+    def test_update_me_rolls_back_when_audit_fails(
+        self, seeded_auth_client, auth_session_factory, monkeypatch
+    ):
+        """if log_audit raises, the profile rename must not persist."""
+        from app.api.routes import auth as auth_route
+
+        login = seeded_auth_client.post(
+            "/api/v1/auth/login",
+            json={"email": "operator@tmv.com", "password": "operator"},
+        )
+        token = login.json()["access_token"]
+        before = seeded_auth_client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+        ).json()["name"]
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("audit-insert-failure")
+
+        monkeypatch.setattr(auth_route, "log_audit", _boom)
+
+        with pytest.raises(RuntimeError, match="audit-insert-failure"):
+            seeded_auth_client.put(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"name": "Should Not Persist"},
+            )
+
+        monkeypatch.undo()
+
+        after = seeded_auth_client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+        ).json()["name"]
+        assert after == before
+
     def test_setup_password_success(self, seeded_auth_client, auth_session_factory):
         """setup-password sets password for invited user, then login works."""
         from datetime import datetime, timedelta, timezone

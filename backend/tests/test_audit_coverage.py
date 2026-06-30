@@ -368,7 +368,9 @@ def test_obstacle_crud_logs_audit(client, session):
 
     assert len(_audit_rows(session, action="CREATE", entity_type="Obstacle", entity_id=obs_id)) == 1
     assert len(_audit_rows(session, action="UPDATE", entity_type="Obstacle", entity_id=obs_id)) == 1
-    assert len(_audit_rows(session, action="DELETE", entity_type="Obstacle", entity_id=obs_id)) == 1
+    del_rows = _audit_rows(session, action="DELETE", entity_type="Obstacle", entity_id=obs_id)
+    assert len(del_rows) == 1
+    assert del_rows[0].entity_name == "Renamed Tower"
 
 
 def test_safety_zone_crud_logs_audit(client, session):
@@ -394,9 +396,9 @@ def test_safety_zone_crud_logs_audit(client, session):
     assert (
         len(_audit_rows(session, action="UPDATE", entity_type="SafetyZone", entity_id=zone_id)) == 1
     )
-    assert (
-        len(_audit_rows(session, action="DELETE", entity_type="SafetyZone", entity_id=zone_id)) == 1
-    )
+    del_rows = _audit_rows(session, action="DELETE", entity_type="SafetyZone", entity_id=zone_id)
+    assert len(del_rows) == 1
+    assert del_rows[0].entity_name == "Prague CTR"
 
 
 def test_agl_crud_logs_audit(client, session):
@@ -422,7 +424,9 @@ def test_agl_crud_logs_audit(client, session):
 
     assert len(_audit_rows(session, action="CREATE", entity_type="AGL", entity_id=agl_id)) == 1
     assert len(_audit_rows(session, action="UPDATE", entity_type="AGL", entity_id=agl_id)) == 1
-    assert len(_audit_rows(session, action="DELETE", entity_type="AGL", entity_id=agl_id)) == 1
+    del_rows = _audit_rows(session, action="DELETE", entity_type="AGL", entity_id=agl_id)
+    assert len(del_rows) == 1
+    assert del_rows[0].entity_name == "PAPI 24R"
 
 
 def test_lha_crud_logs_audit(client, session):
@@ -454,7 +458,177 @@ def test_lha_crud_logs_audit(client, session):
 
     assert len(_audit_rows(session, action="CREATE", entity_type="LHA", entity_id=lha_id)) == 1
     assert len(_audit_rows(session, action="UPDATE", entity_type="LHA", entity_id=lha_id)) == 1
-    assert len(_audit_rows(session, action="DELETE", entity_type="LHA", entity_id=lha_id)) == 1
+    del_rows = _audit_rows(session, action="DELETE", entity_type="LHA", entity_id=lha_id)
+    assert len(del_rows) == 1
+    assert del_rows[0].entity_name == "A"
+
+
+def _bulk_templates_setup(client, icao: str):
+    """create airport + surface + PAPI AGL so bulk-create has targets."""
+    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": icao}).json()
+    surface = client.post(f"/api/v1/airports/{apt['id']}/surfaces", json=SURFACE_PAYLOAD).json()
+    client.post(
+        f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls",
+        json=AGL_PAYLOAD,
+    )
+    return apt["id"]
+
+
+def test_bulk_create_templates_emits_aggregate_audit_row(client, session):
+    """bulk-create emits exactly one CREATE InspectionTemplate row scoped to the airport."""
+    apt_id = _bulk_templates_setup(client, "LACT")
+
+    r = client.post("/api/v1/inspection-templates/bulk", json={"airport_id": apt_id})
+    assert r.status_code == 201
+    created = r.json()["created"]
+    assert len(created) >= 1
+
+    rows = _audit_rows(
+        session, action="CREATE", entity_type="InspectionTemplate", entity_id=UUID(apt_id)
+    )
+    assert len(rows) == 1
+    row = rows[0]
+    # templates deliberately leave the denormalized airport_id column None
+    assert row.airport_id is None
+    assert row.details["airport_id"] == apt_id
+    assert row.details["created_count"] == len(created)
+    assert row.details["template_ids"] == [t["id"] for t in created]
+
+    # bulk-create commits airport-agnostic templates (hover/surface-scan) that are
+    # global (no airport scope); clean them up so count-sensitive service tests on
+    # the shared session-scoped DB stay self-contained.
+    for tpl in created:
+        client.delete(f"/api/v1/inspection-templates/{tpl['id']}")
+
+
+def test_bulk_create_templates_rolls_back_when_audit_fails(client, session, monkeypatch):
+    """if log_audit raises during bulk-create, no template rows persist."""
+    import app.api.routes.inspection_templates as templates_route
+
+    apt_id = _bulk_templates_setup(client, "LACU")
+
+    # airport-agnostic templates from earlier committed tests already show up under
+    # any airport filter, so compare the id set before/after rather than expect empty.
+    before = {
+        t["id"]
+        for t in client.get(f"/api/v1/inspection-templates?airport_id={apt_id}").json()["data"]
+    }
+
+    _force_log_audit_failure(monkeypatch, templates_route)
+
+    with pytest.raises(RuntimeError, match="audit-insert-failure"):
+        client.post("/api/v1/inspection-templates/bulk", json={"airport_id": apt_id})
+
+    monkeypatch.undo()
+
+    after = {
+        t["id"]
+        for t in client.get(f"/api/v1/inspection-templates?airport_id={apt_id}").json()["data"]
+    }
+    assert after == before
+
+
+def _measured_mission(client, db_engine, airport_id: str, name: str) -> str:
+    """create a mission and force it to MEASURED via direct sql; returns its id.
+
+    MEASURED is the only state the complete/cancel transitions accept.
+    """
+    from sqlalchemy import text
+
+    from app.core.enums import MissionStatus
+
+    mission = client.post(
+        "/api/v1/missions",
+        json={"name": name, "airport_id": airport_id},
+    ).json()
+    with db_engine.connect() as conn:
+        conn.execute(
+            text("UPDATE mission SET status = :s WHERE id = :id"),
+            {"s": MissionStatus.MEASURED.value, "id": mission["id"]},
+        )
+        conn.commit()
+    return mission["id"]
+
+
+def test_complete_mission_audit_has_entity_name(client, audit_airport_id, db_engine, session):
+    """POST /missions/{id}/complete emits a STATUS_CHANGE row carrying the mission name."""
+    mission_id = _measured_mission(client, db_engine, audit_airport_id, "Audit Complete Mission")
+
+    r = client.post(f"/api/v1/missions/{mission_id}/complete")
+    assert r.status_code == 200
+
+    rows = _audit_rows(session, action="STATUS_CHANGE", entity_type="Mission", entity_id=mission_id)
+    complete_rows = [row for row in rows if row.details and row.details.get("to") == "COMPLETED"]
+    assert len(complete_rows) == 1
+    assert complete_rows[0].entity_name == "Audit Complete Mission"
+
+
+def test_cancel_mission_audit_has_entity_name(client, audit_airport_id, db_engine, session):
+    """POST /missions/{id}/cancel emits a STATUS_CHANGE row carrying the mission name."""
+    mission_id = _measured_mission(client, db_engine, audit_airport_id, "Audit Cancel Mission")
+
+    r = client.post(f"/api/v1/missions/{mission_id}/cancel")
+    assert r.status_code == 200
+
+    rows = _audit_rows(session, action="STATUS_CHANGE", entity_type="Mission", entity_id=mission_id)
+    cancel_rows = [row for row in rows if row.details and row.details.get("to") == "CANCELLED"]
+    assert len(cancel_rows) == 1
+    assert cancel_rows[0].entity_name == "Audit Cancel Mission"
+
+
+def _fake_rasterio(epsg: int, bounds: tuple):
+    """build a stand-in rasterio module whose dataset reports epsg + bounds."""
+    import types
+
+    module = types.ModuleType("rasterio")
+
+    class _FakeDataset:
+        crs = types.SimpleNamespace(to_epsg=lambda: epsg)
+
+        def __init__(self):
+            self.bounds = bounds
+            self.transform = types.SimpleNamespace(a=0.001, e=-0.001)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    module.open = lambda _path: _FakeDataset()
+    return module
+
+
+def test_upload_terrain_dem_rejects_non_wgs84(client, monkeypatch):
+    """a DEM whose CRS is not EPSG:4326 is rejected with 400."""
+    import sys
+
+    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": "LADV"}).json()
+
+    monkeypatch.setitem(sys.modules, "rasterio", _fake_rasterio(3857, (14.0, 50.0, 14.5, 50.2)))
+
+    r = client.post(
+        f"/api/v1/airports/{apt['id']}/terrain-dem",
+        files={"file": ("dem.tif", b"fake-tiff-bytes", "image/tiff")},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "DEM must be in WGS84 (EPSG:4326)"
+
+
+def test_upload_terrain_dem_rejects_dem_not_covering_airport(client, monkeypatch):
+    """a DEM whose bounds do not contain the airport is rejected with 400."""
+    import sys
+
+    apt = client.post("/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": "LADW"}).json()
+
+    monkeypatch.setitem(sys.modules, "rasterio", _fake_rasterio(4326, (0.0, 0.0, 1.0, 1.0)))
+
+    r = client.post(
+        f"/api/v1/airports/{apt['id']}/terrain-dem",
+        files={"file": ("dem.tif", b"fake-tiff-bytes", "image/tiff")},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "DEM does not cover airport location"
 
 
 def test_delete_terrain_dem_logs_audit(client, session):

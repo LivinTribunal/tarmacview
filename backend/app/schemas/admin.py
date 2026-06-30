@@ -135,3 +135,16 @@ class UserListMeta(BaseModel):
     total: int
     limit: int | None = None
     offset: int | None = None
+
+
+class UserListResponse(BaseModel):
+    """paginated user list."""
+
+    data: list[UserAdminResponse]
+    meta: UserListMeta
+
+
+class AdminAirportListResponse(BaseModel):
+    """admin-overview airport list."""
+
+    data: list[AirportAdminResponse]

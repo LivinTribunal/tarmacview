@@ -457,6 +457,8 @@ def delete_lha(db: Session, airport_id: UUID, surface_id: UUID, agl_id: UUID, lh
 
     db.flush()
 
+    return lha
+
 
 def bulk_generate_lhas(
     db: Session,

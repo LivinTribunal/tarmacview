@@ -71,6 +71,37 @@ def upload_terrain_dem(
     return airport, old_path
 
 
+def validate_dem_file(db: Session, airport_id: UUID, tmp_path: str) -> tuple[list, float, float]:
+    """validate an uploaded DEM is WGS84 and covers the airport.
+
+    returns (bounds, res_x, res_y). raises DomainError(501) when rasterio is
+    unavailable, DomainError(400) for a non-WGS84 DEM or one that does not
+    cover the airport, NotFoundError when the airport is missing.
+    """
+    try:
+        import rasterio
+    except ImportError as e:
+        raise DomainError(
+            "rasterio not installed - DEM upload not available", status_code=501
+        ) from e
+
+    with rasterio.open(tmp_path) as dataset:
+        if dataset.crs is None or dataset.crs.to_epsg() != 4326:
+            raise DomainError("DEM must be in WGS84 (EPSG:4326)", status_code=400)
+        bounds = list(dataset.bounds)
+        res_x = abs(dataset.transform.a)
+        res_y = abs(dataset.transform.e)
+
+    airport = db.query(Airport).filter(Airport.id == airport_id).first()
+    if not airport:
+        raise NotFoundError("airport not found")
+    apt_lon, apt_lat = get_airport_lonlat(airport)
+    if not (bounds[0] <= apt_lon <= bounds[2] and bounds[1] <= apt_lat <= bounds[3]):
+        raise DomainError("DEM does not cover airport location", status_code=400)
+
+    return bounds, res_x, res_y
+
+
 def get_dem_file_path(db: Session, airport_id: UUID) -> str | None:
     """get dem_file_path for an airport without eager-loading infrastructure."""
     airport = db.query(Airport).filter(Airport.id == airport_id).first()

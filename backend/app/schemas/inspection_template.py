@@ -55,6 +55,7 @@ class InspectionConfigCreate(ScanConfigFields):
     hover_bearing_reference: HoverBearingRefStr | None = None
     descent_start_distance: float | None = Field(default=None, gt=0)
     descent_glide_slope_override: float | None = Field(default=None, gt=0, le=10)
+    glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
     direction: InspectionDirectionStr | None = None
     white_balance: WhiteBalanceStr | None = None
     iso: int | None = Field(default=None, gt=0)
@@ -104,6 +105,7 @@ class TemplateConfigResponse(ScanConfigFields):
     hover_bearing_reference: HoverBearingRefStr | None = None
     descent_start_distance: float | None = None
     descent_glide_slope_override: float | None = None
+    glide_slope_angle_tolerance: float | None = None
     direction: InspectionDirectionStr | None = None
     resolved_direction: InspectionDirectionStr | None = None
     white_balance: WhiteBalanceStr | None = None

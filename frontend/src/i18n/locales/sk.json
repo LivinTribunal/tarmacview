@@ -964,7 +964,9 @@
         "flightParameters": "Letové parametre",
         "geometry": "Geometrické prepisy",
         "methodSpecific": "Špecifické pre metódu"
-      }
+      },
+      "glideSlopeAngleTolerance": "Tolerancia uhla zostupovej dráhy (°)",
+      "glideSlopeAngleToleranceHelp": "Povolená odchýlka nameranej zostupovej dráhy od nastaveného uhla zostupovej dráhy, kontrolovaná v čase výsledkov. Neovplyvňuje generovanie trajektórie."
     },
     "validationExportPage": {
       "validationResults": "Výsledky validácie",
@@ -2372,6 +2374,14 @@
       "title": "Smer svetla",
       "column": "Jednotka",
       "angle": "Uhol zamierenia"
+    },
+    "glideSlopeTolerance": {
+      "title": "Zostupová dráha v tolerancii",
+      "measured": "Nameraná zostupová dráha",
+      "configured": "Nastavená ± tolerancia",
+      "ok": "OK",
+      "outOfTolerance": "Mimo tolerancie",
+      "unavailable": "Nedostupné"
     }
   },
   "fieldOps": {

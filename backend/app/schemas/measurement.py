@@ -178,6 +178,13 @@ class MeasurementResultsResponse(BaseModel):
     inspection_method: str | None = None
     inspection_sequence_order: int | None = None
     runway_heading: float | None = None
+    # glidepath-tolerance verdict block. measured = (PAPI_B.transition_angle_max +
+    # PAPI_C.transition_angle_min) / 2; configured + tolerance are snapshotted at
+    # create time; within is None until the run is DONE with a usable measurement.
+    measured_glide_slope_angle: float | None = None
+    configured_glide_slope_angle: float | None = None
+    glide_slope_angle_tolerance: float | None = None
+    glide_slope_within_tolerance: bool | None = None
     reference_points: list[ReferencePointResponse] = []
     summaries: list[LightSummaryResponse] = []
     lights: list[LightSeries] = []

@@ -960,7 +960,9 @@
         "flightParameters": "Flight Parameters",
         "geometry": "Geometry Overrides",
         "methodSpecific": "Method-Specific"
-      }
+      },
+      "glideSlopeAngleTolerance": "Glide Slope Angle Tolerance (°)",
+      "glideSlopeAngleToleranceHelp": "Allowed deviation of the measured glidepath from the configured glide slope angle, checked at results time. Does not affect trajectory generation."
     },
     "validationExportPage": {
       "validationResults": "Validation Results",
@@ -2368,6 +2370,14 @@
       "title": "Light direction",
       "column": "Unit",
       "angle": "Aim angle"
+    },
+    "glideSlopeTolerance": {
+      "title": "Glidepath within tolerance",
+      "measured": "Measured glidepath",
+      "configured": "Configured ± tolerance",
+      "ok": "OK",
+      "outOfTolerance": "Out of tolerance",
+      "unavailable": "Not available"
     }
   },
   "fieldOps": {

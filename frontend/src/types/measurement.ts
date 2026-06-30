@@ -127,6 +127,12 @@ export interface MeasurementResults {
   inspection_method: InspectionMethod | null;
   inspection_sequence_order: number | null;
   runway_heading: number | null;
+  // measured glidepath (mid of PAPI_B max / PAPI_C min) vs the snapshotted
+  // configured glide slope ± tolerance, plus the within-tolerance verdict
+  measured_glide_slope_angle: number | null;
+  configured_glide_slope_angle: number | null;
+  glide_slope_angle_tolerance: number | null;
+  glide_slope_within_tolerance: boolean | null;
   reference_points: ReferencePoint[];
   summaries: LightSummary[];
   lights: LightSeries[];

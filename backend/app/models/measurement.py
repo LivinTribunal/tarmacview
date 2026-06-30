@@ -60,6 +60,11 @@ class Measurement(Base):
     # operator-supplied free-text run name; null falls back to the inspection label
     label = Column(String, nullable=True)
     runway_heading = Column(Float, nullable=True)
+    # snapshotted configured glide slope (deg) off the inspection's AGL, captured at
+    # create time - an audit record, not a live join (mirrors reference_points).
+    glide_slope_angle = Column(Float, nullable=True)
+    # snapshotted inspection glide_slope_angle_tolerance (deg) at create time.
+    glide_slope_angle_tolerance = Column(Float, nullable=True)
     # snapshotted LHA ground truth - an audit record, not a live join
     reference_points = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # operator-confirmed first-frame light boxes (percentage coords)
@@ -120,6 +125,19 @@ class Measurement(Base):
             }
             for rp in (self.reference_points or [])
         }
+
+    def glide_slope_within_tolerance(self, measured_angle: float | None) -> bool | None:
+        """measured glidepath within tolerance of the snapshotted configured glide slope.
+
+        None (unscoreable) when the configured angle, tolerance, or measurement is missing.
+        """
+        if (
+            self.glide_slope_angle is None
+            or self.glide_slope_angle_tolerance is None
+            or measured_angle is None
+        ):
+            return None
+        return abs(measured_angle - self.glide_slope_angle) <= self.glide_slope_angle_tolerance
 
     @staticmethod
     def score_light(

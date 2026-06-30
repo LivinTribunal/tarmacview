@@ -6,12 +6,18 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from app.core.constants import DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
 from app.core.enums import MeasurementStatus
 from app.models.audit_log import AuditLog
 from app.models.measurement import Measurement
 from app.models.mission import Mission
 from app.services import measurement_service
 from tests.data.airports import AIRPORT_PAYLOAD
+from tests.data.trajectory import (
+    TRAJECTORY_AGL_PAYLOAD,
+    TRAJECTORY_SURFACE_PAYLOAD,
+    make_lha_payload,
+)
 
 _icao_counter = itertools.count()
 
@@ -416,3 +422,55 @@ def test_create_measurement_on_draft_does_not_transition(client, template_id):
 
     assert client.post(f"/api/v1/inspections/{insp_ids[0]}/measurement").status_code == 200
     assert client.get(f"/api/v1/missions/{mission_id}").json()["status"] == "DRAFT"
+
+
+def test_create_measurement_snapshots_glide_slope_from_agl(client, db_engine, template_id):
+    """the run snapshots the configured AGL glide slope + the default tolerance fallback."""
+    apt = client.post(
+        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
+    ).json()
+    surface = client.post(
+        f"/api/v1/airports/{apt['id']}/surfaces", json=TRAJECTORY_SURFACE_PAYLOAD
+    ).json()
+    agl = client.post(
+        f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls",
+        json=TRAJECTORY_AGL_PAYLOAD,  # glide_slope_angle = 3.0
+    ).json()
+    lha_ids = [
+        client.post(
+            f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls/{agl['id']}/lhas",
+            json=make_lha_payload(i),
+        ).json()["id"]
+        for i in (1, 2)
+    ]
+    mission = client.post(
+        "/api/v1/missions", json={"name": "Snapshot", "airport_id": apt["id"]}
+    ).json()
+    insp = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={
+            "template_id": template_id,
+            "method": "HORIZONTAL_RANGE",
+            "config": {"lha_ids": lha_ids},
+        },
+    ).json()
+    client.post(
+        "/api/v1/drone-media/complete-upload",
+        json={
+            "mission_id": mission["id"],
+            "inspection_id": insp["id"],
+            "object_key": "drone-media/manual/snap.mp4",
+            "filename": "snap.mp4",
+            "size_bytes": 2048,
+        },
+    )
+
+    mid = client.post(f"/api/v1/inspections/{insp['id']}/measurement").json()["id"]
+
+    s = sessionmaker(bind=db_engine)()
+    try:
+        row = s.query(Measurement).filter(Measurement.id == UUID(mid)).first()
+        assert row.glide_slope_angle == 3.0
+        assert row.glide_slope_angle_tolerance == DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+    finally:
+        s.close()

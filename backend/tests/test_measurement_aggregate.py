@@ -150,6 +150,40 @@ def test_with_summaries_from_rolls_up_by_light_name():
     assert by_name["PAPI_B"]["passed"] is False
 
 
+# glide-slope tolerance verdict
+
+
+def test_glide_slope_within_tolerance_pass_fail():
+    """measured glidepath inside the band passes, outside fails."""
+    m = _measurement(glide_slope_angle=3.0, glide_slope_angle_tolerance=0.2)
+    assert m.glide_slope_within_tolerance(3.0) is True
+    assert m.glide_slope_within_tolerance(3.15) is True  # within the band
+    assert m.glide_slope_within_tolerance(2.85) is True  # within the band, other side
+    assert m.glide_slope_within_tolerance(3.3) is False
+
+
+def test_glide_slope_within_tolerance_unscoreable():
+    """a missing configured angle, tolerance, or measurement is None (unscoreable)."""
+    assert (
+        _measurement(
+            glide_slope_angle=None, glide_slope_angle_tolerance=0.1
+        ).glide_slope_within_tolerance(3.0)
+        is None
+    )
+    assert (
+        _measurement(
+            glide_slope_angle=3.0, glide_slope_angle_tolerance=None
+        ).glide_slope_within_tolerance(3.0)
+        is None
+    )
+    assert (
+        _measurement(
+            glide_slope_angle=3.0, glide_slope_angle_tolerance=0.1
+        ).glide_slope_within_tolerance(None)
+        is None
+    )
+
+
 def test_confirm_boxes_replaces_boxes():
     """confirm_boxes stores the operator-adjusted set."""
     m = _measurement()

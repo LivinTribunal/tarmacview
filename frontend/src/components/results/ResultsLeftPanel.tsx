@@ -13,6 +13,7 @@ import {
 } from "@/constants/palette";
 import InspectionPicker from "./InspectionPicker";
 import InspectionInfoPanel from "./InspectionInfoPanel";
+import GlideSlopeToleranceCard from "./GlideSlopeToleranceCard";
 import { computeGlidePathAngle } from "./resultsStats";
 import { transitionVerdict } from "./TransitionAngleTable";
 
@@ -69,6 +70,17 @@ export default function ResultsLeftPanel({
             createdAt={currentRow?.created_at ?? null}
             verdict={overallVerdict(results.summaries)}
             glidePathAngle={computeGlidePathAngle(results.lights)}
+          />
+        </div>
+      )}
+
+      {results && (
+        <div className={CARD_CLASS}>
+          <GlideSlopeToleranceCard
+            measured={results.measured_glide_slope_angle}
+            configured={results.configured_glide_slope_angle}
+            tolerance={results.glide_slope_angle_tolerance}
+            withinTolerance={results.glide_slope_within_tolerance}
           />
         </div>
       )}

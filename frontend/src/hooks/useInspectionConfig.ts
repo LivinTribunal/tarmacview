@@ -215,6 +215,7 @@ export default function useInspectionConfig({
   const cameraGimbalAngle = resolveNumber("camera_gimbal_angle");
   const descentStartDistance = resolveNumber("descent_start_distance");
   const descentGlideSlopeOverride = resolveNumber("descent_glide_slope_override");
+  const glideSlopeAngleTolerance = resolveNumber("glide_slope_angle_tolerance");
   const hoverBearing = resolveNumber("hover_bearing");
   const hoverBearingReference: "RUNWAY" | "COMPASS" =
     ("hover_bearing_reference" in configOverride
@@ -549,6 +550,7 @@ export default function useInspectionConfig({
     cameraGimbalAngle,
     descentStartDistance,
     descentGlideSlopeOverride,
+    glideSlopeAngleTolerance,
     hoverBearing,
     hoverBearingReference,
     selectedLhaId,

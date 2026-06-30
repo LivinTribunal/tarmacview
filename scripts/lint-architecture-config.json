@@ -22,7 +22,7 @@
     {
       "name": "schemas",
       "patterns": ["backend/app/schemas/**"],
-      "canDependOn": [],
+      "canDependOn": ["core"],
       "modulePrefix": "app.schemas"
     },
     {

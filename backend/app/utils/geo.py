@@ -356,7 +356,7 @@ def angular_span_at_distance(
 
 def euclidean_distance(x1: float, y1: float, x2: float, y2: float) -> float:
     """euclidean distance between two points in local meter coordinates."""
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    return math.hypot(x2 - x1, y2 - y1)
 
 
 # A* pathfinding on visibility graph

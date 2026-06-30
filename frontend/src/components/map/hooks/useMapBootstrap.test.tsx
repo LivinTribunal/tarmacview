@@ -179,7 +179,6 @@ function renderBootstrap(fakeMap: FakeMap, overrides: Partial<Parameters<typeof 
       flightPlanScope: "FULL",
       terrainMode: "satellite",
       setTerrainMode: vi.fn(),
-      layerConfig: { runways: true, taxiways: true } as never,
       layerConfigRef: refs.layerConfigRef,
       focusFeatureRef: refs.focusFeatureRef,
       focusLhaIdsRef: refs.focusLhaIdsRef,

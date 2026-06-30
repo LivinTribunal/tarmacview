@@ -52,7 +52,6 @@ import { addMeasureLayersToMap } from "./useMeasureTool";
 import { addHeadingLayersToMap } from "./useHeadingTool";
 import { addHighlightLayers, syncHighlight, HIGHLIGHT_LAYERS } from "./useMapHighlightLayers";
 import type { MapFeature } from "@/types/map";
-import { layerGroupMap } from "../mapLayerGroups";
 
 export const PENDING_PREVIEW_SOURCE = "pending-preview";
 export const PENDING_PREVIEW_FILL_LAYER = "pending-preview-fill";
@@ -139,7 +138,6 @@ interface UseMapBootstrapParams {
   flightPlanScope: FlightPlanScope | null | undefined;
   terrainMode: "map" | "satellite";
   setTerrainMode: Dispatch<SetStateAction<"map" | "satellite">> | ((mode: "map" | "satellite") => void);
-  layerConfig: MapLayerConfig;
   layerConfigRef: MutableRefObject<MapLayerConfig>;
   focusFeatureRef: MutableRefObject<MapFeature | null>;
   focusLhaIdsRef: MutableRefObject<string[] | null>;
@@ -179,7 +177,6 @@ export function useMapBootstrap({
   flightPlanScope,
   terrainMode,
   setTerrainMode,
-  layerConfig,
   layerConfigRef,
   focusFeatureRef,
   focusLhaIdsRef,
@@ -227,22 +224,9 @@ export function useMapBootstrap({
 
       // sync layer visibility immediately so newly-added layers honor the
       // current LayerPanel toggle state instead of defaulting to "visible"
-      const cfg = layerConfigRef.current;
-      for (const [key, layerIds] of Object.entries(layerGroupMap)) {
-        const visible = cfg[key as keyof MapLayerConfig];
-        if (visible === undefined) continue;
-        for (const layerId of layerIds) {
-          try {
-            if (map.getLayer(layerId)) {
-              map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
-            }
-          } catch {
-            // layer may not exist
-          }
-        }
-      }
+      syncLayerVisibility(map);
     },
-    [airport, focusFeatureRef, focusLhaIdsRef, layerConfigRef],
+    [airport, focusFeatureRef, focusLhaIdsRef, syncLayerVisibility],
   );
 
   // add infrastructure layers once map + airport data are ready, refresh on airport change
@@ -267,20 +251,7 @@ export function useMapBootstrap({
       addSimplifiedTrajectoryLayers(map, waypointsRef.current ?? [], takeoffRef.current, landingRef.current);
 
       // restore layer toggle visibility after rebuild
-      const cfg = layerConfigRef.current;
-      for (const [key, layerIds] of Object.entries(layerGroupMap)) {
-        const visible = cfg[key as keyof MapLayerConfig];
-        if (visible === undefined) continue;
-        for (const layerId of layerIds) {
-          try {
-            if (map.getLayer(layerId)) {
-              map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
-            }
-          } catch {
-            // layer may not exist
-          }
-        }
-      }
+      syncLayerVisibility(map);
 
       // keep vertex editor overlay on top of rebuilt infra layers
       for (const lyr of ["vertex-edit-corners", "vertex-edit-center"]) {
@@ -304,7 +275,7 @@ export function useMapBootstrap({
       requestAnimationFrame(poll);
       return () => { cancelled = true; };
     }
-  }, [airport, addAllLayers, mapRef, indexMapRef, landingRef, layerConfigRef, takeoffRef, waypointsRef]);
+  }, [airport, addAllLayers, mapRef, indexMapRef, landingRef, syncLayerVisibility, takeoffRef, waypointsRef]);
 
   // add or update waypoint layers
   const addWaypointLayers = useCallback((
@@ -435,32 +406,17 @@ export function useMapBootstrap({
         addAllLayers(map);
         addWaypointLayers(map);
 
-        for (const [key, layerIds] of Object.entries(layerGroupMap)) {
-          const visible = layerConfig[key as keyof MapLayerConfig];
-          for (const layerId of layerIds) {
-            try {
-              if (map.getLayer(layerId)) {
-                map.setLayoutProperty(
-                  layerId,
-                  "visibility",
-                  visible ? "visible" : "none",
-                );
-              }
-            } catch {
-              // layer may not exist yet
-            }
-          }
-        }
+        syncLayerVisibility(map);
       });
     },
     [
-      layerConfig,
       addAllLayers,
       addWaypointLayers,
       setTerrainMode,
       mapRef,
       onMeasureClearRef,
       onHeadingClearRef,
+      syncLayerVisibility,
     ],
   );
 

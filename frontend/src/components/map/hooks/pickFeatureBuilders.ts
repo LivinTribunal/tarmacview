@@ -130,6 +130,29 @@ export function buildWaypointFeature(
   };
 }
 
+/** build a single-waypoint MapFeature straight from a WaypointResponse (info-panel/list-row click). */
+export function buildWaypointFeatureFromResponse(wp: WaypointResponse): MapFeature {
+  const [lon, lat, alt] = wp.position.coordinates;
+  return {
+    type: "waypoint",
+    data: {
+      id: wp.id,
+      waypoint_type: wp.waypoint_type,
+      sequence_order: wp.sequence_order,
+      position: { type: "Point", coordinates: [lon, lat, alt] },
+      stack_count: 1,
+      heading: wp.heading ?? null,
+      speed: wp.speed ?? null,
+      camera_action: wp.camera_action ?? null,
+      camera_target: wp.camera_target ?? null,
+      gimbal_pitch: wp.gimbal_pitch ?? null,
+      hover_duration: wp.hover_duration ?? null,
+      agl: wp.agl ?? null,
+      camera_target_agl: wp.camera_target_agl ?? null,
+    },
+  };
+}
+
 /** build an infrastructure MapFeature from non-waypoint hits, preferring points. */
 export function buildInfraFeature(
   features: maplibregl.MapGeoJSONFeature[],

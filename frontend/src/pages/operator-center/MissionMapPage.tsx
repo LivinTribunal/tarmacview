@@ -28,7 +28,7 @@ import type {
 } from "@/types/flightPlan";
 import type { MapFeature, MapLayerConfig } from "@/types/map";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
-import AirportMap from "@/components/map/AirportMap";
+import AirportMap, { buildWaypointFeatureFromResponse } from "@/components/map/AirportMap";
 import type { AirportMapHandle } from "@/components/map/AirportMap";
 import LegendPanel from "@/components/map/overlays/LegendPanel";
 import AirportInfoPanel from "@/components/map/overlays/AirportInfoPanel";
@@ -412,24 +412,7 @@ export default function MissionMapPage() {
       }
       const wp = effectiveWaypoints.find((w) => w.id === wpId);
       if (!wp) return null;
-      const [lon, lat, alt] = wp.position.coordinates;
-      return {
-        type: "waypoint",
-        data: {
-          id: wp.id,
-          waypoint_type: wp.waypoint_type,
-          sequence_order: wp.sequence_order,
-          position: { type: "Point", coordinates: [lon, lat, alt] },
-          stack_count: 1,
-          heading: wp.heading ?? null,
-          speed: wp.speed ?? null,
-          camera_action: wp.camera_action ?? null,
-          camera_target: wp.camera_target ?? null,
-          gimbal_pitch: wp.gimbal_pitch ?? null,
-          agl: wp.agl ?? null,
-          camera_target_agl: wp.camera_target_agl ?? null,
-        },
-      };
+      return buildWaypointFeatureFromResponse(wp);
     },
     [effectiveWaypoints, mission],
   );

@@ -439,6 +439,59 @@ export function buildBufferZoneEntities(
 }
 
 /** build AGL + LHA point and label entities (gated on terrain readiness by caller). */
+/** build a clamped AGL/LHA point+label Entity; the only per-type differences are
+ * label copy, the label pixel offset, and the label outline width. */
+function buildInfraPointEntity(opts: {
+  key: string;
+  name: string;
+  lng: number;
+  lat: number;
+  selected: boolean;
+  color: Color;
+  labelText: string;
+  labelPixelOffsetY: number;
+  labelOutlineWidth: number;
+  featureType: "agl" | "lha";
+  featureId: string;
+  declutterPriority: number;
+  declutterGroup: string;
+}): JSX.Element {
+  return (
+    <Entity
+      key={opts.key}
+      name={opts.name}
+      position={Cartesian3.fromDegrees(opts.lng, opts.lat, 0)}
+      point={{
+        pixelSize: opts.selected ? 15 : 10,
+        color: opts.selected ? Color.WHITE : opts.color,
+        outlineColor: opts.selected ? opts.color : Color.WHITE,
+        outlineWidth: 2,
+        heightReference: HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      }}
+      label={{
+        text: opts.labelText,
+        font: "10px sans-serif",
+        fillColor: opts.color,
+        outlineColor: Color.BLACK,
+        outlineWidth: opts.labelOutlineWidth,
+        style: LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, opts.labelPixelOffsetY),
+        heightReference: HeightReference.CLAMP_TO_GROUND,
+        scaleByDistance: new NearFarScalar(200, 1.0, 3000, 0.0),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      }}
+      properties={{
+        featureType: opts.featureType,
+        featureId: opts.featureId,
+        declutterPriority: opts.declutterPriority,
+        declutterGroup: opts.declutterGroup,
+      }}
+    />
+  );
+}
+
 export function buildAglSystemEntities(
   airport: AirportDetailResponse,
   layers: MapLayerConfig,
@@ -457,38 +510,21 @@ export function buildAglSystemEntities(
       const aglTypeColor = aglCesiumColor(agl.agl_type);
 
       entities.push(
-        <Entity
-          key={`agl-${agl.id}`}
-          name={`AGL ${agl.id.slice(0, 8)}`}
-          position={Cartesian3.fromDegrees(lng, lat, 0)}
-          point={{
-            pixelSize: isAglSelected ? 15 : 10,
-            color: isAglSelected ? Color.WHITE : aglTypeColor,
-            outlineColor: isAglSelected ? aglTypeColor : Color.WHITE,
-            outlineWidth: 2,
-            heightReference: HeightReference.CLAMP_TO_GROUND,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          }}
-          label={{
-            text: (agl.name ? formatAglDisplayName(agl, surface) : t("map.aglLabel")),
-            font: "10px sans-serif",
-            fillColor: aglTypeColor,
-            outlineColor: Color.BLACK,
-            outlineWidth: 2,
-            style: LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: VerticalOrigin.BOTTOM,
-            pixelOffset: new Cartesian2(0, -12),
-            heightReference: HeightReference.CLAMP_TO_GROUND,
-            scaleByDistance: new NearFarScalar(200, 1.0, 3000, 0.0),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          }}
-          properties={{
-            featureType: "agl",
-            featureId: agl.id,
-            declutterPriority: DECLUTTER_PRIORITY.agl,
-            declutterGroup: `agl:${agl.id}`,
-          }}
-        />,
+        buildInfraPointEntity({
+          key: `agl-${agl.id}`,
+          name: `AGL ${agl.id.slice(0, 8)}`,
+          lng,
+          lat,
+          selected: isAglSelected,
+          color: aglTypeColor,
+          labelText: agl.name ? formatAglDisplayName(agl, surface) : t("map.aglLabel"),
+          labelPixelOffsetY: -12,
+          labelOutlineWidth: 2,
+          featureType: "agl",
+          featureId: agl.id,
+          declutterPriority: DECLUTTER_PRIORITY.agl,
+          declutterGroup: `agl:${agl.id}`,
+        }),
       );
 
       // lha billboards
@@ -497,41 +533,24 @@ export function buildAglSystemEntities(
         const [lhaLng, lhaLat] = lha.position.coordinates;
         const isLhaSelected = selectedFeatureKey === `lha:${lha.id}`;
         entities.push(
-          <Entity
-            key={`lha-${lha.id}`}
-            name={t("map.lhaName", { unit: lha.unit_designator ?? "" })}
-            position={Cartesian3.fromDegrees(lhaLng, lhaLat, 0)}
-            point={{
-              pixelSize: isLhaSelected ? 15 : 10,
-              color: isLhaSelected ? Color.WHITE : aglTypeColor,
-              outlineColor: isLhaSelected ? aglTypeColor : Color.WHITE,
-              outlineWidth: 2,
-              heightReference: HeightReference.CLAMP_TO_GROUND,
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            }}
-            label={{
-              text: t("map.lhaLabelWithAngle", {
-                unit: lha.unit_designator ?? "",
-                angle: lha.setting_angle ?? 0,
-              }),
-              font: "10px sans-serif",
-              fillColor: aglTypeColor,
-              outlineColor: Color.BLACK,
-              outlineWidth: 1,
-              style: LabelStyle.FILL_AND_OUTLINE,
-              verticalOrigin: VerticalOrigin.BOTTOM,
-              pixelOffset: new Cartesian2(0, -14),
-              heightReference: HeightReference.CLAMP_TO_GROUND,
-              scaleByDistance: new NearFarScalar(200, 1.0, 3000, 0.0),
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            }}
-            properties={{
-              featureType: "lha",
-              featureId: lha.id,
-              declutterPriority: DECLUTTER_PRIORITY.lha,
-              declutterGroup: `lha:${lha.id}`,
-            }}
-          />,
+          buildInfraPointEntity({
+            key: `lha-${lha.id}`,
+            name: t("map.lhaName", { unit: lha.unit_designator ?? "" }),
+            lng: lhaLng,
+            lat: lhaLat,
+            selected: isLhaSelected,
+            color: aglTypeColor,
+            labelText: t("map.lhaLabelWithAngle", {
+              unit: lha.unit_designator ?? "",
+              angle: lha.setting_angle ?? 0,
+            }),
+            labelPixelOffsetY: -14,
+            labelOutlineWidth: 1,
+            featureType: "lha",
+            featureId: lha.id,
+            declutterPriority: DECLUTTER_PRIORITY.lha,
+            declutterGroup: `lha:${lha.id}`,
+          }),
         );
       }
     }

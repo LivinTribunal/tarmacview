@@ -11,6 +11,7 @@ import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
 import FormSection from "@/components/common/FormSection";
 import InfoHint from "@/components/common/InfoHint";
 import ApproachDescentFields from "@/components/mission/ApproachDescentFields";
+import PapiCenterHeightSection from "@/components/mission/PapiCenterHeightSection";
 import FlyOverFields from "@/components/mission/FlyOverFields";
 import ParallelSideSweepFields from "@/components/mission/ParallelSideSweepFields";
 import HoverPointLockFields from "@/components/mission/HoverPointLockFields";
@@ -53,6 +54,8 @@ interface MethodSpecificSectionsProps {
   cameraGimbalAngle: number | "";
   descentStartDistance: number | "";
   descentGlideSlopeOverride: number | "";
+  papiCenterHeightReference: "GROUND" | "LENS" | "CUSTOM";
+  papiCenterHeightCustomM: number | "";
   hoverBearing: number | "";
   hoverBearingReference: "RUNWAY" | "COMPASS";
   angleLocked: boolean;
@@ -93,6 +96,8 @@ export default function MethodSpecificSections({
   cameraGimbalAngle,
   descentStartDistance,
   descentGlideSlopeOverride,
+  papiCenterHeightReference,
+  papiCenterHeightCustomM,
   hoverBearing,
   hoverBearingReference,
   angleLocked,
@@ -284,6 +289,19 @@ export default function MethodSpecificSections({
             data-testid="inspection-buffer-distance"
           />
         </div>
+        )}
+
+        {/* papi camera center-height reference - glide-slope methods only */}
+        {(inspection.method === "HORIZONTAL_RANGE" ||
+          inspection.method === "VERTICAL_PROFILE" ||
+          inspection.method === "APPROACH_DESCENT") && (
+          <PapiCenterHeightSection
+            papiCenterHeightReference={papiCenterHeightReference}
+            papiCenterHeightCustomM={papiCenterHeightCustomM}
+            configOverride={configOverride}
+            onChange={onChange}
+            onNumberChange={onNumberChange}
+          />
         )}
 
         {/* method fields that live in main config, not under camera settings */}

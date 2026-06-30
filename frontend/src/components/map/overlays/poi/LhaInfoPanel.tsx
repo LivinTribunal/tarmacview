@@ -24,6 +24,18 @@ export default function LhaInfoPanel({ lha }: { lha: LHAResponse }) {
           value={`${formatNumber(lha.tolerance, 1)}°`}
         />
       )}
+      {lha.lens_height_agl_m != null && (
+        <InfoRow
+          label={t("airport.lha.lensHeightAgl")}
+          value={`${formatNumber(lha.lens_height_agl_m, 2)} ${t("common.units.m")}`}
+        />
+      )}
+      {lha.lens_height_msl_m != null && (
+        <InfoRow
+          label={t("airport.lha.lensHeightMsl")}
+          value={`${formatNumber(lha.lens_height_msl_m, 2)} ${t("common.units.m")}`}
+        />
+      )}
       <CoordRows position={lha.position} label={t("dashboard.poiCoordinates")} />
     </>
   );

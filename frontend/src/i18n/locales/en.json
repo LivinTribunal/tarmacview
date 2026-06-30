@@ -765,6 +765,16 @@
       "descentGlideSlopeOverride": "Glide Slope Override (deg)",
       "descentGlideSlopeOverrideHint": "Leave empty for the PAPI angle",
       "descentGlideSlopeOverrideHelp": "Custom glide slope angle for the approach descent. Leave empty to use the PAPI-derived nominal glide path (typically 3 deg).",
+      "papiCenterHeight": {
+        "label": "PAPI Center Height Reference",
+        "help": "Altitude the drone camera aims at, measured at the centroid of the selected PAPI lights. Ground keeps the aim at ground level; Lens raises it by the average surveyed lens height; Custom raises it by a fixed height you enter.",
+        "ground": "Ground",
+        "lens": "Lens (avg AGL)",
+        "custom": "Custom",
+        "customHeight": "Custom Center Height (m)",
+        "customHeightHint": "Height above ground",
+        "customHeightHelp": "Meters above ground to raise the PAPI center aim point. Used only when the reference is Custom."
+      },
       "heightAboveLha": "Height Above LHA (m)",
       "heightAboveLhaHint": "Default: 5 m",
       "heightAboveLhaHelp": "Drone altitude above the LHA point during Hover Point Lock. With auto-aim on, changing this also updates the gimbal angle.",
@@ -1907,7 +1917,9 @@
     "lha": {
       "sequenceNumber": "Sequence #",
       "sequenceNumberHelp": "Order of this LHA along the line, starting at 1. Reordering shifts siblings on the same AGL.",
-      "sequenceOutOfRange": "Sequence number must be between 1 and {{max}}"
+      "sequenceOutOfRange": "Sequence number must be between 1 and {{max}}",
+      "lensHeightAgl": "Lens Height (AGL)",
+      "lensHeightMsl": "Lens Height (MSL)"
     },
     "zoneType": {
       "CTR": "CTR",

@@ -163,6 +163,14 @@ class PAPISide(str, enum.Enum):
     RIGHT = "RIGHT"
 
 
+class PapiCenterHeightReference(str, enum.Enum):
+    """altitude reference for the PAPI camera center aim point."""
+
+    GROUND = "GROUND"
+    LENS = "LENS"
+    CUSTOM = "CUSTOM"
+
+
 class ConstraintType(str, enum.Enum):
     """flight-plan constraint category."""
 

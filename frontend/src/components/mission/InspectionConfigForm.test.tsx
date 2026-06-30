@@ -980,4 +980,93 @@ describe("InspectionConfigForm info hints", () => {
       unmount();
     }
   });
+
+  it("renders the PAPI center-height section for glide-slope methods only", () => {
+    const shows: Array<"HORIZONTAL_RANGE" | "VERTICAL_PROFILE" | "APPROACH_DESCENT"> = [
+      "HORIZONTAL_RANGE",
+      "VERTICAL_PROFILE",
+      "APPROACH_DESCENT",
+    ];
+    for (const method of shows) {
+      const { unmount } = renderForm({
+        inspection: baseInspection({ method }),
+        template: papiTemplate as never,
+      });
+      expect(screen.getByTestId("papi-center-height-section")).toBeInTheDocument();
+      unmount();
+    }
+    for (const method of ["FLY_OVER", "SURFACE_SCAN", "HOVER_POINT_LOCK"] as const) {
+      const { unmount } = renderForm({
+        inspection: baseInspection({ method }),
+        template: (method === "HOVER_POINT_LOCK" ? papiTemplate : runwayTemplate) as never,
+      });
+      expect(
+        screen.queryByTestId("papi-center-height-section"),
+      ).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("defaults to GROUND and hides the custom input until CUSTOM is selected", () => {
+    renderForm({
+      inspection: baseInspection({ method: "HORIZONTAL_RANGE" }),
+      template: papiTemplate as never,
+    });
+    const select = screen.getByTestId(
+      "inspection-papi-center-height-reference",
+    ) as HTMLSelectElement;
+    expect(select.value).toBe("GROUND");
+    expect(
+      screen.queryByTestId("inspection-papi-center-height-custom"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the custom input when the saved reference is CUSTOM", () => {
+    renderForm({
+      inspection: baseInspection({
+        method: "HORIZONTAL_RANGE",
+        config: {
+          papi_center_height_reference: "CUSTOM",
+          papi_center_height_custom_m: 6,
+        } as never,
+      }),
+      template: papiTemplate as never,
+    });
+    expect(
+      screen.getByTestId("inspection-papi-center-height-custom"),
+    ).toBeInTheDocument();
+  });
+
+  it("propagates a center-height reference change", () => {
+    const onChange = vi.fn();
+    renderForm({
+      inspection: baseInspection({ method: "HORIZONTAL_RANGE" }),
+      template: papiTemplate as never,
+      onChange,
+    });
+    fireEvent.change(screen.getByTestId("inspection-papi-center-height-reference"), {
+      target: { value: "LENS" },
+    });
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ papi_center_height_reference: "LENS" }),
+    );
+  });
+
+  it("propagates a custom center-height value change", () => {
+    const onChange = vi.fn();
+    renderForm({
+      inspection: baseInspection({
+        method: "HORIZONTAL_RANGE",
+        config: { papi_center_height_reference: "CUSTOM" } as never,
+      }),
+      template: papiTemplate as never,
+      onChange,
+    });
+    fireEvent.change(screen.getByTestId("inspection-papi-center-height-custom"), {
+      target: { value: "8.5" },
+    });
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ papi_center_height_custom_m: 8.5 }),
+    );
+  });
 });

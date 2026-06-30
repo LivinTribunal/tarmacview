@@ -184,6 +184,36 @@ def get_lha_setting_angles(template, lha_ids=None) -> list[Degrees]:
     return sorted(angles)
 
 
+def get_average_lens_height_agl(template, lha_ids: list | None = None) -> float | None:
+    """average lens_height_agl_m across selected PAPI LHAs, or None when none set."""
+    lha_id_set = {str(i) for i in lha_ids} if lha_ids else None
+    heights = []
+    for agl in template.targets:
+        for lha in agl.lhas:
+            if lha_id_set and str(lha.id) not in lha_id_set:
+                continue
+            if lha.lens_height_agl_m is not None:
+                heights.append(lha.lens_height_agl_m)
+    if not heights:
+        return None
+    return sum(heights) / len(heights)
+
+
+def resolve_center_height_offset(config: ResolvedConfig, template, lha_ids) -> float:
+    """meters to raise the LHA-centroid aim altitude per the center-height reference.
+
+    GROUND -> 0; LENS -> average selected lens_height_agl_m (0 when none set);
+    CUSTOM -> operator height (0 when unset).
+    """
+    ref = (config.papi_center_height_reference or "GROUND").upper()
+    if ref == "LENS":
+        avg = get_average_lens_height_agl(template, lha_ids)
+        return avg if avg is not None else 0.0
+    if ref == "CUSTOM":
+        return config.papi_center_height_custom_m or 0.0
+    return 0.0
+
+
 def derive_observation_angle(
     setting_angles: list[Degrees],
     angle_offset: Degrees,

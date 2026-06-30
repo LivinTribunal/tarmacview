@@ -7,11 +7,14 @@ import pytest
 
 from app.services.trajectory.helpers import (
     _designator_sort_key,
+    get_average_lens_height_agl,
     get_lha_positions,
     get_ordered_lha_positions,
     get_runway_centerline_midpoint,
     get_surface_centerline_midpoint,
+    resolve_center_height_offset,
 )
+from app.services.trajectory.types import ResolvedConfig
 from tests.data.trajectory import DESIGNATOR_MAP
 
 
@@ -113,3 +116,80 @@ def test_get_runway_centerline_midpoint_matches_surface_midpoint():
     assert mid.lon == pytest.approx(18.1)
     assert mid.lat == pytest.approx(49.6)
     assert mid.alt == pytest.approx(110.0)
+
+
+def _lha_lens(lens_agl, designator="A"):
+    """fake LHA carrying a lens_height_agl_m (None for non-PAPI / unconfigured)."""
+    return SimpleNamespace(id=uuid4(), lens_height_agl_m=lens_agl, unit_designator=designator)
+
+
+class TestGetAverageLensHeightAgl:
+    """averaging of selected PAPI LHA lens heights."""
+
+    def test_averages_configured_heights(self):
+        """mean of every non-null lens_height_agl_m across template LHAs."""
+        template = SimpleNamespace(targets=[SimpleNamespace(lhas=[_lha_lens(1.0), _lha_lens(3.0)])])
+        assert get_average_lens_height_agl(template) == pytest.approx(2.0)
+
+    def test_skips_none_heights(self):
+        """null lens heights are ignored, average uses only set ones."""
+        template = SimpleNamespace(
+            targets=[SimpleNamespace(lhas=[_lha_lens(2.0), _lha_lens(None), _lha_lens(4.0)])]
+        )
+        assert get_average_lens_height_agl(template) == pytest.approx(3.0)
+
+    def test_none_when_no_heights_set(self):
+        """returns None when no LHA carries a lens height."""
+        template = SimpleNamespace(
+            targets=[SimpleNamespace(lhas=[_lha_lens(None), _lha_lens(None)])]
+        )
+        assert get_average_lens_height_agl(template) is None
+
+    def test_none_when_no_lhas(self):
+        """returns None when there are no target LHAs at all."""
+        template = SimpleNamespace(targets=[])
+        assert get_average_lens_height_agl(template) is None
+
+    def test_respects_lha_ids_filter(self):
+        """only the selected lha_ids contribute to the average."""
+        a = _lha_lens(2.0)
+        b = _lha_lens(8.0)
+        template = SimpleNamespace(targets=[SimpleNamespace(lhas=[a, b])])
+        assert get_average_lens_height_agl(template, [a.id]) == pytest.approx(2.0)
+
+
+class TestResolveCenterHeightOffset:
+    """center-height reference -> meters to raise the LHA-centroid aim altitude."""
+
+    def _template(self, *heights):
+        """template with one AGL whose LHAs carry the given lens heights."""
+        return SimpleNamespace(targets=[SimpleNamespace(lhas=[_lha_lens(h) for h in heights])])
+
+    def test_ground_is_zero(self):
+        """GROUND (and the default) keeps the centroid at ground level."""
+        cfg = ResolvedConfig(papi_center_height_reference="GROUND")
+        assert resolve_center_height_offset(cfg, self._template(5.0), None) == 0.0
+        # default ResolvedConfig also reads as GROUND
+        assert resolve_center_height_offset(ResolvedConfig(), self._template(5.0), None) == 0.0
+
+    def test_lens_uses_average(self):
+        """LENS lifts by the average selected lens_height_agl_m."""
+        cfg = ResolvedConfig(papi_center_height_reference="LENS")
+        assert resolve_center_height_offset(cfg, self._template(1.0, 3.0), None) == pytest.approx(
+            2.0
+        )
+
+    def test_lens_with_no_heights_falls_back_to_ground(self):
+        """LENS with no configured lens heights degrades to 0 (Ground behavior)."""
+        cfg = ResolvedConfig(papi_center_height_reference="LENS")
+        assert resolve_center_height_offset(cfg, self._template(None, None), None) == 0.0
+
+    def test_custom_uses_operator_height(self):
+        """CUSTOM lifts by the operator-entered height."""
+        cfg = ResolvedConfig(papi_center_height_reference="CUSTOM", papi_center_height_custom_m=7.5)
+        assert resolve_center_height_offset(cfg, self._template(2.0), None) == pytest.approx(7.5)
+
+    def test_custom_with_no_height_is_zero(self):
+        """CUSTOM with an unset height degrades to 0."""
+        cfg = ResolvedConfig(papi_center_height_reference="CUSTOM")
+        assert resolve_center_height_offset(cfg, self._template(2.0), None) == 0.0

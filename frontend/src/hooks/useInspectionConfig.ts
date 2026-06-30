@@ -215,6 +215,13 @@ export default function useInspectionConfig({
   const cameraGimbalAngle = resolveNumber("camera_gimbal_angle");
   const descentStartDistance = resolveNumber("descent_start_distance");
   const descentGlideSlopeOverride = resolveNumber("descent_glide_slope_override");
+  // papi camera center-height reference - per-inspection control, defaults to GROUND.
+  // not consulted on the template default_config (the field is off that schema).
+  const papiCenterHeightReference: "GROUND" | "LENS" | "CUSTOM" =
+    (configOverride.papi_center_height_reference !== undefined
+      ? configOverride.papi_center_height_reference
+      : savedCfg?.papi_center_height_reference ?? null) ?? "GROUND";
+  const papiCenterHeightCustomM = resolveNumber("papi_center_height_custom_m");
   const hoverBearing = resolveNumber("hover_bearing");
   const hoverBearingReference: "RUNWAY" | "COMPASS" =
     ("hover_bearing_reference" in configOverride
@@ -549,6 +556,8 @@ export default function useInspectionConfig({
     cameraGimbalAngle,
     descentStartDistance,
     descentGlideSlopeOverride,
+    papiCenterHeightReference,
+    papiCenterHeightCustomM,
     hoverBearing,
     hoverBearingReference,
     selectedLhaId,

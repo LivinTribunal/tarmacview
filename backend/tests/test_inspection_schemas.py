@@ -7,6 +7,7 @@ override from ever reaching phase 5 via the regular API path.
 import pytest
 from pydantic import ValidationError
 
+from app.schemas.inspection_config import InspectionConfigResponse
 from app.schemas.inspection_template import InspectionConfigCreate
 from app.schemas.mission import InspectionConfigOverride
 
@@ -91,3 +92,34 @@ def test_scan_run_count_floor(schema_cls):
     schema_cls(scan_run_count=1)
     with pytest.raises(ValidationError):
         schema_cls(scan_run_count=0)
+
+
+# papi center-height reference - override + response only (not template default)
+
+
+@pytest.mark.parametrize("ref", ["GROUND", "LENS", "CUSTOM"])
+def test_papi_center_height_reference_accepts_enum_values(ref):
+    """the override accepts each of the three references."""
+    assert InspectionConfigOverride(papi_center_height_reference=ref)
+
+
+def test_papi_center_height_reference_rejects_unknown():
+    """an unknown reference is rejected (422 at the route boundary)."""
+    with pytest.raises(ValidationError):
+        InspectionConfigOverride(papi_center_height_reference="FLOOR")
+
+
+def test_papi_center_height_custom_rejects_negative():
+    """custom height is floored at 0."""
+    InspectionConfigOverride(papi_center_height_custom_m=0)
+    with pytest.raises(ValidationError):
+        InspectionConfigOverride(papi_center_height_custom_m=-1)
+
+
+def test_papi_center_height_round_trips_through_response():
+    """override values pass through to the response shape."""
+    resp = InspectionConfigResponse(
+        papi_center_height_reference="CUSTOM", papi_center_height_custom_m=7.5
+    )
+    assert resp.papi_center_height_reference == "CUSTOM"
+    assert resp.papi_center_height_custom_m == 7.5

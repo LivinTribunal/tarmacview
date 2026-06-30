@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import Modal from "@/components/common/Modal";
-import { isAxiosError } from "@/api/client";
 import {
   confirmMeasurementLights,
   getMeasurementPreview,
   getMeasurementStatus,
 } from "@/api/measurements";
+import { apiErrorMessage } from "@/utils/apiError";
 import type { LightBox, MeasurementStatus } from "@/types/measurement";
 
 interface MeasurementFlowDialogProps {
@@ -15,18 +15,6 @@ interface MeasurementFlowDialogProps {
   measurementId: string;
   inspectionLabel: string;
   onClose: () => void;
-}
-
-/** pull a human message off an axios error, falling back to an i18n string. */
-function apiErrorMessage(err: unknown, fallback: string): string {
-  if (isAxiosError(err)) {
-    const detail = err.response?.data?.detail;
-    if (typeof detail === "string") return detail;
-    if (detail && typeof detail === "object" && typeof detail.message === "string") {
-      return detail.message;
-    }
-  }
-  return fallback;
 }
 
 function clampPct(value: number): number {

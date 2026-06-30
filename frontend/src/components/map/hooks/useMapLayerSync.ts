@@ -164,28 +164,12 @@ export function useMapLayerSync({
     });
   }, [setLayerConfig]);
 
-  // sync layer visibility
+  // sync layer visibility - re-fires on layerConfig prop change (syncLayerVisibility reads the ref mirror)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
-    for (const [key, layerIds] of Object.entries(layerGroupMap)) {
-      const visible = layerConfig[key as keyof MapLayerConfig];
-      for (const layerId of layerIds) {
-        try {
-          if (map.getLayer(layerId)) {
-            map.setLayoutProperty(
-              layerId,
-              "visibility",
-              visible ? "visible" : "none",
-            );
-          }
-        } catch {
-          // layer may not exist yet
-        }
-      }
-    }
-  }, [mapRef, layerConfig, layerGroupMap]);
+    syncLayerVisibility(map);
+  }, [mapRef, layerConfig, syncLayerVisibility]);
 
   // mount-time guard - poll until the style is loaded then sync visibility once
   // so the LayerPanel toggle state matches actual MapLibre layer visibility

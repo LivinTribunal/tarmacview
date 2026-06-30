@@ -1,5 +1,7 @@
 // min/max/avg/range over a series, shared by the comparison tables.
 
+import type { LightSeries } from "@/types/measurement";
+
 export interface SeriesStats {
   min: number;
   max: number;
@@ -23,4 +25,14 @@ export function seriesStats(values: Array<number | null>): SeriesStats | null {
     sum += v;
   }
   return { min, max, avg: sum / finite.length, range: max - min };
+}
+
+/** mid glide path angle from PAPI_B max + PAPI_C min; null when either is missing. */
+export function computeGlidePathAngle(lights: LightSeries[]): number | null {
+  const b =
+    lights.find((l) => l.light_name === "PAPI_B")?.transition_angle_max ?? null;
+  const c =
+    lights.find((l) => l.light_name === "PAPI_C")?.transition_angle_min ?? null;
+  if (b === null || c === null) return null;
+  return (b + c) / 2;
 }

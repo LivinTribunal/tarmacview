@@ -3,7 +3,6 @@ import {
   Legend,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -12,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import type { DronePathPoint, ReferencePoint } from "@/types/measurement";
 import { CHART_COLORS, TRAJECTORY_COLORS } from "@/constants/palette";
 import { lightColor } from "./chartColors";
+import ChartShell from "./ChartShell";
 
 // reference_points entry that anchors an altitude-difference series
 interface DiffSource {
@@ -51,16 +51,14 @@ export default function DroneHeightProfileChart({
   });
 
   return (
-    <div
-      className="bg-tv-surface border border-tv-border rounded-2xl p-4"
-      data-testid="chart-height-profile"
+    <ChartShell
+      title={t("results.heightProfile.title")}
+      explanation={t("results.heightProfile.explanation")}
+      hasData={elevPoints.length > 0}
+      height={280}
+      testId="chart-height-profile"
     >
-      <h3 className="text-sm font-medium text-tv-text-primary mb-3">
-        {t("results.heightProfile.title")}
-      </h3>
-      {elevPoints.length > 0 ? (
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={rows} margin={{ top: 5, right: 16, bottom: 24, left: 0 }}>
+      <LineChart data={rows} margin={{ top: 5, right: 16, bottom: 24, left: 0 }}>
             <CartesianGrid stroke={CHART_COLORS.GRID} strokeDasharray="3 3" />
             <XAxis
               type="number"
@@ -133,13 +131,7 @@ export default function DroneHeightProfileChart({
                 connectNulls
               />
             ))}
-          </LineChart>
-        </ResponsiveContainer>
-      ) : (
-        <p className="text-sm text-tv-text-muted py-8 text-center">
-          {t("results.heightProfile.noData")}
-        </p>
-      )}
-    </div>
+      </LineChart>
+    </ChartShell>
   );
 }

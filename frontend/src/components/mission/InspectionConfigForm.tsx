@@ -76,6 +76,46 @@ export default function InspectionConfigForm({
   // hover-point-lock angle lock - owned here so it survives inspection/method switches
   const [angleLocked, setAngleLocked] = useState(false);
 
+  // shared between the geometry + trailing MethodSpecificSections slots
+  const methodSectionProps = {
+    inspection,
+    disabled,
+    droneProfile,
+    targetAgls: cfg.targetAgls,
+    surfaces,
+    template,
+    configOverride,
+    onChange,
+    onNumberChange: cfg.handleNumberChange,
+    missingSettingAngleUnits: cfg.missingSettingAngleUnits,
+    horizontalDistance: cfg.horizontalDistance,
+    sweepAngle: cfg.sweepAngle,
+    angleOffsetAbove: cfg.angleOffsetAbove,
+    angleOffsetBelow: cfg.angleOffsetBelow,
+    angleStart: cfg.angleStart,
+    angleEnd: cfg.angleEnd,
+    angleSource: cfg.angleSource,
+    verticalProfilePapiMissing: cfg.verticalProfilePapiMissing,
+    verticalProfilePreview: cfg.verticalProfilePreview,
+    bufferDistance: cfg.bufferDistance,
+    lhaSettingAngleOverrideId: cfg.lhaSettingAngleOverrideId,
+    computedObservationAngle: cfg.computedObservationAngle,
+    heightAboveLights: cfg.heightAboveLights,
+    lateralOffset: cfg.lateralOffset,
+    distanceFromLha: cfg.distanceFromLha,
+    heightAboveLha: cfg.heightAboveLha,
+    cameraGimbalAngle: cfg.cameraGimbalAngle,
+    descentStartDistance: cfg.descentStartDistance,
+    descentGlideSlopeOverride: cfg.descentGlideSlopeOverride,
+    hoverBearing: cfg.hoverBearing,
+    hoverBearingReference: cfg.hoverBearingReference,
+    angleLocked,
+    onAngleLockedToggle: () => setAngleLocked((v) => !v),
+    computedMehtHeight: cfg.computedMehtHeight,
+    speedWarning: cfg.speedWarning,
+    opticalZoom: cfg.opticalZoom,
+  };
+
   return (
     <div data-testid="inspection-config-form">
       <button
@@ -155,45 +195,7 @@ export default function InspectionConfigForm({
         onNumberChange={cfg.handleNumberChange}
       />
 
-      <MethodSpecificSections
-        slot="geometry"
-        inspection={inspection}
-        disabled={disabled}
-        droneProfile={droneProfile}
-        targetAgls={cfg.targetAgls}
-        surfaces={surfaces}
-        template={template}
-        configOverride={configOverride}
-        onChange={onChange}
-        onNumberChange={cfg.handleNumberChange}
-        missingSettingAngleUnits={cfg.missingSettingAngleUnits}
-        horizontalDistance={cfg.horizontalDistance}
-        sweepAngle={cfg.sweepAngle}
-        angleOffsetAbove={cfg.angleOffsetAbove}
-        angleOffsetBelow={cfg.angleOffsetBelow}
-        angleStart={cfg.angleStart}
-        angleEnd={cfg.angleEnd}
-        angleSource={cfg.angleSource}
-        verticalProfilePapiMissing={cfg.verticalProfilePapiMissing}
-        verticalProfilePreview={cfg.verticalProfilePreview}
-        bufferDistance={cfg.bufferDistance}
-        lhaSettingAngleOverrideId={cfg.lhaSettingAngleOverrideId}
-        computedObservationAngle={cfg.computedObservationAngle}
-        heightAboveLights={cfg.heightAboveLights}
-        lateralOffset={cfg.lateralOffset}
-        distanceFromLha={cfg.distanceFromLha}
-        heightAboveLha={cfg.heightAboveLha}
-        cameraGimbalAngle={cfg.cameraGimbalAngle}
-        descentStartDistance={cfg.descentStartDistance}
-        descentGlideSlopeOverride={cfg.descentGlideSlopeOverride}
-        hoverBearing={cfg.hoverBearing}
-        hoverBearingReference={cfg.hoverBearingReference}
-        angleLocked={angleLocked}
-        onAngleLockedToggle={() => setAngleLocked((v) => !v)}
-        computedMehtHeight={cfg.computedMehtHeight}
-        speedWarning={cfg.speedWarning}
-        opticalZoom={cfg.opticalZoom}
-      />
+      <MethodSpecificSections slot="geometry" {...methodSectionProps} />
 
       <DirectionSection
         showDirectionSection={cfg.showDirectionSection}
@@ -234,45 +236,7 @@ export default function InspectionConfigForm({
         onSaveAsPreset={cfg.handleSaveAsPreset}
       />
 
-      <MethodSpecificSections
-        slot="trailing"
-        inspection={inspection}
-        disabled={disabled}
-        droneProfile={droneProfile}
-        targetAgls={cfg.targetAgls}
-        surfaces={surfaces}
-        template={template}
-        configOverride={configOverride}
-        onChange={onChange}
-        onNumberChange={cfg.handleNumberChange}
-        missingSettingAngleUnits={cfg.missingSettingAngleUnits}
-        horizontalDistance={cfg.horizontalDistance}
-        sweepAngle={cfg.sweepAngle}
-        angleOffsetAbove={cfg.angleOffsetAbove}
-        angleOffsetBelow={cfg.angleOffsetBelow}
-        angleStart={cfg.angleStart}
-        angleEnd={cfg.angleEnd}
-        angleSource={cfg.angleSource}
-        verticalProfilePapiMissing={cfg.verticalProfilePapiMissing}
-        verticalProfilePreview={cfg.verticalProfilePreview}
-        bufferDistance={cfg.bufferDistance}
-        lhaSettingAngleOverrideId={cfg.lhaSettingAngleOverrideId}
-        computedObservationAngle={cfg.computedObservationAngle}
-        heightAboveLights={cfg.heightAboveLights}
-        lateralOffset={cfg.lateralOffset}
-        distanceFromLha={cfg.distanceFromLha}
-        heightAboveLha={cfg.heightAboveLha}
-        cameraGimbalAngle={cfg.cameraGimbalAngle}
-        descentStartDistance={cfg.descentStartDistance}
-        descentGlideSlopeOverride={cfg.descentGlideSlopeOverride}
-        hoverBearing={cfg.hoverBearing}
-        hoverBearingReference={cfg.hoverBearingReference}
-        angleLocked={angleLocked}
-        onAngleLockedToggle={() => setAngleLocked((v) => !v)}
-        computedMehtHeight={cfg.computedMehtHeight}
-        speedWarning={cfg.speedWarning}
-        opticalZoom={cfg.opticalZoom}
-      />
+      <MethodSpecificSections slot="trailing" {...methodSectionProps} />
       </div>
       )}
     </div>

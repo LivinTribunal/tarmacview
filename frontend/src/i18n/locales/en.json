@@ -2281,6 +2281,7 @@
     },
     "heightProfile": {
       "title": "Drone height profile",
+      "explanation": "Shows the drone's WGS84 elevation over time and its altitude difference to each PAPI light and the touch point.",
       "droneElevation": "Drone elevation (WGS84)",
       "elevationUnit": "Elevation (m)",
       "diffUnit": "Altitude difference (m)",

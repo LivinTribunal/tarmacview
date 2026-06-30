@@ -6,6 +6,7 @@ import type { FieldLinkStatusResponse } from "@/types/fieldLink";
 import type { MissionStatus } from "@/types/enums";
 import { isExportEligible } from "@/constants/mission";
 import Button from "@/components/common/Button";
+import { extractApiErrorMessage } from "@/utils/apiError";
 import FieldLinkStatusChip from "./FieldLinkStatusChip";
 
 export interface SendToDroneSectionProps {
@@ -60,15 +61,7 @@ export default function SendToDroneSection({
       setFeedback({ kind: "success" });
       onDispatched?.();
     } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: unknown } } })
-        ?.response?.data?.detail;
-      const message =
-        typeof detail === "string"
-          ? detail
-          : typeof (detail as { message?: unknown })?.message === "string"
-            ? ((detail as { message: string }).message)
-            : undefined;
-      setFeedback({ kind: "error", message });
+      setFeedback({ kind: "error", message: extractApiErrorMessage(err) ?? undefined });
     } finally {
       setIsDispatching(false);
     }

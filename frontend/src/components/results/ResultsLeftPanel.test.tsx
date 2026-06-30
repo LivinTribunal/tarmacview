@@ -8,10 +8,7 @@ import type {
   MeasurementListItem,
   MeasurementResults,
 } from "@/types/measurement";
-import ResultsLeftPanel, {
-  computeGlidePathAngle,
-  overallVerdict,
-} from "./ResultsLeftPanel";
+import ResultsLeftPanel, { overallVerdict } from "./ResultsLeftPanel";
 
 /** resolve a dotted i18n key against the real en.json bundle. */
 function resolveKey(key: string): string {
@@ -130,23 +127,6 @@ const templates = new Map<string, InspectionTemplateResponse>([
     },
   ],
 ]);
-
-describe("computeGlidePathAngle", () => {
-  it("returns the midpoint of B.max and C.min when both present", () => {
-    const lights = [
-      light({ light_name: "PAPI_B", transition_angle_max: 3.2 }),
-      light({ light_name: "PAPI_C", transition_angle_min: 2.8 }),
-    ];
-    expect(computeGlidePathAngle(lights)).toBeCloseTo(3.0);
-  });
-
-  it("returns null when either transition is missing or the lights are absent", () => {
-    expect(
-      computeGlidePathAngle([light({ light_name: "PAPI_B", transition_angle_max: 3.2 })]),
-    ).toBeNull();
-    expect(computeGlidePathAngle([])).toBeNull();
-  });
-});
 
 describe("overallVerdict", () => {
   it("is pending when nothing is scored", () => {

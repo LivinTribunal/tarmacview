@@ -17,7 +17,7 @@ import {
   CHART_REFERENCE_COLORS,
   CHART_ZONE_COLORS,
 } from "@/constants/palette";
-import { lightColor } from "./chartColors";
+import { leftYAxisProps, lightColor } from "./chartColors";
 import ChartShell from "./ChartShell";
 import PapiUnitSelector from "./PapiUnitSelector";
 import VerdictBadge from "./VerdictBadge";
@@ -115,18 +115,7 @@ export default function PerLightChannelChart({
             fill: CHART_COLORS.AXIS,
           }}
         />
-        <YAxis
-          yAxisId="left"
-          stroke={CHART_COLORS.AXIS}
-          tick={{ fontSize: 11, fill: CHART_COLORS.AXIS }}
-          label={{
-            value: yLabel,
-            angle: -90,
-            position: "insideLeft",
-            fontSize: 11,
-            fill: CHART_COLORS.AXIS,
-          }}
-        />
+        <YAxis {...leftYAxisProps(yLabel)} />
         <YAxis
           yAxisId="right"
           orientation="right"

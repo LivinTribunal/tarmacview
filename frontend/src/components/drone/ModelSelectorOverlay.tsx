@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { BUNDLED_DRONE_MODELS, getBundledModel } from "@/config/droneModels";
+import { isValidModelFile } from "@/utils/droneModelFile";
 
 interface ModelSelectorOverlayProps {
   selectedModelId: string | null;
@@ -43,8 +44,7 @@ export default function ModelSelectorOverlay({
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const ext = file.name.toLowerCase().split(".").pop();
-    if (ext !== "glb" && ext !== "gltf") {
+    if (!isValidModelFile(file)) {
       onInvalidFile?.(t("drone.invalidFileType"));
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;

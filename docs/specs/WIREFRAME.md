@@ -621,7 +621,7 @@ Degrades gracefully when no airport is selected or the current row isn't in the 
 
 **Route:** `/operator-center/field-ops` (the "Field Ops" top-nav tab, added in #162)
 
-The operator surface for the field hub's cloud-route library and the media returned from flights. A header **Refresh** re-pulls both tables; an offline banner ("Field hub is offline. Cloud missions may be stale or unavailable.") shows when the hub can't answer. See SPEC.md "Field Ops page (cloud missions + drone media)" and `docs/specs/FIELD-HUB.md` top status + §5/§6.
+The operator surface for the field hub's cloud-route library and the media returned from flights. Since #179 it uses the same 30/70 shell as the mission tabs: a left **Field Hub connection** card (30%) over a right column (70%) holding the two tables. The left card renders the shared `FieldHubPanel` (signals, heartbeat check, connect address + QR, connected devices, CA-cert download) off the same `useFieldLinkStatus()` poll as the connection dialog — hub-offline state now lives here (`field-hub-offline`), not in a banner above the tables. Each right-column card carries its own **Refresh** button. See SPEC.md "Field Ops page (cloud missions + drone media)" and `docs/specs/FIELD-HUB.md` top status + §5/§6.
 
 **Cloud Missions table:**
 - Lists the waylines registered on the field hub — columns: **Name**, **Drone model**, **Last updated** (`update_time`, epoch ms). Backed by `GET /api/v1/field-link/waylines` (the operator proxy over the hub's `GET /internal/api/v1/waylines`), degrading to an empty list when the hub is unconfigured/unreachable.

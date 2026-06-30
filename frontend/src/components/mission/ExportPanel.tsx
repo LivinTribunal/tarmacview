@@ -90,7 +90,7 @@ export default function ExportPanel({
   const [includeGeozones, setIncludeGeozones] = useState(false);
   const [includeRunwayBuffers, setIncludeRunwayBuffers] = useState(false);
   const [headingMode, setHeadingMode] = useState<DjiHeadingMode>(
-    mission.dji_heading_mode ?? "smoothTransition",
+    mission.dji_heading_mode ?? "towardPOI",
   );
   const [acknowledgeClamps, setAcknowledgeClamps] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -114,7 +114,7 @@ export default function ExportPanel({
   // resync the picker when the mission's persisted preference changes -
   // happens after a successful export side-effects the column.
   useEffect(() => {
-    setHeadingMode(mission.dji_heading_mode ?? "smoothTransition");
+    setHeadingMode(mission.dji_heading_mode ?? "towardPOI");
   }, [mission.dji_heading_mode]);
 
   const status = mission.status;
@@ -167,10 +167,14 @@ export default function ExportPanel({
     });
   }
 
-  function handleDownload() {
-    if (selectedFormats.size === 0) return;
-    const formats = Array.from(selectedFormats);
-    const options: Parameters<typeof onExport>[1] = {
+  // the export config shared by download + send-to-drone. both compute the
+  // file through the same backend engine (export_mission); only delivery
+  // differs. the clamp-ack flag is supplied per call site (the download
+  // checkbox vs the send-anyway retry).
+  function buildExportOptions(
+    acknowledgeClampsForCall: boolean,
+  ): NonNullable<Parameters<typeof onExport>[1]> {
+    return {
       include_geozones: includeGeozones && geozoneCheck.enabled,
       include_runway_buffers:
         includeGeozones && geozoneCheck.enabled && includeRunwayBuffers && mavlinkSelected,
@@ -178,8 +182,14 @@ export default function ExportPanel({
       // hidden (non-DJI mission, or no DJI WPMZ format selected), let the
       // backend fall back to mission.dji_heading_mode unchanged.
       ...(showHeadingModePicker ? { dji_heading_mode_override: headingMode } : {}),
-      ...(clampWarning && acknowledgeClamps ? { acknowledge_altitude_clamps: true } : {}),
+      ...(acknowledgeClampsForCall ? { acknowledge_altitude_clamps: true } : {}),
     };
+  }
+
+  function handleDownload() {
+    if (selectedFormats.size === 0) return;
+    const formats = Array.from(selectedFormats);
+    const options = buildExportOptions(!!(clampWarning && acknowledgeClamps));
 
     // intercept dji kmz/wpml exports for drones that aren't in the wpml
     // enum table - the backend falls back to the m4t enum so the operator
@@ -207,9 +217,7 @@ export default function ExportPanel({
     const acknowledge = dispatchFeedback?.kind === "clamps";
     setDispatchFeedback(null);
     try {
-      const result = await dispatchMission(mission.id, {
-        acknowledge_altitude_clamps: acknowledge,
-      });
+      const result = await dispatchMission(mission.id, buildExportOptions(acknowledge));
       if (result.kind === "clamp_warning") {
         setDispatchFeedback({ kind: "clamps" });
         return;
@@ -308,7 +316,6 @@ export default function ExportPanel({
         showHeadingModePicker={showHeadingModePicker}
         headingMode={headingMode}
         onHeadingModeChange={setHeadingMode}
-        flightPlanScope={mission.flight_plan_scope}
         onDownload={handleDownload}
         isExporting={isExporting}
         downloadDisabled={!clampGateOpen}

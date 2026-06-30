@@ -5,14 +5,21 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas.mission import DjiHeadingModeStr
+
 
 class DispatchRequest(BaseModel):
     """request body for the mission dispatch endpoint.
 
-    mirrors the export endpoint's altitude-clamp opt-in - dispatch builds the
-    same KMZ, so a clamped file needs the same operator acknowledgment.
+    mirrors the export endpoint's options - dispatch builds the same KMZ
+    through export_mission, so the geozone bundle, dji heading mode, and the
+    altitude-clamp opt-in flow through identically. the file is computed the
+    same way as a download; only delivery differs (hub register vs browser).
     """
 
+    include_geozones: bool = False
+    include_runway_buffers: bool = False
+    dji_heading_mode_override: DjiHeadingModeStr | None = None
     acknowledge_altitude_clamps: bool = False
 
 

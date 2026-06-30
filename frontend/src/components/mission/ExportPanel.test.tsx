@@ -75,7 +75,7 @@ function resolveKey(key: string): string {
 }
 
 // override the global react-i18next mock with one backed by the real en.json
-// so capability-note assertions verify user-facing copy, not wiring keys.
+// so copy assertions verify user-facing text, not wiring keys.
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => resolveKey(key),
@@ -201,57 +201,14 @@ describe("ExportPanel - mission report section", () => {
     renderPanel({ mission: makeMission({ status: "MEASURED" }) });
 
     expect(
-      screen.queryByText("Mission needs to be validated before export"),
+      screen.queryByText(resolveKey("mission.validationExportPage.needsValidation")),
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("format-select")).not.toBeDisabled();
     expect(screen.getByTestId("download-export-btn")).not.toBeDisabled();
   });
 });
 
-describe("ExportPanel - per-format capability notes", () => {
-  it("renders zoom-only English copy for the default KMZ and for WPML", () => {
-    renderPanel();
-
-    // KMZ is the default selection
-    expect(screen.getByTestId("capability-KMZ").textContent).toMatch(
-      /Carries optical zoom per inspection/,
-    );
-
-    selectFormat("WPML");
-    expect(screen.getByTestId("capability-WPML").textContent).toMatch(
-      /Carries optical zoom per inspection/,
-    );
-  });
-
-  it("renders full-coverage English copy for JSON", () => {
-    renderPanel();
-
-    selectFormat("JSON");
-    expect(screen.getByTestId("capability-JSON").textContent).toMatch(
-      /Carries all camera settings/,
-    );
-  });
-
-  it("renders the dedicated KML name+description note", () => {
-    renderPanel();
-
-    selectFormat("KML");
-    expect(screen.getByTestId("capability-KML").textContent).toMatch(
-      /KML carries waypoint name and description text only/,
-    );
-  });
-
-  it("renders no-camera-settings English copy for raw-coordinate formats", () => {
-    renderPanel();
-
-    for (const fmt of ["MAVLINK", "UGCS", "CSV", "GPX", "LITCHI", "DRONEDEPLOY"]) {
-      selectFormat(fmt);
-      expect(screen.getByTestId(`capability-${fmt}`).textContent).toMatch(
-        /No camera settings in this format/,
-      );
-    }
-  });
-
+describe("ExportPanel - format selection", () => {
   it("defaults the format dropdown to KMZ", () => {
     renderPanel();
 
@@ -507,11 +464,11 @@ describe("ExportPanel - dji heading mode picker", () => {
     expect(screen.getByTestId("dji-heading-mode-select")).toBeInTheDocument();
   });
 
-  it("defaults the picker to smoothTransition when the column is null", () => {
+  it("defaults the picker to towardPOI when the column is null", () => {
     renderDjiPanel({ dji_heading_mode: null });
     openAdvanced();
     const select = screen.getByTestId("dji-heading-mode-select") as HTMLSelectElement;
-    expect(select.value).toBe("smoothTransition");
+    expect(select.value).toBe("towardPOI");
   });
 
   it("pre-fills from mission.dji_heading_mode persisted preference", () => {
@@ -833,7 +790,8 @@ describe("ExportPanel - send to drone", () => {
       expect(screen.getByTestId("send-to-drone-success")).toBeInTheDocument(),
     );
     expect(mockedDispatch).toHaveBeenCalledWith("m-1", {
-      acknowledge_altitude_clamps: false,
+      include_geozones: false,
+      include_runway_buffers: false,
     });
     expect(onDispatched).toHaveBeenCalledTimes(1);
   });
@@ -878,6 +836,8 @@ describe("ExportPanel - send to drone", () => {
       expect(screen.getByTestId("send-to-drone-success")).toBeInTheDocument(),
     );
     expect(mockedDispatch).toHaveBeenLastCalledWith("m-1", {
+      include_geozones: false,
+      include_runway_buffers: false,
       acknowledge_altitude_clamps: true,
     });
     expect(onDispatched).toHaveBeenCalledTimes(1);

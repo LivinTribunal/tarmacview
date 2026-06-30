@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, Download, Loader2, Send } from "lucide-react";
 import type { DjiHeadingMode } from "@/types/mission";
-import type { FlightPlanScope } from "@/types/enums";
 import type { CanIncludeGeozonesResult } from "@/constants/exportCapabilities";
 import Button from "@/components/common/Button";
 import InfoHint from "@/components/common/InfoHint";
@@ -39,7 +38,6 @@ interface ExportFormatSectionProps {
   showHeadingModePicker: boolean;
   headingMode: DjiHeadingMode;
   onHeadingModeChange: (mode: DjiHeadingMode) => void;
-  flightPlanScope: FlightPlanScope | null | undefined;
   onDownload: () => void;
   isExporting: boolean;
   // extra disable signal layered on top of the format/exporting guards.
@@ -82,7 +80,6 @@ export default function ExportFormatSection({
   showHeadingModePicker,
   headingMode,
   onHeadingModeChange,
-  flightPlanScope,
   onDownload,
   isExporting,
   downloadDisabled = false,
@@ -156,22 +153,11 @@ export default function ExportFormatSection({
                 </option>
               ))}
             </select>
-            <p className="text-xs text-tv-text-muted" data-testid="selected-format-desc">
-              {t(`mission.validationExportPage.${selectedFormat.descKey}`)}
-            </p>
-            <p
-              className="text-[11px] text-tv-text-muted italic"
-              data-testid={`capability-${selectedFormat.value}`}
-            >
-              {t(
-                `mission.validationExportPage.capabilityNote.${selectedFormat.capabilityKey}`,
-              )}
-            </p>
           </div>
 
           {/* advanced options - geozone bundle + dji heading mode, collapsed by default */}
           {!terminal && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 rounded-xl border border-tv-border p-3">
               <button
                 type="button"
                 onClick={() => setAdvancedOpen((p) => !p)}
@@ -314,19 +300,6 @@ export default function ExportFormatSection({
             </div>
           )}
 
-          {/* scope info */}
-          {!terminal && (
-            <p className="text-xs text-tv-text-muted italic px-1">
-              {t(
-                `mission.validationExportPage.scopeInfo.${
-                  flightPlanScope === "MEASUREMENTS_ONLY"
-                    ? "measurementsOnly"
-                    : "full"
-                }`,
-              )}
-            </p>
-          )}
-
           {/* terminal status message */}
           {terminal && (
             <p className="text-xs text-tv-text-muted italic">
@@ -363,7 +336,7 @@ export default function ExportFormatSection({
             onClick={onSendToDrone}
             disabled={sendDisabled}
             title={!hubOnline ? t("mission.sendToDrone.hubOffline") : undefined}
-            className="w-full flex items-center justify-center gap-2"
+            className="relative w-full flex items-center justify-center gap-2"
             data-testid="send-to-drone-btn"
           >
             {isDispatching ? (
@@ -381,7 +354,7 @@ export default function ExportFormatSection({
             <span
               data-testid="send-to-drone-status"
               data-online={hubLive}
-              className="ml-auto inline-flex items-center gap-1.5 text-xs"
+              className="absolute right-4 inline-flex items-center gap-1.5 text-xs"
             >
               <span
                 aria-hidden

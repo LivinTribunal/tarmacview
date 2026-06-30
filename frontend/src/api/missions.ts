@@ -122,10 +122,20 @@ export type DispatchMissionResult =
 
 export async function dispatchMission(
   id: string,
-  options: { acknowledge_altitude_clamps?: boolean } = {},
+  options: {
+    include_geozones?: boolean;
+    include_runway_buffers?: boolean;
+    dji_heading_mode_override?: DjiHeadingMode | null;
+    acknowledge_altitude_clamps?: boolean;
+  } = {},
 ): Promise<DispatchMissionResult> {
   try {
+    // same option set as exportMissionFiles - dispatch builds the same KMZ
+    // server-side, only the delivery (hub register vs download) differs.
     const res = await client.post(`/missions/${id}/dispatch`, {
+      include_geozones: options.include_geozones ?? false,
+      include_runway_buffers: options.include_runway_buffers ?? false,
+      dji_heading_mode_override: options.dji_heading_mode_override ?? null,
       acknowledge_altitude_clamps: options.acknowledge_altitude_clamps ?? false,
     });
     return { kind: "dispatched", dispatch: res.data };

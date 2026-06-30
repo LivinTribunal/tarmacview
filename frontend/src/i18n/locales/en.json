@@ -1024,7 +1024,7 @@
       "downloadExport": "Download Export",
       "downloading": "Downloading...",
       "validateFirst": "Validate the plan first",
-      "needsValidation": "Mission needs to be validated before export",
+      "needsValidation": "Validate mission to export",
       "uploadDroneMedia": "Upload Drone Media",
       "exportError": "Failed to export mission",
       "exportDisabledTerminal": "Export not available in this status",
@@ -1063,17 +1063,13 @@
       "deleteBlocked": "Cannot delete mission in this status",
       "openMap": "Open Map",
       "mapPreview": "Map Preview",
-      "scopeInfo": {
-        "full": "Export starts/ends at transit altitude - no ground-level takeoff or landing",
-        "measurementsOnly": "Export starts at first measurement and ends at last - no takeoff or landing, but transits between inspections are still planned"
-      },
       "djiHeadingMode": {
         "label": "DJI Heading Mode",
-        "hint": "Controls how the drone aims its body during inspection passes when exporting to DJI WPML. Smooth body tracking interpolates body yaw between waypoints (recommended). Continuous POI tracking aims at the LHA across the whole arc (experimental - not yet hardware-confirmed). Snap at each waypoint rotates the body once per measurement (proven fallback).",
+        "hint": "Controls how the drone aims its body during inspection passes when exporting to DJI WPML. Smooth body tracking interpolates body yaw between waypoints. Continuous POI tracking aims at the LHA across the whole arc. Snap at each waypoint rotates the body once per measurement.",
         "options": {
-          "smoothTransition": "Smooth body tracking (recommended)",
-          "towardPOI": "Continuous POI tracking (experimental)",
-          "followWayline": "Snap at each waypoint (reliable)"
+          "smoothTransition": "Smooth body tracking",
+          "towardPOI": "Continuous POI tracking",
+          "followWayline": "Snap at each waypoint"
         }
       },
       "capabilityNote": {

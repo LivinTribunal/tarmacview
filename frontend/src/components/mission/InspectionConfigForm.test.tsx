@@ -1012,10 +1012,9 @@ describe("InspectionConfigForm info hints", () => {
       inspection: baseInspection({ method: "HORIZONTAL_RANGE" }),
       template: papiTemplate as never,
     });
-    const select = screen.getByTestId(
-      "inspection-papi-center-height-reference",
-    ) as HTMLSelectElement;
-    expect(select.value).toBe("GROUND");
+    expect(
+      screen.getByTestId("inspection-papi-center-height-reference-ground"),
+    ).toHaveClass("bg-tv-accent");
     expect(
       screen.queryByTestId("inspection-papi-center-height-custom"),
     ).not.toBeInTheDocument();
@@ -1044,9 +1043,9 @@ describe("InspectionConfigForm info hints", () => {
       template: papiTemplate as never,
       onChange,
     });
-    fireEvent.change(screen.getByTestId("inspection-papi-center-height-reference"), {
-      target: { value: "LENS" },
-    });
+    fireEvent.click(
+      screen.getByTestId("inspection-papi-center-height-reference-lens"),
+    );
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ papi_center_height_reference: "LENS" }),
     );

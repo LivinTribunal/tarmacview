@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import PapiCenterHeightSection from "./PapiCenterHeightSection";
 
 describe("PapiCenterHeightSection", () => {
-  it("renders the Ground/Lens/Custom select and hides the custom input outside CUSTOM", () => {
+  it("renders the Ground/Lens/Custom toggle and hides the custom input outside CUSTOM", () => {
     render(
       <PapiCenterHeightSection
         papiCenterHeightReference="GROUND"
@@ -13,11 +13,17 @@ describe("PapiCenterHeightSection", () => {
         onNumberChange={vi.fn()}
       />,
     );
-    const select = screen.getByTestId(
-      "inspection-papi-center-height-reference",
-    ) as HTMLSelectElement;
-    expect(select.value).toBe("GROUND");
-    expect(select.querySelectorAll("option")).toHaveLength(3);
+    const toggle = screen.getByTestId("inspection-papi-center-height-reference");
+    expect(toggle.querySelectorAll("button")).toHaveLength(3);
+    expect(
+      screen.getByTestId("inspection-papi-center-height-reference-ground"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("inspection-papi-center-height-reference-lens"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("inspection-papi-center-height-reference-custom"),
+    ).toBeInTheDocument();
     expect(
       screen.queryByTestId("inspection-papi-center-height-custom"),
     ).not.toBeInTheDocument();
@@ -49,9 +55,9 @@ describe("PapiCenterHeightSection", () => {
         onNumberChange={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByTestId("inspection-papi-center-height-reference"), {
-      target: { value: "CUSTOM" },
-    });
+    fireEvent.click(
+      screen.getByTestId("inspection-papi-center-height-reference-custom"),
+    );
     // preserves the rest of the override and sets the reference
     expect(onChange).toHaveBeenCalledWith({
       buffer_distance: 2,

@@ -75,6 +75,7 @@ class AGLCreate(BaseModel):
     position: PointZ
     side: PAPISideStr | None = None
     glide_slope_angle: float | None = None
+    glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
     distance_from_threshold: float | None = None
     offset_from_centerline: float | None = None
 
@@ -87,6 +88,7 @@ class AGLUpdate(BaseModel):
     position: PointZ | None = None
     side: PAPISideStr | None = None
     glide_slope_angle: float | None = None
+    glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
     distance_from_threshold: float | None = None
     offset_from_centerline: float | None = None
     # transport-only flag - skip ground-altitude renormalization on this update
@@ -103,6 +105,7 @@ class AGLResponse(BaseModel):
     position: PointZ
     side: PAPISideStr | None = None
     glide_slope_angle: float | None = None
+    glide_slope_angle_tolerance: float | None = None
     distance_from_threshold: float | None = None
     offset_from_centerline: float | None = None
     lhas: list[LHAResponse] = []

@@ -1,10 +1,11 @@
-"""add glide-slope-tolerance config field + measurement glidepath snapshot columns
+"""add agl glide-slope-tolerance field + measurement glidepath snapshot columns
 
 Revision ID: 0022_glide_slope_tolerance
 Revises: 0021_scan_length_anchor
 Create Date: 2026-06-30 00:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -19,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column(
-        "inspection_configuration",
+        "agl",
         sa.Column("glide_slope_angle_tolerance", sa.Float(), nullable=True),
     )
     op.add_column("measurement", sa.Column("glide_slope_angle", sa.Float(), nullable=True))
@@ -31,4 +32,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_column("measurement", "glide_slope_angle_tolerance")
     op.drop_column("measurement", "glide_slope_angle")
-    op.drop_column("inspection_configuration", "glide_slope_angle_tolerance")
+    op.drop_column("agl", "glide_slope_angle_tolerance")

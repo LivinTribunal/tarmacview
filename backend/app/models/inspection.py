@@ -20,7 +20,6 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.core.constants import DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
 from app.core.database import Base
 from app.core.enums import (
     ScanLengthAnchor,
@@ -163,12 +162,6 @@ class InspectionConfiguration(Base):
     # custom glide slope angle, else the PAPI-derived angle is used.
     descent_start_distance = Column(Float, nullable=True)
     descent_glide_slope_override = Column(Float, nullable=True)
-    # results-time only: tolerance band (deg) for the measured-glidepath verdict
-    # vs the configured AGL glide slope. snapshotted onto the measurement at create
-    # time. NOT in CONFIG_FIELDS - never read by trajectory/validation.
-    glide_slope_angle_tolerance = Column(
-        Float, nullable=True, default=DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
-    )
     # surface-scan (SURFACE_SCAN) - AGL-agnostic, targets an AirfieldSurface.
     # scan_surface_id picks the surface; the rest tune the serpentine pass.
     scan_surface_id = Column(
@@ -234,7 +227,6 @@ class InspectionConfiguration(Base):
     _MERGE_FIELDS = CONFIG_FIELDS + (
         "lha_ids",
         "lha_selection_rules",
-        "glide_slope_angle_tolerance",
         "white_balance",
         "iso",
         "shutter_speed",

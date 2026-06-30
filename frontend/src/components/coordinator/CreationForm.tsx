@@ -73,6 +73,8 @@ export default function CreationForm(props: CreationFormProps) {
     setAglSide,
     glideSlopeAngle,
     setGlideSlopeAngle,
+    glideSlopeAngleTolerance,
+    setGlideSlopeAngleTolerance,
     distFromThreshold,
     handleDistFromThresholdChange,
     thresholdLat,
@@ -320,6 +322,8 @@ export default function CreationForm(props: CreationFormProps) {
                 setAglSide={setAglSide}
                 glideSlopeAngle={glideSlopeAngle}
                 setGlideSlopeAngle={setGlideSlopeAngle}
+                glideSlopeAngleTolerance={glideSlopeAngleTolerance}
+                setGlideSlopeAngleTolerance={setGlideSlopeAngleTolerance}
                 distFromThreshold={distFromThreshold}
                 onDistFromThresholdChange={handleDistFromThresholdChange}
                 manualLat={manualLat}

@@ -39,23 +39,24 @@ def _light_name_for(designator: str | None, index: int) -> str:
 
 def _snapshot_reference_points(
     db: Session, inspection: Inspection
-) -> tuple[list[dict], float | None, float | None]:
+) -> tuple[list[dict], float | None, float | None, float | None]:
     """snapshot the inspection's target LHAs into reference points + runway heading.
 
     the snapshot is the engine's free reference set - lha position, setting angle and
     tolerance captured at run time, plus the parent runway heading for the horizontal
-    angle calc and the configured AGL glide slope for the glidepath verdict. an
-    inspection with no resolvable LHAs yields an empty set.
+    angle calc and the configured AGL glide slope + its tolerance for the glidepath
+    verdict. an inspection with no resolvable LHAs yields an empty set.
     """
     lha_ids = inspection.lha_ids or []
     if not lha_ids:
-        return [], None, None
+        return [], None, None, None
 
     lhas = db.query(LHA).filter(LHA.id.in_(lha_ids)).all()
     lhas.sort(key=lambda lha: lha.sequence_number)
 
     runway_heading: float | None = None
     glide_slope_angle: float | None = None
+    glide_slope_angle_tolerance: float | None = None
     points: list[dict] = []
     for index, lha in enumerate(lhas):
         try:
@@ -67,6 +68,12 @@ def _snapshot_reference_points(
             runway_heading = lha.agl.surface.heading
         if glide_slope_angle is None and lha.agl and lha.agl.glide_slope_angle is not None:
             glide_slope_angle = lha.agl.glide_slope_angle
+        if (
+            glide_slope_angle_tolerance is None
+            and lha.agl
+            and lha.agl.glide_slope_angle_tolerance is not None
+        ):
+            glide_slope_angle_tolerance = lha.agl.glide_slope_angle_tolerance
         points.append(
             {
                 "light_name": _light_name_for(lha.unit_designator, index),
@@ -79,7 +86,7 @@ def _snapshot_reference_points(
                 "tolerance": lha.tolerance,
             }
         )
-    return points, runway_heading, glide_slope_angle
+    return points, runway_heading, glide_slope_angle, glide_slope_angle_tolerance
 
 
 def _inspection_media_keys(db: Session, inspection_id: UUID) -> list[str]:
@@ -110,14 +117,13 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
     if not media_keys:
         raise DomainError("inspection has no uploaded media to measure", status_code=422)
 
-    reference_points, runway_heading, glide_slope_angle = _snapshot_reference_points(db, inspection)
+    reference_points, runway_heading, glide_slope_angle, agl_tolerance = _snapshot_reference_points(
+        db, inspection
+    )
 
-    # tolerance falls back to the default so an unset config still yields a verdict band
-    config = inspection.config
+    # tolerance falls back to the default so an unset AGL still yields a verdict band
     glide_slope_angle_tolerance = (
-        config.glide_slope_angle_tolerance
-        if config is not None and config.glide_slope_angle_tolerance is not None
-        else DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+        agl_tolerance if agl_tolerance is not None else DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
     )
 
     # measurement kickoff flips the parent mission VALIDATED/EXPORTED -> MEASURED

@@ -49,23 +49,23 @@ def _columns(url: str, table: str) -> set[str]:
 def test_glide_slope_columns_added_and_dropped(alembic_env, fresh_pg):
     """0022 adds the three glide-slope columns, drops them on downgrade, re-adds on re-upgrade."""
     command.upgrade(alembic_env, "head")
-    assert "glide_slope_angle_tolerance" in _columns(fresh_pg, "inspection_configuration")
+    assert "glide_slope_angle_tolerance" in _columns(fresh_pg, "agl")
     meas = _columns(fresh_pg, "measurement")
     assert "glide_slope_angle" in meas
     assert "glide_slope_angle_tolerance" in meas
 
     command.downgrade(alembic_env, PRIOR_REVISION)
-    cfg_cols = _columns(fresh_pg, "inspection_configuration")
+    agl_cols = _columns(fresh_pg, "agl")
     meas_cols = _columns(fresh_pg, "measurement")
-    assert "glide_slope_angle_tolerance" not in cfg_cols
+    assert "glide_slope_angle_tolerance" not in agl_cols
     assert "glide_slope_angle" not in meas_cols
     assert "glide_slope_angle_tolerance" not in meas_cols
     # the rest of both tables survives the column drops
-    assert "scan_length_anchor" in cfg_cols
+    assert "glide_slope_angle" in agl_cols
     assert "object_key" in meas_cols
 
     command.upgrade(alembic_env, "head")
-    assert "glide_slope_angle_tolerance" in _columns(fresh_pg, "inspection_configuration")
+    assert "glide_slope_angle_tolerance" in _columns(fresh_pg, "agl")
     assert "glide_slope_angle" in _columns(fresh_pg, "measurement")
 
     engine = create_engine(fresh_pg)

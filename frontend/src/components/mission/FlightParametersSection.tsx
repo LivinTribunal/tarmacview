@@ -3,8 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { InspectionResponse, InspectionConfigOverride } from "@/types/mission";
 import InfoHint from "@/components/common/InfoHint";
 import FormSection from "@/components/common/FormSection";
-import { aglTypesForMethod, methodCaps } from "@/utils/methodAglCompatibility";
-import { DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE } from "@/constants/infrastructureDefaults";
+import { methodCaps } from "@/utils/methodAglCompatibility";
 
 interface FlightParametersSectionProps {
   inspection: InspectionResponse;
@@ -13,7 +12,6 @@ interface FlightParametersSectionProps {
   measurementDensity: number | "";
   bufferDistance: number | "";
   hoverDuration: number | "";
-  glideSlopeAngleTolerance: number | "";
   speedWarning: boolean;
   onNumberChange: (field: keyof InspectionConfigOverride, raw: string) => void;
 }
@@ -25,21 +23,17 @@ export default function FlightParametersSection({
   measurementDensity,
   bufferDistance,
   hoverDuration,
-  glideSlopeAngleTolerance,
   speedWarning,
   onNumberChange,
 }: FlightParametersSectionProps) {
   /** flight-parameters section: altitude offset, speed/density overrides, buffer + hover duration. */
   const { t } = useTranslation();
   const caps = methodCaps(inspection.method);
-  // glidepath tolerance only makes sense for PAPI methods (results-time verdict)
-  const isPapi = aglTypesForMethod(inspection.method).includes("PAPI");
   const altitudeOffsetId = useId();
   const speedId = useId();
   const densityId = useId();
   const bufferId = useId();
   const hoverId = useId();
-  const glideSlopeToleranceId = useId();
   return (
     <FormSection title={t("mission.config.sections.flightParameters")} testId="section-flight-parameters">
       <div className="grid grid-cols-2 gap-3">
@@ -178,34 +172,6 @@ export default function FlightParametersSection({
               }
               className="w-full px-3 py-2 rounded-full text-sm border border-tv-border bg-tv-bg text-tv-text-primary focus:outline-none focus:border-tv-accent transition-colors"
               data-testid="inspection-hover-duration"
-            />
-          </div>
-        )}
-        {isPapi && (
-          <div>
-            <label
-              htmlFor={glideSlopeToleranceId}
-              className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary"
-            >
-              <span>{t("mission.config.glideSlopeAngleTolerance")}</span>
-              <InfoHint
-                text={t("mission.config.glideSlopeAngleToleranceHelp")}
-                label={t("mission.config.glideSlopeAngleTolerance")}
-                testId="hint-inspection-glide-slope-tolerance"
-              />
-            </label>
-            <input
-              id={glideSlopeToleranceId}
-              type="number"
-              step="0.1"
-              min="0"
-              value={glideSlopeAngleTolerance}
-              onChange={(e) =>
-                onNumberChange("glide_slope_angle_tolerance", e.target.value)
-              }
-              placeholder={DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE}
-              className="w-full px-3 py-2 rounded-full text-sm border border-tv-border bg-tv-bg text-tv-text-primary placeholder:text-tv-text-muted focus:outline-none focus:border-tv-accent transition-colors"
-              data-testid="inspection-glide-slope-tolerance"
             />
           </div>
         )}

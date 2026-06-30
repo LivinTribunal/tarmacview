@@ -63,7 +63,7 @@ class Measurement(Base):
     # snapshotted configured glide slope (deg) off the inspection's AGL, captured at
     # create time - an audit record, not a live join (mirrors reference_points).
     glide_slope_angle = Column(Float, nullable=True)
-    # snapshotted inspection glide_slope_angle_tolerance (deg) at create time.
+    # snapshotted AGL glide_slope_angle_tolerance (deg) at create time.
     glide_slope_angle_tolerance = Column(Float, nullable=True)
     # snapshotted LHA ground truth - an audit record, not a live join
     reference_points = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))

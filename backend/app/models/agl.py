@@ -15,7 +15,10 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from app.core.constants import DEFAULT_LHA_TOLERANCE_DEG
+from app.core.constants import (
+    DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG,
+    DEFAULT_LHA_TOLERANCE_DEG,
+)
 from app.core.database import Base
 from app.core.exceptions import DomainError
 
@@ -34,6 +37,12 @@ class AGL(Base):
     position = Column(String, nullable=False)
     side = Column(String(10))
     glide_slope_angle = Column(Float)
+    # results-time verdict band (deg) for the measured glidepath vs this AGL's
+    # glide_slope_angle. snapshotted onto the measurement at create time;
+    # coordinator-edited alongside glide_slope_angle. NOT a trajectory input.
+    glide_slope_angle_tolerance = Column(
+        Float, nullable=True, default=DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+    )
     distance_from_threshold = Column(Float)
     offset_from_centerline = Column(Float)
 

@@ -15,6 +15,8 @@ interface AglFieldsProps {
   setAglSide: Dispatch<SetStateAction<string>>;
   glideSlopeAngle: string;
   setGlideSlopeAngle: Dispatch<SetStateAction<string>>;
+  glideSlopeAngleTolerance: string;
+  setGlideSlopeAngleTolerance: Dispatch<SetStateAction<string>>;
   distFromThreshold: string;
   onDistFromThresholdChange: (value: string) => void;
   manualLat: string;
@@ -38,6 +40,8 @@ export default function AglFields({
   setAglSide,
   glideSlopeAngle,
   setGlideSlopeAngle,
+  glideSlopeAngleTolerance,
+  setGlideSlopeAngleTolerance,
   distFromThreshold,
   onDistFromThresholdChange,
   manualLat,
@@ -135,6 +139,19 @@ export default function AglFields({
           step="0.1"
           value={glideSlopeAngle}
           onChange={(e) => setGlideSlopeAngle(e.target.value)}
+          disabled={!surfaceId}
+          className="disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+      )}
+      {aglType === "PAPI" && (
+        <Input
+          id="create-glide-tolerance"
+          label={t("coordinator.creation.glideSlopeAngleTolerance")}
+          hint={t("coordinator.creation.glideSlopeAngleToleranceHelp")}
+          type="number"
+          step="0.1"
+          value={glideSlopeAngleTolerance}
+          onChange={(e) => setGlideSlopeAngleTolerance(e.target.value)}
           disabled={!surfaceId}
           className="disabled:opacity-50 disabled:cursor-not-allowed"
         />

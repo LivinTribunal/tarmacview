@@ -964,9 +964,7 @@
         "flightParameters": "Letové parametre",
         "geometry": "Geometrické prepisy",
         "methodSpecific": "Špecifické pre metódu"
-      },
-      "glideSlopeAngleTolerance": "Tolerancia uhla zostupovej dráhy (°)",
-      "glideSlopeAngleToleranceHelp": "Povolená odchýlka nameranej zostupovej dráhy od nastaveného uhla zostupovej dráhy, kontrolovaná v čase výsledkov. Neovplyvňuje generovanie trajektórie."
+      }
     },
     "validationExportPage": {
       "validationResults": "Výsledky validácie",
@@ -1496,6 +1494,8 @@
       "aglSideHelp": "Strana dráhy, na ktorej AGL leží (Ľavá alebo Pravá) pri pohľade od prahu. Určuje umiestnenie na obrazovke a stranu odstupu trajektórie.",
       "aglGlideAngle": "Uhol zostupovej dráhy",
       "aglGlideAngleHelp": "Nominálny uhol približovacieho lúča PAPI v stupňoch (typicky 3,0°). Iba PAPI – postranné svetlá nemajú definovanú zostupovú dráhu.",
+      "aglGlideTolerance": "Tolerancia uhla zostupovej dráhy (°)",
+      "aglGlideToleranceHelp": "Povolená odchýlka nameranej zostupovej dráhy od uhla zostupovej dráhy tohto PAPI, kontrolovaná v čase výsledkov. Iba PAPI – neovplyvňuje generovanie trajektórie.",
       "aglDistance": "Vzdialenosť od prahu (m)",
       "aglDistanceHelp": "Vzdialenosť od prahu dráhy k pozícii AGL pozdĺž osi. Používa sa na vykreslenie približovacieho lúča.",
       "lhaUnitDesignator": "Jednotka",
@@ -1663,6 +1663,8 @@
       "aglSideHelp": "Strana dráhy, na ktorej AGL leží (Ľavá alebo Pravá) pri pohľade od prahu. Určuje umiestnenie na obrazovke a stranu odstupu trajektórie.",
       "glideSlopeAngle": "Uhol zostupovej dráhy (°)",
       "glideSlopeAngleHelp": "Nominálny uhol približovacieho lúča PAPI v stupňoch (typicky 3,0°). Iba PAPI – postranné svetlá nemajú definovanú zostupovú dráhu.",
+      "glideSlopeAngleTolerance": "Tolerancia uhla zostupovej dráhy (°)",
+      "glideSlopeAngleToleranceHelp": "Povolená odchýlka nameranej zostupovej dráhy od uhla zostupovej dráhy tohto PAPI, kontrolovaná v čase výsledkov. Iba PAPI – neovplyvňuje generovanie trajektórie.",
       "distanceFromThreshold": "Vzdialenosť od prahu (m)",
       "distanceFromThresholdHelp": "Vzdialenosť od prahu dráhy k pozícii AGL pozdĺž osi. Používa sa na vykreslenie približovacieho lúča.",
       "surface": "Pozemná plocha",

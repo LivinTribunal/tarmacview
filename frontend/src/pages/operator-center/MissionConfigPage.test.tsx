@@ -209,6 +209,7 @@ describe("InspectionConfigForm LHA toggle", () => {
     position: { type: "Point" as const, coordinates: [17.21, 48.17, 133] as [number, number, number] },
     side: null,
     glide_slope_angle: null,
+    glide_slope_angle_tolerance: null,
     distance_from_threshold: null,
     offset_from_centerline: null,
     lhas: [

@@ -158,10 +158,6 @@ export interface BaseInspectionConfigFields extends ScanConfigFields {
 export interface InspectionConfigResponse extends BaseInspectionConfigFields {
   camera_mode: CameraMode | null;
   camera_preset_id: string | null;
-  // results-time glidepath verdict tolerance (deg); never a trajectory input.
-  // mission-side only - kept off BaseInspectionConfigFields so the template
-  // editor's 47-key hydration contract is unaffected.
-  glide_slope_angle_tolerance: number | null;
 }
 
 export interface InspectionResponse {

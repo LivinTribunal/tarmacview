@@ -113,8 +113,15 @@ export default function AglFields({
           value={val("agl_type")}
           onChange={(e) => {
             const next = e.target.value;
-            if (next === "RUNWAY_EDGE_LIGHTS" && data.glide_slope_angle != null) {
-              onUpdate({ agl_type: next, glide_slope_angle: null });
+            if (
+              next === "RUNWAY_EDGE_LIGHTS" &&
+              (data.glide_slope_angle != null || data.glide_slope_angle_tolerance != null)
+            ) {
+              onUpdate({
+                agl_type: next,
+                glide_slope_angle: null,
+                glide_slope_angle_tolerance: null,
+              });
             } else {
               handleChange("agl_type", next);
             }
@@ -154,6 +161,17 @@ export default function AglFields({
           step="0.1"
           value={val("glide_slope_angle")}
           onChange={(e) => handleChange("glide_slope_angle", e.target.value === "" ? null : parseFloat(e.target.value))}
+        />
+      )}
+      {val("agl_type") === "PAPI" && (
+        <Input
+          id="feat-glide-tolerance"
+          label={t("coordinator.detail.aglGlideTolerance")}
+          hint={t("coordinator.detail.aglGlideToleranceHelp")}
+          type="number"
+          step="0.1"
+          value={val("glide_slope_angle_tolerance")}
+          onChange={(e) => handleChange("glide_slope_angle_tolerance", e.target.value === "" ? null : parseFloat(e.target.value))}
         />
       )}
       {val("agl_type") === "PAPI" && (

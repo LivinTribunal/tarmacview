@@ -424,8 +424,8 @@ def test_create_measurement_on_draft_does_not_transition(client, template_id):
     assert client.get(f"/api/v1/missions/{mission_id}").json()["status"] == "DRAFT"
 
 
-def test_create_measurement_snapshots_glide_slope_from_agl(client, db_engine, template_id):
-    """the run snapshots the configured AGL glide slope + the default tolerance fallback."""
+def _snapshot_glide_slope(client, db_engine, template_id, agl_override):
+    """run a measurement for a fresh PAPI inspection; return its snapshotted (angle, tolerance)."""
     apt = client.post(
         "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
     ).json()
@@ -434,7 +434,7 @@ def test_create_measurement_snapshots_glide_slope_from_agl(client, db_engine, te
     ).json()
     agl = client.post(
         f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls",
-        json=TRAJECTORY_AGL_PAYLOAD,  # glide_slope_angle = 3.0
+        json={**TRAJECTORY_AGL_PAYLOAD, **agl_override},  # glide_slope_angle = 3.0
     ).json()
     lha_ids = [
         client.post(
@@ -470,7 +470,23 @@ def test_create_measurement_snapshots_glide_slope_from_agl(client, db_engine, te
     s = sessionmaker(bind=db_engine)()
     try:
         row = s.query(Measurement).filter(Measurement.id == UUID(mid)).first()
-        assert row.glide_slope_angle == 3.0
-        assert row.glide_slope_angle_tolerance == DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+        return row.glide_slope_angle, row.glide_slope_angle_tolerance
     finally:
         s.close()
+
+
+def test_create_measurement_snapshots_glide_slope_from_agl(client, db_engine, template_id):
+    """the run snapshots the AGL glide slope + the AGL's configured tolerance."""
+    angle, tolerance = _snapshot_glide_slope(
+        client, db_engine, template_id, {"glide_slope_angle_tolerance": 0.3}
+    )
+    assert angle == 3.0
+    assert tolerance == 0.3
+
+
+def test_create_measurement_glide_slope_tolerance_falls_back_to_default(
+    client, db_engine, template_id
+):
+    """an AGL with no tolerance set falls back to the default verdict band."""
+    _, tolerance = _snapshot_glide_slope(client, db_engine, template_id, {})
+    assert tolerance == DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG

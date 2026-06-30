@@ -75,25 +75,3 @@ def test_angle_band_strictly_increasing_accepted():
     """a strictly increasing band passes on both schemas."""
     assert InspectionConfigOverride(angle_start=2.0, angle_end=6.0).angle_end == 6.0
     assert InspectionConfigCreate(angle_start=2.0, angle_end=6.0).angle_end == 6.0
-
-
-# glide-slope tolerance (gt 0)
-
-
-def test_glide_slope_tolerance_rejects_zero_and_negative():
-    """tolerance must be strictly positive on both schemas."""
-    for value in (0, -0.1):
-        with pytest.raises(ValidationError):
-            InspectionConfigOverride(glide_slope_angle_tolerance=value)
-        with pytest.raises(ValidationError):
-            InspectionConfigCreate(glide_slope_angle_tolerance=value)
-
-
-def test_glide_slope_tolerance_accepts_positive_and_none():
-    """a positive value and an omitted (None) value both pass."""
-    override = InspectionConfigOverride(glide_slope_angle_tolerance=0.2)
-    create = InspectionConfigCreate(glide_slope_angle_tolerance=0.2)
-    assert override.glide_slope_angle_tolerance == 0.2
-    assert create.glide_slope_angle_tolerance == 0.2
-    assert InspectionConfigOverride().glide_slope_angle_tolerance is None
-    assert InspectionConfigCreate().glide_slope_angle_tolerance is None

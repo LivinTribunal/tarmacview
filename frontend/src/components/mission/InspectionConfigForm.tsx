@@ -182,7 +182,6 @@ export default function InspectionConfigForm({
         measurementDensity={cfg.measurementDensity}
         bufferDistance={cfg.bufferDistance}
         hoverDuration={cfg.hoverDuration}
-        glideSlopeAngleTolerance={cfg.glideSlopeAngleTolerance}
         speedWarning={cfg.speedWarning}
         onNumberChange={cfg.handleNumberChange}
       />

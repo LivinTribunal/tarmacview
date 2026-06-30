@@ -187,8 +187,6 @@ class InspectionConfigOverride(ScanConfigFields):
     # approach-descent fields
     descent_start_distance: float | None = Field(default=None, gt=0)
     descent_glide_slope_override: float | None = Field(default=None, gt=0, le=10)
-    # results-time glidepath verdict tolerance (deg) - never a trajectory input
-    glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
     camera_mode: CameraModeStr | None = None
     # NULL means inherit from mission. NATURAL or REVERSED pin direction.
     direction: InspectionDirectionStr | None = None
@@ -247,7 +245,6 @@ class InspectionConfigResponse(ScanConfigFields):
     hover_bearing_reference: HoverBearingRefStr | None = None
     descent_start_distance: float | None = None
     descent_glide_slope_override: float | None = None
-    glide_slope_angle_tolerance: float | None = None
     camera_mode: CameraModeStr | None = None
     direction: InspectionDirectionStr | None = None
     resolved_direction: InspectionDirectionStr | None = None

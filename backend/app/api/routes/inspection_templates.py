@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CoordinatorUser, OperatorUser
-from app.core.database import get_db
+from app.core.dependencies import get_db
 from app.core.enums import AuditAction
 from app.schemas.common import DeleteResponse, ListMeta
 from app.schemas.inspection_template import (

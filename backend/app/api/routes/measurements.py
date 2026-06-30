@@ -12,7 +12,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import OperatorUser
-from app.core.database import get_db
+from app.core.dependencies import get_db
 from app.core.enums import AuditAction
 from app.schemas.measurement import (
     ConfirmLightsRequest,

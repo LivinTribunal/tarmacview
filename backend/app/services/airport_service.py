@@ -59,4 +59,5 @@ from app.services.airport import (  # noqa: F401
     update_safety_zone,
     update_surface,
     upload_terrain_dem,
+    validate_dem_file,
 )

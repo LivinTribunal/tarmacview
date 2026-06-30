@@ -38,11 +38,27 @@ def list_templates(
 @router.post("/bulk", status_code=201, response_model=BulkCreateTemplatesResponse)
 def bulk_create_templates(
     body: BulkCreateTemplatesRequest,
+    request: Request,
     current_user: CoordinatorUser,
     db: Session = Depends(get_db),
 ):
     """bulk create templates for all valid agl x method combinations."""
     created, skipped = inspection_template_service.bulk_create_templates(db, body.airport_id)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.CREATE,
+        entity_type="InspectionTemplate",
+        entity_id=body.airport_id,
+        details={
+            "airport_id": str(body.airport_id),
+            "created_count": len(created),
+            "skipped": skipped,
+            "template_ids": [str(t.id) for t in created],
+        },
+        ip_address=request.client.host if request.client else None,
+    )
+    db.commit()
 
     return BulkCreateTemplatesResponse(created=created, skipped=skipped)
 

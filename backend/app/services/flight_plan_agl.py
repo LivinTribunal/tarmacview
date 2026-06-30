@@ -11,7 +11,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.core.enums import WaypointType
-from app.core.geometry import wkt_to_geojson
+from app.core.geometry import point_lonlatalt
 from app.models.flight_plan import FlightPlan, Waypoint
 from app.services.elevation_provider import create_elevation_provider
 from app.services.trajectory.types import WaypointData
@@ -28,22 +28,33 @@ _GROUND_LEVEL_WAYPOINT_TYPES = {
 }
 
 
-def _extract_altitude(geom: str | None) -> float:
-    """extract z-coordinate (altitude MSL) from a WKT geometry column."""
-    if not geom:
-        return 0.0
-    geojson = wkt_to_geojson(geom)
-    coords = geojson.get("coordinates", [0, 0, 0]) if geojson else [0, 0, 0]
-    return coords[2] if len(coords) > 2 else 0.0
+def _batch_elevate(
+    airport,
+    points: list[tuple[float, float]],
+    *,
+    elevation_provider=None,
+    failure_note: str = "falling back to airport elevation",
+) -> list[float] | None:
+    """one batched (lat, lon) ground lookup; opens+closes only a provider it owns.
 
-
-def _extract_coords(geom: str | None) -> tuple[float, float, float]:
-    """extract (lon, lat, alt) from a WKT geometry column."""
-    if not geom:
-        return (0.0, 0.0, 0.0)
-    geojson = wkt_to_geojson(geom)
-    coords = geojson.get("coordinates", [0, 0, 0]) if geojson else [0, 0, 0]
-    return (coords[0], coords[1], coords[2] if len(coords) > 2 else 0.0)
+    returns sampled grounds parallel to points, or None on provider failure so
+    each caller applies its own per-entry fallback.
+    """
+    if not points:
+        return []
+    provider = elevation_provider
+    owns_provider = False
+    try:
+        if provider is None:
+            provider = create_elevation_provider(airport, allow_api=False)
+            owns_provider = True
+        return [float(v) for v in provider.get_elevations_batch(points)]
+    except Exception as e:
+        logger.warning("elevation provider failed: %s; %s", e, failure_note)
+        return None
+    finally:
+        if owns_provider and provider is not None and hasattr(provider, "close"):
+            provider.close()
 
 
 def _compute_waypoint_agl_values(
@@ -67,37 +78,20 @@ def _compute_waypoint_agl_values(
     ct_indices: list[int] = []
     ct_points: list[tuple[float, float]] = []
     for idx, wp in enumerate(waypoints):
-        lon, lat, _ = _extract_coords(wp.position)
+        lon, lat, _ = point_lonlatalt(wp.position)
         wp_points.append((lat, lon))
         if wp.camera_target:
-            ct_lon, ct_lat, _ = _extract_coords(wp.camera_target)
+            ct_lon, ct_lat, _ = point_lonlatalt(wp.camera_target)
             ct_indices.append(idx)
             ct_points.append((ct_lat, ct_lon))
 
     wp_boundary = len(wp_points)
-    all_points = wp_points + ct_points
+    sampled = _batch_elevate(airport, wp_points + ct_points, elevation_provider=elevation_provider)
+    if sampled is None:
+        return [elevation_fallback] * len(waypoints), {i: elevation_fallback for i in ct_indices}
 
-    wp_grounds = [elevation_fallback] * len(waypoints)
-    ct_grounds: dict[int, float] = {i: elevation_fallback for i in ct_indices}
-
-    provider = elevation_provider
-    owns_provider = False
-    try:
-        if provider is None:
-            provider = create_elevation_provider(airport, allow_api=False)
-            owns_provider = True
-        sampled = provider.get_elevations_batch(all_points)
-        sampled_wp = sampled[:wp_boundary]
-        sampled_ct = sampled[wp_boundary:]
-        wp_grounds = [float(v) for v in sampled_wp]
-        for i, value in zip(ct_indices, sampled_ct):
-            ct_grounds[i] = float(value)
-    except Exception as e:
-        logger.warning("elevation provider failed: %s; falling back to airport elevation", e)
-    finally:
-        if owns_provider and provider is not None and hasattr(provider, "close"):
-            provider.close()
-
+    wp_grounds = sampled[:wp_boundary]
+    ct_grounds = {i: sampled[wp_boundary + k] for k, i in enumerate(ct_indices)}
     return wp_grounds, ct_grounds
 
 
@@ -105,12 +99,12 @@ def _agl_from_ground(wp: Waypoint, ground: float) -> float:
     """rendering-only agl: 0 for takeoff/landing, clamped wp.alt - ground otherwise."""
     if wp.waypoint_type in _GROUND_LEVEL_WAYPOINT_TYPES:
         return 0.0
-    return max(0.0, _extract_altitude(wp.position) - ground)
+    return max(0.0, point_lonlatalt(wp.position)[2] - ground)
 
 
 def _camera_target_agl_from_ground(wp: Waypoint, ground: float) -> float:
     """rendering-only camera-target agl clamped to zero."""
-    return max(0.0, _extract_altitude(wp.camera_target) - ground)
+    return max(0.0, point_lonlatalt(wp.camera_target)[2] - ground)
 
 
 def _backfill_waypoint_agl(
@@ -174,28 +168,18 @@ def _compute_waypoint_data_agl(
             ct_points.append((wp.camera_target.lat, wp.camera_target.lon))
 
     wp_boundary = len(wp_points)
-    all_points = wp_points + ct_points
-
-    wp_grounds = [elevation_fallback] * len(all_waypoints)
-    ct_grounds: dict[int, float] = {i: elevation_fallback for i in ct_indices}
-
-    provider = elevation_provider
-    owns_provider = False
-    try:
-        if provider is None:
-            provider = create_elevation_provider(airport, allow_api=False)
-            owns_provider = True
-        sampled = provider.get_elevations_batch(all_points)
-        wp_grounds = [float(v) for v in sampled[:wp_boundary]]
-        for i, value in zip(ct_indices, sampled[wp_boundary:]):
-            ct_grounds[i] = float(value)
-    except Exception as e:
-        logger.warning(
-            "elevation provider failed during agl persist: %s; using airport elevation", e
-        )
-    finally:
-        if owns_provider and provider is not None and hasattr(provider, "close"):
-            provider.close()
+    sampled = _batch_elevate(
+        airport,
+        wp_points + ct_points,
+        elevation_provider=elevation_provider,
+        failure_note="using airport elevation (agl persist)",
+    )
+    if sampled is None:
+        wp_grounds = [elevation_fallback] * len(all_waypoints)
+        ct_grounds: dict[int, float] = {i: elevation_fallback for i in ct_indices}
+    else:
+        wp_grounds = sampled[:wp_boundary]
+        ct_grounds = {i: sampled[wp_boundary + k] for k, i in enumerate(ct_indices)}
 
     agls: list[float] = []
     ct_agls: list[float | None] = []

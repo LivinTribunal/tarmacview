@@ -10,9 +10,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies import get_current_user
 from app.core.enums import MeasurementStatus
-from app.domain.measurement.entities import LightSummary, Measurement
-from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
 from app.main import app
+from app.models.measurement import Measurement
 from app.services import measurement_service
 from tests.conftest import TEST_USER_ID, _override_current_user
 from tests.data.airports import AIRPORT_PAYLOAD
@@ -60,17 +59,19 @@ def _save_measurement(
     """persist a measurement in a chosen state directly via the port (no media needed)."""
     s = sessionmaker(bind=db_engine)()
     try:
-        repo = SqlAlchemyMeasurementRepository(s)
+        value = status.value if isinstance(status, MeasurementStatus) else status
         m = Measurement(
             inspection_id=inspection_id,
-            status=status,
+            status=value,
             object_key=object_key,
             summaries=summaries or [],
             error_message=error_message,
         )
-        repo.save(m)
+        s.add(m)
+        s.flush()
+        mid = str(m.id)
         s.commit()
-        return str(m.id)
+        return mid
     finally:
         s.close()
 
@@ -88,8 +89,20 @@ def test_list_spans_missions_with_context(client, db_engine, airport_ctx):
         status=MeasurementStatus.DONE,
         object_key="measurements/x/results.json.gz",
         summaries=[
-            LightSummary("PAPI_A", 3.0, 0.5, 3.1, True),
-            LightSummary("PAPI_B", 3.0, 0.5, 5.0, False),
+            {
+                "light_name": "PAPI_A",
+                "setting_angle": 3.0,
+                "tolerance": 0.5,
+                "measured_transition_angle": 3.1,
+                "passed": True,
+            },
+            {
+                "light_name": "PAPI_B",
+                "setting_angle": 3.0,
+                "tolerance": 0.5,
+                "measured_transition_angle": 5.0,
+                "passed": False,
+            },
         ],
     )
 

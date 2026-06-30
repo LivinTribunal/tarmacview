@@ -50,11 +50,11 @@ def point_lonlatalt(wkt: str | None) -> tuple[float, float, float]:
     """parse a Point WKT string to (lon, lat, alt); strict on empty/None/non-Point."""
     if not wkt:
         raise ValueError("missing point geometry")
-    geojson = wkt_to_geojson(wkt)
-    if geojson is None or geojson.get("type") != "Point":
-        raise ValueError(f"expected Point geometry, got {geojson and geojson.get('type')}")
-    coords = geojson["coordinates"]
-    return (float(coords[0]), float(coords[1]), float(coords[2]) if len(coords) > 2 else 0.0)
+    geom = wkt_to_shapely(wkt)
+    if geom is None or geom.geom_type != "Point":
+        raise ValueError(f"expected Point geometry, got {geom.geom_type if geom else None}")
+    c = geom.coords[0]  # POINT EMPTY -> IndexError (a missing point is a data bug)
+    return (float(c[0]), float(c[1]), float(c[2]) if len(c) > 2 else 0.0)
 
 
 def polygon_xy(wkt: str | None) -> list[tuple[float, float]]:
@@ -64,15 +64,12 @@ def polygon_xy(wkt: str | None) -> list[tuple[float, float]]:
     """
     if not wkt:
         return []
-    geojson = wkt_to_geojson(wkt)
-    if geojson is None:
+    geom = wkt_to_shapely(wkt)
+    if geom is None:
         return []
-    if geojson.get("type") != "Polygon":
-        raise ValueError(f"expected Polygon geometry, got {geojson.get('type')}")
-    rings = geojson.get("coordinates") or []
-    if not rings or not rings[0]:
-        return []
-    return [(float(c[0]), float(c[1])) for c in rings[0]]
+    if geom.geom_type != "Polygon":
+        raise ValueError(f"expected Polygon geometry, got {geom.geom_type}")
+    return [(float(c[0]), float(c[1])) for c in geom.exterior.coords]
 
 
 def linestring_xy(wkt: str | None) -> list[tuple[float, float]]:
@@ -82,10 +79,9 @@ def linestring_xy(wkt: str | None) -> list[tuple[float, float]]:
     """
     if not wkt:
         return []
-    geojson = wkt_to_geojson(wkt)
-    if geojson is None:
+    geom = wkt_to_shapely(wkt)
+    if geom is None:
         return []
-    if geojson.get("type") != "LineString":
-        raise ValueError(f"expected LineString geometry, got {geojson.get('type')}")
-    coords = geojson.get("coordinates") or []
-    return [(float(c[0]), float(c[1])) for c in coords]
+    if geom.geom_type != "LineString":
+        raise ValueError(f"expected LineString geometry, got {geom.geom_type}")
+    return [(float(c[0]), float(c[1])) for c in geom.coords]

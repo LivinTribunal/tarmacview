@@ -111,6 +111,36 @@ is plain module functions called as `camera_preset_service.list_presets(db, ...)
 — there is **no** controller layer and no injected service class. Check a changed
 backend slice against this, not just against its file-local neighbors.
 
+## Twin / reuse preflight (do this before any "goes with the grain" verdict)
+
+The 2026-06-30 unsloppify audit (`docs/audits/2026-06-30-unsloppify-audit.md`)
+found the dominant debt is **cross-file duplication a diff-scoped review never
+sees** — a new file that clones a sibling in a file the PR doesn't touch. Before
+clearing a new component / hook / page / service, actively look for the sibling
+it should share with, not just at the lines in the diff:
+
+- **operator ↔ coordinator twins.** `operator-center` and `coordinator-center`
+  were built by cloning each other. A new `coordinator/*` or `operator/*` thing
+  almost always has a twin in the other center — grep the other center first.
+  Known clone families: `DroneListTable`/`OperatorDroneTable`, the airport tables
+  (`AirportListPage`/`AirportSelectionView`), drone detail/list pages, the map
+  toolbars (`MapDrawingToolbar`/`MapControlsToolbar`), help panels
+  (`CoordinatorMapHelpPanel` — `MapHelpPanel` already has a `variant` prop for this).
+- **variant forks.** Draw-tool hooks (`useDrawCircle`/`Rectangle`/`Polygon`/
+  `usePlacePoint`), results charts, info cards, and the AGL/obstacle/safety-zone
+  overlay panels are forked-then-specialized. A new one of these should extend the
+  base, not copy a sibling.
+- **named reuse targets.** Spinners → lucide `Loader2` (not a hand-rolled
+  `<svg animate-spin>`); verdict pills → `VerdictBadge`; chart shells →
+  `ChartShell`; toast → the `useToast` pattern; WKT→tuple → `point_lonlatalt`
+  (never a per-service `_extract_coords` / `(0,0,0)` Null-Island shim — that exact
+  pattern is banned and regressed once); enum CHECK SQL → `enum_check_values`;
+  the meters-per-degree constant lives in `app.core.constants`.
+
+Emit a `duplicate:` finding when a diff clones one of these instead of reusing it.
+And read from the **repo-wide jscpd clone map**, not only the diff — a clone has
+two ends and the PR may only touch one.
+
 ## Note on the layers.md / DDD-Lite tension
 
 `docs/layers.md` lists "model methods" as an anti-pattern (anemic-model stance),

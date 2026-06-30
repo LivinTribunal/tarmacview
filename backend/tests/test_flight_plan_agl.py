@@ -19,8 +19,6 @@ from app.services.flight_plan_agl import (
     _camera_target_agl_from_ground,
     _compute_waypoint_agl_values,
     _compute_waypoint_data_agl,
-    _extract_altitude,
-    _extract_coords,
     _refresh_persisted_agl,
 )
 from app.services.geometry_converter import geojson_to_wkt
@@ -90,16 +88,29 @@ class _FakeDB:
         self.commits += 1
 
 
-# extraction primitives
+# position parse: round-trip identity + strict raise (Null-Island removal)
 
 
-def test_extract_altitude_and_coords():
-    """z/coords come off the WKT; empty/None fall back to zeros."""
-    wkt = _wkt(18.1, 49.6, 250.0)
-    assert _extract_altitude(wkt) == pytest.approx(250.0)
-    assert _extract_coords(wkt) == pytest.approx((18.1, 49.6, 250.0))
-    assert _extract_altitude(None) == 0.0
-    assert _extract_coords("") == (0.0, 0.0, 0.0)
+def test_agl_from_ground_round_trips_valid_position():
+    """a valid position parses to its z so agl = alt - ground exactly."""
+    wp = _WP(_wkt(18.1, 49.6, 280.0), waypoint_type="MEASUREMENT")
+    assert _agl_from_ground(wp, 250.0) == pytest.approx(30.0)
+
+
+def test_agl_from_ground_raises_on_missing_position():
+    """a missing position is a data bug - it raises rather than yielding (0,0,0)."""
+    with pytest.raises(ValueError):
+        _agl_from_ground(_WP(None), 250.0)
+
+
+def test_compute_waypoint_agl_values_raises_on_missing_position(monkeypatch):
+    """a null-position row raises instead of silently sampling Null Island."""
+    monkeypatch.setattr(
+        flight_plan_agl, "create_elevation_provider", lambda *a, **kw: _Provider(ground=200.0)
+    )
+    wps = [_WP(_wkt(18.1, 49.6, 300.0)), _WP(None)]
+    with pytest.raises(ValueError):
+        _compute_waypoint_agl_values(wps, SimpleNamespace(), 133.0)
 
 
 # agl-from-ground primitives
@@ -317,6 +328,4 @@ def test_flight_plan_service_reexports_agl_cluster():
     assert fps._refresh_persisted_agl is _refresh_persisted_agl
     assert fps._compute_waypoint_data_agl is _compute_waypoint_data_agl
     assert fps._backfill_waypoint_agl is _backfill_waypoint_agl
-    assert fps._extract_altitude is _extract_altitude
-    assert fps._extract_coords is _extract_coords
     assert fps._GROUND_LEVEL_WAYPOINT_TYPES is flight_plan_agl._GROUND_LEVEL_WAYPOINT_TYPES

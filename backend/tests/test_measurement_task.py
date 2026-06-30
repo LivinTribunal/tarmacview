@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
-from app.domain.measurement.entities import Measurement
+from app.models.measurement import Measurement
 from app.schemas.measurement import LightBox
 from app.services import measurement_service
 from tests.data.airports import AGL_PAYLOAD, AIRPORT_PAYLOAD, LHA_PAYLOAD, SURFACE_PAYLOAD
@@ -26,6 +26,14 @@ _LIGHTS = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"]
 def _confirm_boxes():
     """schema confirm-lights boxes for the four PAPI slots (the service wire shape)."""
     return [LightBox(light_name=name, x=10.0, y=50.0, size=8.0) for name in _LIGHTS]
+
+
+def _new_run(s, inspection_id) -> Measurement:
+    """insert a fresh QUEUED measurement row bound to the session."""
+    m = Measurement(inspection_id=inspection_id, status=MeasurementStatus.QUEUED.value)
+    s.add(m)
+    s.flush()
+    return m
 
 
 @pytest.fixture(scope="module")
@@ -111,7 +119,6 @@ def _drive_to_processing(s, created, inspection_id):
     created.append(m.id)
     m.transition_to(MeasurementStatus.FIRST_FRAME)
     m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
-    measurement_service._repo(s).save(m)
     s.commit()
     measurement_service.confirm_lights(s, m.id, _confirm_boxes())
     s.commit()
@@ -127,9 +134,9 @@ def test_create_snapshots_reference_points(session, inspection_with_media):
 
     assert m.status == MeasurementStatus.QUEUED
     assert m.media_object_keys == ["drone-media/manual/clip.mp4"]
-    names = {rp.light_name for rp in m.reference_points}
+    names = {rp["light_name"] for rp in m.reference_points}
     assert names == set(_LIGHTS)
-    assert all(rp.setting_angle == 3.0 for rp in m.reference_points)
+    assert all(rp["setting_angle"] == 3.0 for rp in m.reference_points)
 
 
 def test_create_without_media_is_422(session, client):
@@ -177,7 +184,7 @@ def test_run_first_frame_reaches_awaiting_confirm(session, inspection_with_media
     result = measurement_service.run_first_frame(s, m.id)
     assert result.status == MeasurementStatus.AWAITING_CONFIRM
     assert result.first_frame_object_key.endswith("first_frame.jpg")
-    assert {b.light_name for b in result.light_boxes} == set(_LIGHTS)
+    assert {b["light_name"] for b in result.light_boxes} == set(_LIGHTS)
 
 
 def test_run_first_frame_confident_reaches_processing(session, inspection_with_media, monkeypatch):
@@ -193,7 +200,7 @@ def test_run_first_frame_confident_reaches_processing(session, inspection_with_m
     result = measurement_service.run_first_frame(s, m.id)
     assert result.status == MeasurementStatus.PROCESSING
     assert result.first_frame_object_key.endswith("first_frame.jpg")
-    assert {b.light_name for b in result.light_boxes} == set(_LIGHTS)
+    assert {b["light_name"] for b in result.light_boxes} == set(_LIGHTS)
 
 
 def test_run_processing_reaches_done_and_writes_object_key(
@@ -216,7 +223,6 @@ def test_run_processing_reaches_done_and_writes_object_key(
     # move through the confirm gate so the run is PROCESSING
     m.transition_to(MeasurementStatus.FIRST_FRAME)
     m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
-    measurement_service._repo(s).save(m)
     s.commit()
     measurement_service.confirm_lights(s, m.id, _confirm_boxes())
     s.commit()
@@ -224,9 +230,9 @@ def test_run_processing_reaches_done_and_writes_object_key(
     result = measurement_service.run_processing(s, m.id)
     assert result.status == MeasurementStatus.DONE
     assert result.object_key.endswith("results.json.gz")
-    by_name = {sm.light_name: sm for sm in result.summaries}
-    assert by_name["PAPI_A"].measured_transition_angle == 3.05
-    assert by_name["PAPI_A"].passed is True
+    by_name = {sm["light_name"]: sm for sm in result.summaries}
+    assert by_name["PAPI_A"]["measured_transition_angle"] == 3.05
+    assert by_name["PAPI_A"]["passed"] is True
 
 
 def test_run_processing_engine_failure_routes_to_error(session, inspection_with_media, monkeypatch):
@@ -245,7 +251,6 @@ def test_run_processing_engine_failure_routes_to_error(session, inspection_with_
     created.append(m.id)
     m.transition_to(MeasurementStatus.FIRST_FRAME)
     m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
-    measurement_service._repo(s).save(m)
     s.commit()
     measurement_service.confirm_lights(s, m.id, _confirm_boxes())
     s.commit()
@@ -320,8 +325,8 @@ def test_run_processing_summaries_are_plain_floats(session, inspection_with_medi
     m = _drive_to_processing(s, created, inspection_with_media)
     result = measurement_service.run_processing(s, m.id)
 
-    by_name = {sm.light_name: sm for sm in result.summaries}
-    measured = by_name["PAPI_A"].measured_transition_angle
+    by_name = {sm["light_name"]: sm for sm in result.summaries}
+    measured = by_name["PAPI_A"]["measured_transition_angle"]
     assert measured == 3.05
     assert type(measured) is float
 
@@ -349,7 +354,6 @@ def test_run_first_frame_idempotent_on_non_queued(session, inspection_with_media
     created.append(m.id)
     m.transition_to(MeasurementStatus.FIRST_FRAME)
     m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
-    measurement_service._repo(s).save(m)
     s.commit()
 
     result = measurement_service.run_first_frame(s, m.id)
@@ -362,9 +366,8 @@ def test_run_processing_idempotent_on_done(session, inspection_with_media, monke
     _stub_storage(monkeypatch)
     m = _drive_to_processing(s, created, inspection_with_media)
 
-    fresh = measurement_service._repo(s).get_by_id(m.id)
+    fresh = s.query(Measurement).filter(Measurement.id == m.id).first()
     fresh.transition_to(MeasurementStatus.DONE)
-    measurement_service._repo(s).save(fresh)
     s.commit()
 
     def must_not_run(*a, **k):
@@ -383,9 +386,8 @@ def test_run_processing_idempotent_on_error(session, inspection_with_media, monk
     _stub_storage(monkeypatch)
     m = _drive_to_processing(s, created, inspection_with_media)
 
-    fresh = measurement_service._repo(s).get_by_id(m.id)
+    fresh = s.query(Measurement).filter(Measurement.id == m.id).first()
     fresh.fail("processing interrupted - the worker restarted; re-run the measurement")
-    measurement_service._repo(s).save(fresh)
     s.commit()
 
     def must_not_run(*a, **k):
@@ -401,20 +403,17 @@ def test_run_processing_idempotent_on_error(session, inspection_with_media, monk
 def test_reap_stale_runs_fails_orphaned_in_progress(session, inspection_with_media):
     """reap fails every FIRST_FRAME/PROCESSING run to ERROR and returns how many it moved."""
     s, created = session
-    repo = measurement_service._repo(s)
-    in_progress = list(measurement_service._IN_PROGRESS_STATUSES)
-    before = len(repo.list_by_statuses(in_progress))
+    in_progress = [st.value for st in measurement_service._IN_PROGRESS_STATUSES]
+    before = s.query(Measurement).filter(Measurement.status.in_(in_progress)).count()
 
-    processing = repo.save(Measurement(inspection_id=inspection_with_media))
+    processing = _new_run(s, inspection_with_media)
     processing.transition_to(MeasurementStatus.FIRST_FRAME)
     processing.transition_to(MeasurementStatus.PROCESSING)
-    repo.save(processing)
     s.commit()
     created.append(processing.id)
 
-    first_frame = repo.save(Measurement(inspection_id=inspection_with_media))
+    first_frame = _new_run(s, inspection_with_media)
     first_frame.transition_to(MeasurementStatus.FIRST_FRAME)
-    repo.save(first_frame)
     s.commit()
     created.append(first_frame.id)
 
@@ -422,7 +421,7 @@ def test_reap_stale_runs_fails_orphaned_in_progress(session, inspection_with_med
     assert count == before + 2
 
     for mid in (processing.id, first_frame.id):
-        reaped = repo.get_by_id(mid)
+        reaped = s.query(Measurement).filter(Measurement.id == mid).first()
         assert reaped.status == MeasurementStatus.ERROR
         assert "re-run" in reaped.error_message
 
@@ -430,29 +429,30 @@ def test_reap_stale_runs_fails_orphaned_in_progress(session, inspection_with_med
 def test_reap_stale_runs_leaves_terminal_runs_untouched(session, inspection_with_media):
     """a DONE or ERROR run is never reaped - only in-progress runs are orphans."""
     s, created = session
-    repo = measurement_service._repo(s)
     # clear any orphaned in-progress rows so the reap below is deterministic
     measurement_service.reap_stale_runs(s)
 
-    done = repo.save(Measurement(inspection_id=inspection_with_media))
+    done = _new_run(s, inspection_with_media)
     done.transition_to(MeasurementStatus.FIRST_FRAME)
     done.transition_to(MeasurementStatus.PROCESSING)
     done.transition_to(MeasurementStatus.DONE)
-    repo.save(done)
     s.commit()
     created.append(done.id)
 
-    errored = repo.save(Measurement(inspection_id=inspection_with_media))
+    errored = _new_run(s, inspection_with_media)
     errored.fail("earlier failure")
-    repo.save(errored)
     s.commit()
     created.append(errored.id)
 
     count = measurement_service.reap_stale_runs(s)
     assert count == 0
-    assert repo.get_by_id(done.id).status == MeasurementStatus.DONE
-    assert repo.get_by_id(errored.id).status == MeasurementStatus.ERROR
-    assert repo.get_by_id(errored.id).error_message == "earlier failure"
+
+    def _reload(mid):
+        return s.query(Measurement).filter(Measurement.id == mid).first()
+
+    assert _reload(done.id).status == MeasurementStatus.DONE
+    assert _reload(errored.id).status == MeasurementStatus.ERROR
+    assert _reload(errored.id).error_message == "earlier failure"
 
 
 def test_real_engine_first_frame_on_synthetic_clip(tmp_path):

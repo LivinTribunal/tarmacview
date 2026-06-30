@@ -147,3 +147,5 @@ def delete_agl(db: Session, airport_id: UUID, surface_id: UUID, agl_id: UUID):
 
     db.delete(agl)
     db.flush()
+
+    return agl

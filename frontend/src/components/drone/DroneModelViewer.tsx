@@ -4,8 +4,6 @@ import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import DronePlaceholderIcon from "./DronePlaceholderIcon";
 import useDroneScene from "./useDroneScene";
 
-export { default as DroneModelThumbnail } from "./DroneModelThumbnail";
-
 interface DroneModelViewerProps {
   modelUrl: string | null;
   autoRotate?: boolean;

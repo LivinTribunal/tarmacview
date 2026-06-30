@@ -19,9 +19,6 @@ from app.models.airport import Airport
 from app.models.user import User, user_airports
 from app.services.admin_settings import (
     SETTINGS_DEFAULTS,
-    _collect_setting_updates,
-    _get_setting,
-    _upsert_settings,
     get_system_settings,
     is_maintenance_mode,
     update_system_settings,
@@ -42,9 +39,6 @@ __all__ = [
     "get_system_settings",
     "update_system_settings",
     "is_maintenance_mode",
-    "_get_setting",
-    "_collect_setting_updates",
-    "_upsert_settings",
 ]
 
 

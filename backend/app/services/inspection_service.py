@@ -247,12 +247,9 @@ def reorder_inspections(db: Session, mission_id: UUID, inspection_ids: list[UUID
 
     def apply_reorder():
         """apply new sequence_order to each inspection."""
+        insp_by_id = {insp.id: insp for insp in mission.inspections}
         for i, insp_id in enumerate(inspection_ids, start=1):
-            inspection = (
-                db.query(Inspection)
-                .filter(Inspection.id == insp_id, Inspection.mission_id == mission_id)
-                .first()
-            )
+            inspection = insp_by_id.get(insp_id)
             if not inspection:
                 raise NotFoundError(f"inspection {insp_id} not found")
 

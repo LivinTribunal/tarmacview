@@ -106,3 +106,5 @@ def delete_safety_zone(db: Session, airport_id: UUID, zone_id: UUID):
 
     db.delete(zone)
     db.flush()
+
+    return zone

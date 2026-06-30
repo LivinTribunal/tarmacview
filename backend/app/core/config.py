@@ -143,6 +143,3 @@ def _check_jwt_secret(s: "Settings") -> None:
 
 settings = Settings()
 _check_jwt_secret(settings)
-
-# backwards-compatible alias
-TERRAIN_DIR = settings.terrain_dir

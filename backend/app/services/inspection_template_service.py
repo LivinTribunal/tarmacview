@@ -301,6 +301,6 @@ def bulk_create_templates(db: Session, airport_id: UUID) -> tuple[list[Inspectio
         )
         created.append(template)
 
-    db.commit()
+    db.flush()
 
     return [_load_template(db, t.id) for t in created], skipped

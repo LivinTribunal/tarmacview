@@ -2337,3 +2337,37 @@ def test_surface_scan_run_count_override_emits_suggestion(client):
     violations = (fp.get("validation_result") or {}).get("violations", [])
     suggestions = " ".join(v["message"] for v in violations if v.get("category") == "suggestion")
     assert "run count" in suggestions.lower()
+
+
+def _orm_waypoint(position):
+    """fake persisted Waypoint row for _waypoint_orm_to_data characterization."""
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        position=position,
+        camera_target=None,
+        heading=None,
+        speed=None,
+        hover_duration=None,
+        gimbal_pitch=None,
+        waypoint_type="MEASUREMENT",
+        camera_action=None,
+        inspection_id=None,
+    )
+
+
+def test_waypoint_orm_to_data_round_trips_valid_position():
+    """a valid persisted position materializes to the same lon/lat/alt."""
+    from app.services.trajectory.orchestrator._pipeline import _waypoint_orm_to_data
+
+    data = _waypoint_orm_to_data(_orm_waypoint("POINT Z (18.1 49.6 260)"))
+
+    assert (data.lon, data.lat, data.alt) == (18.1, 49.6, 260.0)
+
+
+def test_waypoint_orm_to_data_raises_on_missing_position():
+    """a missing persisted position raises instead of yielding (0,0,0)."""
+    from app.services.trajectory.orchestrator._pipeline import _waypoint_orm_to_data
+
+    with pytest.raises(ValueError):
+        _waypoint_orm_to_data(_orm_waypoint(None))

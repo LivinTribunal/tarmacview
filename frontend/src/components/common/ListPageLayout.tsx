@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Search } from "lucide-react";
 
 const PAGE_SIZES = [10, 20, 50, 200] as const;
 
@@ -82,17 +83,7 @@ export function SearchBar({
   return (
     <div className="flex items-center gap-3 w-full max-w-6xl mb-4">
       <div className="flex items-center justify-center h-10 w-10 rounded-full bg-tv-accent flex-shrink-0">
-        <svg
-          className="h-5 w-5 text-tv-accent-text"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-            clipRule="evenodd"
-          />
-        </svg>
+        <Search className="h-5 w-5 text-tv-accent-text" />
       </div>
       <input
         type="text"

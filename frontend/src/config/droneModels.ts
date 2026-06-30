@@ -37,8 +37,6 @@ export const BUNDLED_DRONE_MODELS = [
   },
 ] as const;
 
-export type BundledDroneModelId = (typeof BUNDLED_DRONE_MODELS)[number]["id"];
-
 /** look up a bundled model by its id. */
 export function getBundledModel(id: string) {
   return BUNDLED_DRONE_MODELS.find((m) => m.id === id) ?? null;

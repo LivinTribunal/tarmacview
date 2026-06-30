@@ -47,10 +47,6 @@ export const TAXIWAY_STROKE_LAYER = "taxiways-stroke";
 export const TAXIWAY_CENTERLINE_LAYER = "taxiways-centerline";
 export const TAXIWAY_LABEL_LAYER = "taxiways-label";
 
-// keep old names as aliases for backwards compat in layerGroupMap
-export const RUNWAY_LAYER = RUNWAY_FILL_LAYER;
-export const TAXIWAY_LAYER = TAXIWAY_FILL_LAYER;
-
 /** adds runway and taxiway layers with geographic polygon fills.
  *
  *  paired RUNWAY surfaces are deduplicated so each physical runway renders as

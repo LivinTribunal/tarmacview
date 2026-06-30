@@ -16,11 +16,6 @@ export const SURFACE_BUFFER_SOURCE = "surfaces-buffer";
 export const SURFACE_BUFFER_FILL_LAYER = "surfaces-buffer-fill";
 export const SURFACE_BUFFER_OUTLINE_LAYER = "surfaces-buffer-outline";
 
-// backwards compat aliases
-export const OBSTACLE_RADIUS_SOURCE = OBSTACLE_BOUNDARY_SOURCE;
-export const OBSTACLE_RADIUS_LAYER = OBSTACLE_BOUNDARY_LAYER;
-export const OBSTACLE_POINT_LAYER = OBSTACLE_ICON_LAYER;
-
 const obstacleColors: Record<ObstacleType, string> = {
   BUILDING: "#e54545",
   TOWER: "#9b59b6",
@@ -28,8 +23,6 @@ const obstacleColors: Record<ObstacleType, string> = {
   VEGETATION: "#3bbb3b",
   OTHER: "#6b6b6b",
 };
-
-export { obstacleColors as OBSTACLE_COLORS };
 
 /** per-edge mitered offset of a polygon outward by bufferMeters.
  * works in local meters via an equirectangular projection at the polygon centroid,

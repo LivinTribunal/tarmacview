@@ -1,5 +1,4 @@
 import type { AirportSummary } from "@/types/auth";
-import type { ListMeta } from "@/types/common";
 
 export interface UserAdminResponse {
   id: string;
@@ -84,14 +83,4 @@ export interface AuditLogEntry {
   airport_id: string | null;
   details: Record<string, unknown> | null;
   ip_address: string | null;
-}
-
-export interface AuditLogListResponse {
-  data: AuditLogEntry[];
-  meta: ListMeta;
-}
-
-export interface UserListResponse {
-  data: UserAdminResponse[];
-  meta: ListMeta;
 }

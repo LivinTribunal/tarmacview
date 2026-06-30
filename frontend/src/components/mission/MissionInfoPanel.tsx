@@ -132,7 +132,7 @@ export default function MissionInfoPanel({
                 {mission.operator_notes}
               </p>
             ) : (
-              <p className="text-sm mt-0.5" style={{ color: "var(--tv-text-muted)" }}>
+              <p className="text-sm mt-0.5 text-tv-text-muted">
                 {t("mission.overview.noNotes")}
               </p>
             )}

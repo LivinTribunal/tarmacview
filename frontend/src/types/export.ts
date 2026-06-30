@@ -6,11 +6,6 @@ export interface AltitudeClamp {
   reason: "below_takeoff";
 }
 
-/** mirror of backend `app.schemas.export.ExportResponse`. */
-export interface ExportResponse {
-  altitude_clamps: AltitudeClamp[];
-}
-
 /** surfaced to `ExportPanel` when the backend refused the file pending ack. */
 export interface ExportClampWarning {
   kind: "clamp_warning";

@@ -5,7 +5,7 @@ import Modal from "@/components/common/Modal";
 import { bulkChangeDrone } from "@/api/airports";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 
-interface BulkChangeDroneModalProps {
+interface BulkChangeDroneSimpleDialogProps {
   isOpen: boolean;
   onClose: () => void;
   airportId: string;
@@ -15,8 +15,8 @@ interface BulkChangeDroneModalProps {
   onError: () => void;
 }
 
-/** simple bulk-change modal used by the operator drone list page. */
-export default function BulkChangeDroneModal({
+/** simple bulk-change dialog used by the operator drone list page. */
+export default function BulkChangeDroneSimpleDialog({
   isOpen,
   onClose,
   airportId,
@@ -24,7 +24,7 @@ export default function BulkChangeDroneModal({
   drones,
   onResult,
   onError,
-}: BulkChangeDroneModalProps) {
+}: BulkChangeDroneSimpleDialogProps) {
   const { t } = useTranslation();
 
   const [bulkDroneId, setBulkDroneId] = useState("");

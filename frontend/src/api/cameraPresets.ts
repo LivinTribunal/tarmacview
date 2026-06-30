@@ -14,13 +14,6 @@ export async function listCameraPresets(params?: {
   return res.data;
 }
 
-export async function getCameraPreset(
-  id: string,
-): Promise<CameraPresetResponse> {
-  const res = await client.get(`/camera-presets/${id}`);
-  return res.data;
-}
-
 export async function createCameraPreset(
   data: CameraPresetCreate,
 ): Promise<CameraPresetResponse> {

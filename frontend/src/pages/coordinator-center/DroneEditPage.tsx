@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Layers, Clock, Pencil, Plus, Copy, Trash2, X, Link } from "lucide-react";
+import { Layers, Clock, Pencil, Plus, Copy, Trash2, X, Link, Loader2 } from "lucide-react";
 import Button from "@/components/common/Button";
 import Card from "@/components/common/Card";
 import DetailSelector from "@/components/common/DetailSelector";
@@ -56,25 +56,7 @@ export default function DroneEditPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full bg-tv-bg">
-        <svg
-          className="h-6 w-6 animate-spin text-tv-text-muted"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
+        <Loader2 className="h-6 w-6 animate-spin text-tv-text-muted" />
       </div>
     );
   }
@@ -193,25 +175,7 @@ export default function DroneEditPage() {
                 <span className="text-xs text-tv-text-muted flex items-center gap-1.5">
                   {saving && (
                     <>
-                      <svg
-                        className="h-3 w-3 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
+                      <Loader2 className="h-3 w-3 animate-spin" />
                       {t("coordinator.drones.detail.saving")}
                     </>
                   )}

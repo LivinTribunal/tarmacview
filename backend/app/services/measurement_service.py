@@ -1,10 +1,10 @@
 """measurement orchestration - create, first-frame detect, confirm, full processing.
 
-ports-and-adapters: this service depends on the ``MeasurementRepository`` port, not
-the orm. it stays import-safe on a backend pinned to requirements.txt only - the
-opencv engine and celery are imported lazily inside the engine/enqueue seams so
-``app.main`` boots without the worker deps. reference points are snapshotted from the
-inspection's target LHAs at create time (an audit record, not a live join).
+works the ``Measurement`` orm row directly. it stays import-safe on a backend pinned
+to requirements.txt only - the opencv engine and celery are imported lazily inside the
+engine/enqueue seams so ``app.main`` boots without the worker deps. reference points are
+snapshotted from the inspection's target LHAs at create time (an audit record, not a
+live join). the run's status machine and per-light scoring live on the orm model.
 """
 
 import gzip
@@ -19,17 +19,10 @@ from sqlalchemy.orm import Session
 from app.core.enums import MeasurementStatus
 from app.core.exceptions import DomainError, NotFoundError
 from app.core.geometry import point_lonlatalt
-from app.domain.measurement.entities import (
-    PAPI_LIGHT_NAMES,
-    LightBox,
-    Measurement,
-    ReferencePoint,
-)
-from app.domain.measurement.repository import MeasurementRepository
-from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
 from app.models.agl import LHA
 from app.models.drone_media_file import DroneMediaFile
 from app.models.inspection import Inspection
+from app.models.measurement import PAPI_LIGHT_NAMES, Measurement
 from app.models.mission import Mission
 from app.schemas.measurement import (
     DronePathPoint,
@@ -52,11 +45,6 @@ logger = logging.getLogger(__name__)
 _MEASUREMENT_PREFIX = "measurements"
 
 
-def _repo(db: Session) -> MeasurementRepository:
-    """build the default sqlalchemy adapter for the port."""
-    return SqlAlchemyMeasurementRepository(db)
-
-
 # reference-point snapshot
 
 
@@ -71,7 +59,7 @@ def _light_name_for(designator: str | None, index: int) -> str:
 
 def _snapshot_reference_points(
     db: Session, inspection: Inspection
-) -> tuple[list[ReferencePoint], float | None]:
+) -> tuple[list[dict], float | None]:
     """snapshot the inspection's target LHAs into reference points + runway heading.
 
     the snapshot is the engine's free reference set - lha position, setting angle and
@@ -86,7 +74,7 @@ def _snapshot_reference_points(
     lhas.sort(key=lambda lha: lha.sequence_number)
 
     runway_heading: float | None = None
-    points: list[ReferencePoint] = []
+    points: list[dict] = []
     for index, lha in enumerate(lhas):
         try:
             lon, lat, alt = point_lonlatalt(lha.position)
@@ -96,16 +84,16 @@ def _snapshot_reference_points(
         if runway_heading is None and lha.agl and lha.agl.surface:
             runway_heading = lha.agl.surface.heading
         points.append(
-            ReferencePoint(
-                light_name=_light_name_for(lha.unit_designator, index),
-                latitude=lat,
-                longitude=lon,
-                elevation=alt,
-                lha_id=lha.id,
-                unit_designator=lha.unit_designator,
-                setting_angle=lha.setting_angle,
-                tolerance=lha.tolerance,
-            )
+            {
+                "light_name": _light_name_for(lha.unit_designator, index),
+                "latitude": lat,
+                "longitude": lon,
+                "elevation": alt,
+                "lha_id": str(lha.id),
+                "unit_designator": lha.unit_designator,
+                "setting_angle": lha.setting_angle,
+                "tolerance": lha.tolerance,
+            }
         )
     return points, runway_heading
 
@@ -121,46 +109,35 @@ def _inspection_media_keys(db: Session, inspection_id: UUID) -> list[str]:
     return [row.object_key for row in rows]
 
 
-# domain <-> wire mapping (keeps the route purely HTTP - no app.domain import)
+# orm row <-> wire mapping (keeps the route purely HTTP)
 
 
-def light_boxes_to_schema(boxes: list[LightBox]) -> list[LightBoxSchema]:
-    """map domain light boxes to their wire form (response + preview share this)."""
-    return [LightBoxSchema(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in boxes]
+def light_boxes_to_schema(boxes: list[dict]) -> list[LightBoxSchema]:
+    """map stored light-box dicts to their wire form (response + preview share this)."""
+    return [LightBoxSchema(**b) for b in (boxes or [])]
+
+
+def _reference_point_responses(measurement: Measurement) -> list[ReferencePointResponse]:
+    """map the run's snapshotted reference points onto the wire shape."""
+    return [ReferencePointResponse(**d) for d in (measurement.reference_points or [])]
+
+
+def _summary_responses(measurement: Measurement) -> list[LightSummaryResponse]:
+    """map the run's per-light PASS/FAIL rollups onto the wire shape."""
+    return [LightSummaryResponse(**s) for s in (measurement.summaries or [])]
 
 
 def to_response(m: Measurement) -> MeasurementResponse:
-    """map the domain aggregate to the wire response."""
+    """map the orm row to the wire response."""
     return MeasurementResponse(
         id=m.id,
         inspection_id=m.inspection_id,
-        status=m.status.value,
+        status=m.status,
         label=m.label,
         runway_heading=m.runway_heading,
-        reference_points=[
-            ReferencePointResponse(
-                light_name=rp.light_name,
-                latitude=rp.latitude,
-                longitude=rp.longitude,
-                elevation=rp.elevation,
-                lha_id=rp.lha_id,
-                unit_designator=rp.unit_designator,
-                setting_angle=rp.setting_angle,
-                tolerance=rp.tolerance,
-            )
-            for rp in m.reference_points
-        ],
+        reference_points=_reference_point_responses(m),
         light_boxes=light_boxes_to_schema(m.light_boxes),
-        summaries=[
-            LightSummaryResponse(
-                light_name=s.light_name,
-                setting_angle=s.setting_angle,
-                tolerance=s.tolerance,
-                measured_transition_angle=s.measured_transition_angle,
-                passed=s.passed,
-            )
-            for s in m.summaries
-        ],
+        summaries=_summary_responses(m),
         object_key=m.object_key,
         first_frame_object_key=m.first_frame_object_key,
         error_message=m.error_message,
@@ -169,9 +146,9 @@ def to_response(m: Measurement) -> MeasurementResponse:
     )
 
 
-def _boxes_from_request(boxes: list[LightBoxSchema]) -> list[LightBox]:
-    """build domain light boxes from the operator's confirm-lights request."""
-    return [LightBox(light_name=b.light_name, x=b.x, y=b.y, size=b.size) for b in boxes]
+def _boxes_from_request(boxes: list[LightBoxSchema]) -> list[dict]:
+    """build stored light-box dicts from the operator's confirm-lights request."""
+    return [{"light_name": b.light_name, "x": b.x, "y": b.y, "size": b.size} for b in boxes]
 
 
 # route-facing entrypoints (flush only; the route commits)
@@ -200,17 +177,20 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
 
     measurement = Measurement(
         inspection_id=inspection_id,
-        status=MeasurementStatus.QUEUED,
+        status=MeasurementStatus.QUEUED.value,
         runway_heading=runway_heading,
         reference_points=reference_points,
         media_object_keys=media_keys,
     )
-    return _repo(db).save(measurement)
+    db.add(measurement)
+    db.flush()
+    db.refresh(measurement)
+    return measurement
 
 
 def get_measurement(db: Session, measurement_id: UUID) -> Measurement:
-    """load one measurement aggregate (404 when missing)."""
-    measurement = _repo(db).get_by_id(measurement_id)
+    """load one measurement row (404 when missing)."""
+    measurement = db.query(Measurement).filter(Measurement.id == measurement_id).first()
     if measurement is None:
         raise NotFoundError("measurement not found")
     return measurement
@@ -219,13 +199,14 @@ def get_measurement(db: Session, measurement_id: UUID) -> Measurement:
 def _list_item(
     measurement: Measurement, inspection: Inspection, mission: Mission
 ) -> MeasurementListItemResponse:
-    """map an aggregate + its mission/inspection context to one list row.
+    """map a run + its mission/inspection context to one list row.
 
-    PASS/FAIL counts and has_results derive from the aggregate's summaries +
-    object_key so the row carries everything the list page routes on.
+    PASS/FAIL counts and has_results derive from the run's summaries + object_key so
+    the row carries everything the list page routes on.
     """
-    pass_count = sum(1 for s in measurement.summaries if s.passed is True)
-    fail_count = sum(1 for s in measurement.summaries if s.passed is False)
+    summaries = measurement.summaries or []
+    pass_count = sum(1 for s in summaries if s.get("passed") is True)
+    fail_count = sum(1 for s in summaries if s.get("passed") is False)
     has_results = (
         measurement.status == MeasurementStatus.DONE and measurement.object_key is not None
     )
@@ -236,7 +217,7 @@ def _list_item(
         mission_name=mission.name,
         inspection_method=inspection.method,
         inspection_sequence_order=inspection.sequence_order,
-        status=measurement.status.value,
+        status=measurement.status,
         label=measurement.label,
         created_at=measurement.created_at,
         has_results=has_results,
@@ -260,7 +241,15 @@ def list_airport_measurements(db: Session, airport_id: UUID) -> list[Measurement
         .all()
     )
     context = {insp.id: (insp, mission) for insp, mission in rows}
-    measurements = _repo(db).list_by_inspections(list(context.keys()))
+    ids = list(context.keys())
+    if not ids:
+        return []
+    measurements = (
+        db.query(Measurement)
+        .filter(Measurement.inspection_id.in_(ids))
+        .order_by(Measurement.created_at.desc(), Measurement.id)
+        .all()
+    )
     return [_list_item(m, *context[m.inspection_id]) for m in measurements]
 
 
@@ -284,19 +273,21 @@ def get_preview(db: Session, measurement_id: UUID) -> tuple[Measurement, str | N
 def confirm_lights(db: Session, measurement_id: UUID, boxes: list[LightBoxSchema]) -> Measurement:
     """persist confirmed boxes and move to PROCESSING ahead of the full engine run.
 
-    takes the wire boxes off the request and builds the domain boxes here so the route
-    never touches app.domain. 409 unless the run is AWAITING_CONFIRM. the route enqueues
-    the processing task and commits.
+    takes the wire boxes off the request and stores them here so the route stays HTTP.
+    409 unless the run is AWAITING_CONFIRM. the route enqueues the processing task and
+    commits.
     """
     measurement = get_measurement(db, measurement_id)
     if measurement.status != MeasurementStatus.AWAITING_CONFIRM:
         raise DomainError(
-            f"measurement is not awaiting confirmation (status {measurement.status.value})",
+            f"measurement is not awaiting confirmation (status {measurement.status})",
             status_code=409,
         )
     measurement.confirm_boxes(_boxes_from_request(boxes))
     measurement.transition_to(MeasurementStatus.PROCESSING)
-    return _repo(db).save(measurement)
+    db.flush()
+    db.refresh(measurement)
+    return measurement
 
 
 def update_measurement(db: Session, measurement_id: UUID, label: str | None) -> Measurement:
@@ -307,7 +298,9 @@ def update_measurement(db: Session, measurement_id: UUID, label: str | None) -> 
     """
     measurement = get_measurement(db, measurement_id)
     measurement.label = (label or "").strip() or None
-    return _repo(db).save(measurement)
+    db.flush()
+    db.refresh(measurement)
+    return measurement
 
 
 def _measurement_object_keys(measurement: Measurement) -> list[str]:
@@ -317,12 +310,12 @@ def _measurement_object_keys(measurement: Measurement) -> list[str]:
         keys.append(measurement.object_key)
     if measurement.first_frame_object_key:
         keys.append(measurement.first_frame_object_key)
-    keys.extend(measurement.annotated_video_keys.values())
+    keys.extend((measurement.annotated_video_keys or {}).values())
     return keys
 
 
 def delete_measurement(db: Session, measurement_id: UUID) -> tuple[UUID, str | None, list[str]]:
-    """delete one measurement aggregate; return context for the audit + artifact cleanup.
+    """delete one measurement row; return context for the audit + artifact cleanup.
 
     collects every object-storage key the run owns before dropping the row so the route
     can audit the delete, commit, then drop the artifacts post-commit (best-effort) -
@@ -334,59 +327,36 @@ def delete_measurement(db: Session, measurement_id: UUID) -> tuple[UUID, str | N
     object_keys = _measurement_object_keys(measurement)
     inspection_id = measurement.inspection_id
     label = measurement.label
-    _repo(db).delete(measurement_id)
+    db.delete(measurement)
+    db.flush()
     return inspection_id, label, object_keys
 
 
 # results assembly (read-only pivot of the gzipped per-frame blob)
 
 
-def _reference_point_responses(measurement: Measurement) -> list[ReferencePointResponse]:
-    """map the aggregate's snapshotted reference points onto the wire shape."""
-    return [
-        ReferencePointResponse(
-            light_name=rp.light_name,
-            latitude=rp.latitude,
-            longitude=rp.longitude,
-            elevation=rp.elevation,
-            lha_id=rp.lha_id,
-            unit_designator=rp.unit_designator,
-            setting_angle=rp.setting_angle,
-            tolerance=rp.tolerance,
-        )
-        for rp in measurement.reference_points
-    ]
-
-
-def _summary_responses(measurement: Measurement) -> list[LightSummaryResponse]:
-    """map the aggregate's per-light PASS/FAIL rollups onto the wire shape."""
-    return [
-        LightSummaryResponse(
-            light_name=s.light_name,
-            setting_angle=s.setting_angle,
-            tolerance=s.tolerance,
-            measured_transition_angle=s.measured_transition_angle,
-            passed=s.passed,
-        )
-        for s in measurement.summaries
-    ]
-
-
-def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
-    """normalized (r, g) chromaticity from an rgb reading - (None, None) if unusable.
+def _parse_rgb_floats(rgb) -> tuple[float, float, float] | None:
+    """decode an engine rgb reading (dict or list) to (r, g, b) floats, or None.
 
     the engine emits each frame's rgb as a ``{"r", "g", "b"}`` dict; older blobs used an
     ``[r, g, b]`` list, so both shapes are accepted.
     """
     if not rgb:
-        return None, None
+        return None
     try:
         if isinstance(rgb, dict):
-            r, g, b = float(rgb["r"]), float(rgb["g"]), float(rgb["b"])
-        else:
-            r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
+            return float(rgb["r"]), float(rgb["g"]), float(rgb["b"])
+        return float(rgb[0]), float(rgb[1]), float(rgb[2])
     except (TypeError, ValueError, KeyError, IndexError):
+        return None
+
+
+def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
+    """normalized (r, g) chromaticity from an rgb reading - (None, None) if unusable."""
+    parsed = _parse_rgb_floats(rgb)
+    if parsed is None:
         return None, None
+    r, g, b = parsed
     total = r + g + b
     if total <= 0:
         return None, None
@@ -396,17 +366,12 @@ def _chromaticity_from_rgb(rgb) -> tuple[float | None, float | None]:
 def _rgb_channels(rgb) -> tuple[int | None, int | None, int | None]:
     """raw (r, g, b) ints 0-255 from an rgb reading - (None, None, None) if unusable.
 
-    accepts both the engine dict ``{"r", "g", "b"}`` and the legacy ``[r, g, b]`` list;
     coerces to plain int so the numpy-free service never hands a numpy scalar to the schema.
     """
-    if not rgb:
+    parsed = _parse_rgb_floats(rgb)
+    if parsed is None:
         return None, None, None
-    try:
-        if isinstance(rgb, dict):
-            return int(rgb["r"]), int(rgb["g"]), int(rgb["b"])
-        return int(rgb[0]), int(rgb[1]), int(rgb[2])
-    except (TypeError, ValueError, KeyError, IndexError):
-        return None, None, None
+    return int(parsed[0]), int(parsed[1]), int(parsed[2])
 
 
 def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
@@ -441,12 +406,12 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
     sample = next((f for f in frames if f.get(f"{key}_transition_angle_middle") is not None), None)
     return LightSeries(
         light_name=name,
-        setting_angle=summary.setting_angle if summary else None,
-        tolerance=summary.tolerance if summary else None,
+        setting_angle=summary.get("setting_angle") if summary else None,
+        tolerance=summary.get("tolerance") if summary else None,
         transition_angle_min=sample.get(f"{key}_transition_angle_min") if sample else None,
         transition_angle_middle=sample.get(f"{key}_transition_angle_middle") if sample else None,
         transition_angle_max=sample.get(f"{key}_transition_angle_max") if sample else None,
-        passed=summary.passed if summary else None,
+        passed=summary.get("passed") if summary else None,
         points=points,
     )
 
@@ -489,7 +454,7 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
     response = MeasurementResultsResponse(
         id=measurement.id,
         inspection_id=measurement.inspection_id,
-        status=measurement.status.value,
+        status=measurement.status,
         has_results=False,
         label=measurement.label,
         inspection_method=inspection.method if inspection else None,
@@ -503,7 +468,7 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
 
     raw = object_storage.get_object(measurement.object_key)
     frames = json.loads(gzip.decompress(raw).decode("utf-8"))
-    summaries_by_name = {s.light_name: s for s in measurement.summaries}
+    summaries_by_name = {s["light_name"]: s for s in (measurement.summaries or [])}
 
     response.lights = [
         _light_series(name, frames, summaries_by_name.get(name)) for name in PAPI_LIGHT_NAMES
@@ -587,20 +552,20 @@ def enqueue_processing(measurement_id: UUID) -> None:
 # worker runners (own their commits - these run off-request in the celery worker)
 
 
-def _boxes_from_detection(detected: dict) -> list[LightBox]:
-    """turn the engine's detected-positions dict into ordered domain light boxes."""
-    boxes: list[LightBox] = []
+def _boxes_from_detection(detected: dict) -> list[dict]:
+    """turn the engine's detected-positions dict into ordered light-box dicts."""
+    boxes: list[dict] = []
     for name in PAPI_LIGHT_NAMES:
         pos = detected.get(name)
         if not pos:
             continue
         boxes.append(
-            LightBox(
-                light_name=name,
-                x=float(pos.get("x", 50.0)),
-                y=float(pos.get("y", 50.0)),
-                size=float(pos.get("size", 8.0)),
-            )
+            {
+                "light_name": name,
+                "x": float(pos.get("x", 50.0)),
+                "y": float(pos.get("y", 50.0)),
+                "size": float(pos.get("size", 8.0)),
+            }
         )
     return boxes
 
@@ -614,8 +579,7 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
     AWAITING_CONFIRM for manual review. any failure routes to ERROR. commits its own
     transitions so the polling endpoint sees progress.
     """
-    repo = _repo(db)
-    measurement = repo.get_by_id(measurement_id)
+    measurement = db.query(Measurement).filter(Measurement.id == measurement_id).first()
     if measurement is None:
         raise NotFoundError("measurement not found")
 
@@ -625,7 +589,6 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
         return measurement
 
     measurement.transition_to(MeasurementStatus.FIRST_FRAME)
-    repo.save(measurement)
     db.commit()
 
     try:
@@ -651,7 +614,6 @@ def run_first_frame(db: Session, measurement_id: UUID) -> Measurement:
             MeasurementStatus.PROCESSING if confident else MeasurementStatus.AWAITING_CONFIRM
         )
         measurement.transition_to(next_status)
-        repo.save(measurement)
         db.commit()
         return measurement
     except Exception as exc:
@@ -696,8 +658,7 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
     the confirmed boxes, uploads the gzipped per-frame results + annotated videos, and
     rolls up per-light PASS/FAIL. any failure routes to ERROR.
     """
-    repo = _repo(db)
-    measurement = repo.get_by_id(measurement_id)
+    measurement = db.query(Measurement).filter(Measurement.id == measurement_id).first()
     if measurement is None:
         raise NotFoundError("measurement not found")
 
@@ -707,15 +668,14 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
         return measurement
 
     if measurement.status != MeasurementStatus.PROCESSING:
-        # confirm_lights moves the aggregate to PROCESSING before enqueue; tolerate a
+        # confirm_lights moves the run to PROCESSING before enqueue; tolerate a
         # worker that picks the job up from AWAITING_CONFIRM (e.g. a manual re-run).
         if measurement.status == MeasurementStatus.AWAITING_CONFIRM:
             measurement.transition_to(MeasurementStatus.PROCESSING)
-            repo.save(measurement)
             db.commit()
         else:
             raise DomainError(
-                f"measurement is not ready for processing (status {measurement.status.value})",
+                f"measurement is not ready for processing (status {measurement.status})",
                 status_code=409,
             )
 
@@ -724,7 +684,8 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
             raise DomainError("measurement has no media to process", status_code=422)
 
         light_positions = {
-            b.light_name: {"x": b.x, "y": b.y, "size": b.size} for b in measurement.light_boxes
+            b["light_name"]: {"x": b["x"], "y": b["y"], "size": b["size"]}
+            for b in (measurement.light_boxes or [])
         }
         ref_payload = measurement.reference_point_payload()
 
@@ -771,7 +732,6 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
         measurement.annotated_video_keys = video_keys
         measurement.with_summaries_from(_measured_transition_angles(measurements_data))
         measurement.transition_to(MeasurementStatus.DONE)
-        repo.save(measurement)
         db.commit()
         return measurement
     except Exception as exc:
@@ -805,13 +765,11 @@ def _upload_annotated_videos(
 def _mark_failed(db: Session, measurement_id: UUID, message: str) -> Measurement:
     """transition a measurement to ERROR on a fresh session read and commit."""
     logger.warning("measurement %s failed: %s", measurement_id, message)
-    repo = _repo(db)
-    measurement = repo.get_by_id(measurement_id)
+    measurement = db.query(Measurement).filter(Measurement.id == measurement_id).first()
     if measurement is None:
         raise NotFoundError("measurement not found")
     if measurement.status != MeasurementStatus.ERROR:
         measurement.fail(message)
-        repo.save(measurement)
         db.commit()
     return measurement
 
@@ -831,11 +789,10 @@ def reap_stale_runs(db: Session) -> int:
     (the deployment shape); the per-task time limit is the complementary guard for
     a job that hangs without the worker dying.
     """
-    repo = _repo(db)
-    stale = repo.list_by_statuses(list(_IN_PROGRESS_STATUSES))
+    values = [s.value for s in _IN_PROGRESS_STATUSES]
+    stale = db.query(Measurement).filter(Measurement.status.in_(values)).all()
     for measurement in stale:
         measurement.fail("processing interrupted - the worker restarted; re-run the measurement")
-        repo.save(measurement)
     if stale:
         db.commit()
     return len(stale)

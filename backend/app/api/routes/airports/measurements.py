@@ -2,8 +2,7 @@
 
 one row per measurement across the airport's missions/inspections, each carrying the
 mission + inspection context + PASS/FAIL rollup the list page routes on. read-only: no
-audit. orchestration lives in ``measurement_service``; persistence behind the
-``MeasurementRepository`` port.
+audit. orchestration + persistence live in ``measurement_service``.
 """
 
 from uuid import UUID

@@ -1,8 +1,8 @@
 """measurement endpoints - create/start, status poll, first-frame preview, confirm.
 
 the create + confirm-lights routes hand work to the celery worker; status/preview are
-read-only polls. routes stay HTTP-only: orchestration + the engine seams live in
-``measurement_service``, persistence behind the ``MeasurementRepository`` port.
+read-only polls. routes stay HTTP-only: orchestration + the engine seams + the
+orm<->wire mapping all live in ``measurement_service``.
 """
 
 from uuid import UUID
@@ -44,7 +44,7 @@ def create_measurement(
         AuditAction.MEASURE,
         entity_type="Measurement",
         entity_id=measurement.id,
-        details={"inspection_id": str(inspection_id), "status": measurement.status.value},
+        details={"inspection_id": str(inspection_id), "status": measurement.status},
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,
     )
@@ -126,7 +126,7 @@ def get_status(
 ):
     """progress poll - status is the phase, error_message set only on ERROR."""
     m = measurement_service.get_measurement(db, measurement_id)
-    return MeasurementStatusResponse(id=m.id, status=m.status.value, error_message=m.error_message)
+    return MeasurementStatusResponse(id=m.id, status=m.status, error_message=m.error_message)
 
 
 @router.get("/measurements/{measurement_id}/preview", response_model=MeasurementPreviewResponse)
@@ -139,7 +139,7 @@ def get_preview(
     m, url = measurement_service.get_preview(db, measurement_id)
     return MeasurementPreviewResponse(
         id=m.id,
-        status=m.status.value,
+        status=m.status,
         first_frame_url=url,
         boxes=measurement_service.light_boxes_to_schema(m.light_boxes),
     )
@@ -191,7 +191,7 @@ def confirm_lights(
         AuditAction.MEASURE,
         entity_type="Measurement",
         entity_id=measurement.id,
-        details={"status": measurement.status.value, "light_count": len(body.boxes)},
+        details={"status": measurement.status, "light_count": len(body.boxes)},
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,
     )

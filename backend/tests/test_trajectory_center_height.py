@@ -29,8 +29,8 @@ def _lha_payload_with_lens(i: int) -> dict:
     return payload
 
 
-def _measurement_alts(client, icao: str, method: str, config: dict | None, *, lens: bool):
-    """build a full PAPI mission for one inspection and return its measurement altitudes."""
+def _build_papi_mission(client, icao: str, method: str, config: dict | None, *, lens: bool):
+    """build a full PAPI mission for one inspection and return its mission_id."""
     airport = client.post(
         "/api/v1/airports", json={**TRAJECTORY_AIRPORT_PAYLOAD, "icao_code": icao}
     ).json()
@@ -85,6 +85,23 @@ def _measurement_alts(client, icao: str, method: str, config: dict | None, *, le
     if config is not None:
         body["config"] = config
     client.post(f"/api/v1/missions/{mission_id}/inspections", json=body)
+    return mission_id
+
+
+def _papi_band_warnings(validation_result: dict | None) -> list[str]:
+    """papi_angle_band soft-warning messages from a validation_result payload."""
+    if not validation_result:
+        return []
+    return sorted(
+        v["message"]
+        for v in validation_result["violations"]
+        if v.get("violation_kind") == "papi_angle_band"
+    )
+
+
+def _measurement_alts(client, icao: str, method: str, config: dict | None, *, lens: bool):
+    """build a full PAPI mission for one inspection and return its measurement altitudes."""
+    mission_id = _build_papi_mission(client, icao, method, config, lens=lens)
 
     response = client.post(f"/api/v1/missions/{mission_id}/generate-trajectory")
     assert response.status_code == 200, response.text
@@ -171,12 +188,46 @@ def test_ground_default_matches_explicit_ground(client):
     _assert_uniform_lift(default, explicit, 0.0)
 
 
-def test_only_glide_slope_methods_honor_the_center_height_reference():
-    """the lift is scoped to HR/VP/AD; meht-check, hover-point-lock, fly-over etc. are excluded."""
-    from app.core.enums import InspectionMethod
-    from app.services.trajectory.orchestrator._inspection_pass import _CENTER_HEIGHT_METHODS
+def test_revalidate_lens_matches_generate_band_verdict(client):
+    """revalidate applies the same center-height lift as generate.
 
-    assert set(_CENTER_HEIGHT_METHODS) == {
+    a LENS vertical-profile climb preserves its elevation angles, so generate
+    emits no all-white-band warnings; revalidate must agree. before the fix
+    revalidate measured the persisted (raised) waypoints from a ground-level
+    centroid, drifting every bookend angle past tolerance and firing spurious
+    `papi_angle_band` warnings the generate path never produced.
+    """
+    mission_id = _build_papi_mission(
+        client,
+        "ZCHK",
+        "VERTICAL_PROFILE",
+        {"papi_center_height_reference": "LENS"},
+        lens=True,
+    )
+
+    gen = client.post(f"/api/v1/missions/{mission_id}/generate-trajectory")
+    assert gen.status_code == 200, gen.text
+    gen_band = _papi_band_warnings(gen.json()["flight_plan"]["validation_result"])
+
+    reval = client.post(f"/api/v1/missions/{mission_id}/revalidate")
+    assert reval.status_code == 200, reval.text
+    reval_band = _papi_band_warnings(reval.json()["validation_result"])
+
+    # the shared-dispatch contract: revalidate's band verdict equals generate's.
+    assert reval_band == gen_band
+
+
+def test_only_glide_slope_methods_honor_the_center_height_reference():
+    """the lift is gated on the canonical _PAPI_GLIDE_SLOPE_METHODS set (HR/VP/AD).
+
+    _inspection_pass reuses the derived set instead of a parallel hard-coded tuple,
+    so a future glide-slope method picks up the center-height lift for free; meht-check,
+    hover-point-lock, fly-over, surface-scan, parallel-side-sweep stay excluded.
+    """
+    from app.core.enums import InspectionMethod
+    from app.services.trajectory.methods import _PAPI_GLIDE_SLOPE_METHODS
+
+    assert _PAPI_GLIDE_SLOPE_METHODS == {
         InspectionMethod.HORIZONTAL_RANGE,
         InspectionMethod.VERTICAL_PROFILE,
         InspectionMethod.APPROACH_DESCENT,
@@ -188,4 +239,4 @@ def test_only_glide_slope_methods_honor_the_center_height_reference():
         InspectionMethod.SURFACE_SCAN,
         InspectionMethod.PARALLEL_SIDE_SWEEP,
     ):
-        assert excluded not in _CENTER_HEIGHT_METHODS
+        assert excluded not in _PAPI_GLIDE_SLOPE_METHODS

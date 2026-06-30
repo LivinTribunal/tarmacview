@@ -30,7 +30,11 @@ from ..helpers import (
     resolve_center_height_offset,
     resolve_scan_surface,
 )
-from ..methods import PREPARE_REGISTRY, compute_measurement_trajectory
+from ..methods import (
+    _PAPI_GLIDE_SLOPE_METHODS,
+    PREPARE_REGISTRY,
+    compute_measurement_trajectory,
+)
 from ..pathfinding import has_line_of_sight, resolve_inspection_collisions
 from ..safety_validator import validate_inspection_pass
 from ..types import (
@@ -44,13 +48,6 @@ from ..types import (
     WaypointData,
 )
 from ._postprocess import _inject_mission_default, _papi_band_violations
-
-# papi glide-slope methods whose LHA-centroid aim point honors the center-height reference.
-_CENTER_HEIGHT_METHODS = (
-    InspectionMethod.HORIZONTAL_RANGE,
-    InspectionMethod.VERTICAL_PROFILE,
-    InspectionMethod.APPROACH_DESCENT,
-)
 
 
 def _process_inspection(
@@ -160,10 +157,12 @@ def _process_inspection(
         center = Point3D.center(lha_positions)
 
     # raise the LHA-centroid aim altitude per the camera center-height reference.
-    # center flows into MethodContext as the camera target + gimbal/terrain anchor
-    # for every PAPI method, so lifting it here moves the whole pass, the camera
-    # target and the gimbal pitch together without touching the method generators.
-    if inspection.method in _CENTER_HEIGHT_METHODS:
+    # center is the camera target + gimbal anchor for every PAPI glide-slope method,
+    # and the terrain/altitude anchor for HR/VP - so lifting it moves the whole HR/VP
+    # pass and every method's camera aim without touching the generators. APPROACH_DESCENT
+    # anchors its altitude on the runway touchpoint, so for it the lift only retargets the
+    # camera/gimbal at the lens and leaves the touchpoint-anchored descent path unchanged.
+    if inspection.method in _PAPI_GLIDE_SLOPE_METHODS:
         center.alt += resolve_center_height_offset(config, template, lha_ids)
 
     glide_slope = get_glide_slope_angle(template)

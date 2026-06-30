@@ -616,11 +616,12 @@ def _apply_papi_glide_slope_terrain(
     commanded angle is recovered from the pre-shift altitude, which is itself
     geometric (`center.alt + horiz * tan(angle)`).
 
-    `center` is the geometry anchor for the altitude rebuild: the LHA center for
+    `center` is the geometry anchor for the altitude rebuild: the LHA centroid
+    (raised by the center-height reference offset when LENS / CUSTOM) for
     HORIZONTAL_RANGE / VERTICAL_PROFILE, the runway touchpoint for
     APPROACH_DESCENT (its glide slope is anchored on the touchpoint, not the
     PAPI). gimbal pitch is recomputed toward each waypoint's own camera_target,
-    which is the LHA center for every PAPI method.
+    which is that same LHA centroid for every PAPI method.
 
     `altitude_offset` is the operator-set vertical bias from `ResolvedConfig`
     that every PAPI generator bakes into `wp.alt` at emission time. the rebuild

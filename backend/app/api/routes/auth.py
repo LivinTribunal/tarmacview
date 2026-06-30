@@ -151,11 +151,21 @@ def get_me(current_user: CurrentUser):
 @router.put("/me", response_model=UserResponse)
 def update_me(
     body: UserUpdate,
+    request: Request,
     current_user: CurrentUser,
     db: Session = Depends(get_db),
 ):
     """update own profile (name, password)."""
     user = auth_service.update_user_profile(db, current_user, body)
+    log_audit(
+        db,
+        current_user,
+        AuditAction.UPDATE,
+        entity_type="User",
+        entity_id=user.id,
+        entity_name=user.email,
+        ip_address=request.client.host if request.client else None,
+    )
     db.commit()
     return UserResponse.model_validate(user)
 

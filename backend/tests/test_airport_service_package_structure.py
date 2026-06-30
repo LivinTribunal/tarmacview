@@ -65,6 +65,7 @@ EXPECTED_PUBLIC = {
     "update_safety_zone",
     "update_surface",
     "upload_terrain_dem",
+    "validate_dem_file",
 }
 
 

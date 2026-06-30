@@ -449,8 +449,8 @@ export default function UploadDroneMediaDialog({
 
   // confirm: fire one run per inspection-with-media at once - a single bad
   // inspection must not abort the rest, so settle every call. register the
-  // started runs with the progress notification and hand off to the
-  // measurements list, where the operator triages any AWAITING_CONFIRM runs.
+  // started runs with the progress notification and hand off to the mission's
+  // results tab, where the operator picks an inspection to view.
   async function handleConfirm() {
     if (inspectionsWithMedia.length === 0 || confirming) return;
     setConfirming(true);
@@ -467,7 +467,7 @@ export default function UploadDroneMediaDialog({
       return;
     }
     track(startedIds);
-    navigate("/operator-center/measurements");
+    navigate(`/operator-center/missions/${missionId}/results`);
     onClose();
   }
 

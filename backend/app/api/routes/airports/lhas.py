@@ -23,6 +23,15 @@ from app.utils.audit import log_audit
 router = APIRouter()
 
 
+def _lha_context(airport_id: UUID, surface_id: UUID, agl_id: UUID) -> dict:
+    """the airport/surface/agl id triple shared by every LHA audit detail."""
+    return {
+        "airport_id": str(airport_id),
+        "surface_id": str(surface_id),
+        "agl_id": str(agl_id),
+    }
+
+
 # LHAs
 @router.get(
     "/{airport_id}/surfaces/{surface_id}/agls/{agl_id}/lhas", response_model=LHAListResponse
@@ -65,11 +74,7 @@ def create_lha(
         entity_type="LHA",
         entity_id=lha.id,
         entity_name=lha.unit_designator,
-        details={
-            "airport_id": str(airport_id),
-            "surface_id": str(surface_id),
-            "agl_id": str(agl_id),
-        },
+        details=_lha_context(airport_id, surface_id, agl_id),
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,
     )
@@ -101,11 +106,7 @@ def update_lha(
         entity_type="LHA",
         entity_id=lha_id,
         entity_name=lha.unit_designator,
-        details={
-            "airport_id": str(airport_id),
-            "surface_id": str(surface_id),
-            "agl_id": str(agl_id),
-        },
+        details=_lha_context(airport_id, surface_id, agl_id),
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,
     )
@@ -137,9 +138,7 @@ def bulk_generate_lhas(
         entity_type="LHA",
         entity_id=agl_id,
         details={
-            "airport_id": str(airport_id),
-            "surface_id": str(surface_id),
-            "agl_id": str(agl_id),
+            **_lha_context(airport_id, surface_id, agl_id),
             "count": len(created),
             "lha_ids": [str(lha.id) for lha in created],
         },
@@ -173,9 +172,7 @@ def reverse_lhas(
         entity_type="LHA",
         entity_id=agl_id,
         details={
-            "airport_id": str(airport_id),
-            "surface_id": str(surface_id),
-            "agl_id": str(agl_id),
+            **_lha_context(airport_id, surface_id, agl_id),
             "count": len(lhas),
             "lha_ids": [str(lha.id) for lha in lhas],
         },
@@ -202,18 +199,15 @@ def delete_lha(
 ):
     """delete LHA."""
     check_airport_access(current_user, airport_id)
-    airport_service.delete_lha(db, airport_id, surface_id, agl_id, lha_id)
+    lha = airport_service.delete_lha(db, airport_id, surface_id, agl_id, lha_id)
     log_audit(
         db,
         current_user,
         AuditAction.DELETE,
         entity_type="LHA",
         entity_id=lha_id,
-        details={
-            "airport_id": str(airport_id),
-            "surface_id": str(surface_id),
-            "agl_id": str(agl_id),
-        },
+        entity_name=lha.unit_designator,
+        details=_lha_context(airport_id, surface_id, agl_id),
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,
     )

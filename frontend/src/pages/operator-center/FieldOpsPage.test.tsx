@@ -73,6 +73,7 @@ vi.mock("@/api/fieldLink", () => ({
   listWaylines: vi.fn(),
   deleteWayline: vi.fn(),
   getFieldLinkStatus: vi.fn(),
+  downloadCaCert: vi.fn(),
 }));
 
 vi.mock("@/api/droneMedia", () => ({
@@ -309,12 +310,22 @@ describe("FieldOpsPage", () => {
     expect(fakeWin.close).toHaveBeenCalled();
   });
 
-  it("shows the hub-offline note when the hub is down", async () => {
+  it("renders the Field Hub connection panel in the left column", async () => {
+    render(<FieldOpsPage />);
+    const card = await screen.findByTestId("field-ops-hub-card");
+    expect(within(card).getByTestId("field-hub-heartbeat")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(card).getByTestId("field-hub-hub")).toHaveAttribute("data-online", "true"),
+    );
+  });
+
+  it("shows the hub-offline state in the left panel when the hub is down", async () => {
     statusMock.mockResolvedValue({ ...onlineStatus(), hub_online: false });
     render(<FieldOpsPage />);
     await waitFor(() =>
-      expect(screen.getByTestId("field-ops-hub-offline")).toBeInTheDocument(),
+      expect(screen.getByTestId("field-hub-offline")).toBeInTheDocument(),
     );
+    expect(screen.getByTestId("field-hub-hub")).toHaveAttribute("data-online", "false");
   });
 
   it("surfaces a load error with retry for cloud missions", async () => {

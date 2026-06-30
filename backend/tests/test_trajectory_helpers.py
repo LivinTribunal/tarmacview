@@ -1,8 +1,17 @@
 """unit tests for trajectory helper utilities."""
 
+from types import SimpleNamespace
+from uuid import uuid4
+
 import pytest
 
-from app.services.trajectory.helpers import _designator_sort_key
+from app.services.trajectory.helpers import (
+    _designator_sort_key,
+    get_lha_positions,
+    get_ordered_lha_positions,
+    get_runway_centerline_midpoint,
+    get_surface_centerline_midpoint,
+)
 from tests.data.trajectory import DESIGNATOR_MAP
 
 
@@ -51,3 +60,56 @@ class TestDesignatorMapConsistency:
     def test_fixture_matches_papi_mapping(self):
         """test DESIGNATOR_MAP must match the project's sequence->letter convention."""
         assert DESIGNATOR_MAP == self.PAPI_MAPPING
+
+
+def _lha(lon, lat, alt, designator):
+    """fake LHA with a WKT POINT Z position."""
+    return SimpleNamespace(
+        id=uuid4(),
+        position=f"POINT Z ({lon} {lat} {alt})",
+        unit_designator=designator,
+    )
+
+
+class TestLhaPositionGetters:
+    """getters now route through _parse_lha_position - prove output identity."""
+
+    def test_get_ordered_lha_positions_parses_and_skips_missing(self):
+        """valid positions parse to Point3D, designator-ordered; missing ones drop."""
+        good = _lha(18.1, 49.6, 260.0, "1")
+        missing = SimpleNamespace(id=uuid4(), position=None, unit_designator="2")
+        template = SimpleNamespace(targets=[SimpleNamespace(lhas=[missing, good])])
+
+        positions = get_ordered_lha_positions(template)
+
+        assert len(positions) == 1
+        assert (positions[0].lon, positions[0].lat, positions[0].alt) == (18.1, 49.6, 260.0)
+
+    def test_get_lha_positions_filters_by_id(self):
+        """lha_ids filter returns only the selected positions."""
+        a = _lha(18.1, 49.6, 260.0, "1")
+        b = _lha(18.2, 49.7, 261.0, "2")
+        template = SimpleNamespace(targets=[SimpleNamespace(lhas=[a, b])])
+
+        positions = get_lha_positions(template, [a.id])
+
+        assert len(positions) == 1
+        assert (positions[0].lon, positions[0].lat) == (18.1, 49.6)
+
+
+def test_get_runway_centerline_midpoint_matches_surface_midpoint():
+    """runway-centerline midpoint now delegates to get_surface_centerline_midpoint."""
+    surface = SimpleNamespace(
+        id=uuid4(),
+        geometry="LINESTRING Z (18.0 49.5 100, 18.1 49.6 110, 18.2 49.7 120)",
+    )
+    template = SimpleNamespace(targets=[SimpleNamespace(surface_id=surface.id)])
+
+    mid = get_runway_centerline_midpoint(template, [surface])
+    surface_mid = get_surface_centerline_midpoint(surface)
+
+    # first/last vertex average, ignoring intermediate vertices
+    assert (mid.lon, mid.lat, mid.alt) == (surface_mid.lon, surface_mid.lat, surface_mid.alt)
+    assert mid.lon == pytest.approx(18.1)
+    assert mid.lat == pytest.approx(49.6)
+    assert mid.alt == pytest.approx(110.0)

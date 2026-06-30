@@ -276,7 +276,7 @@ class TestAdminUserEndpoints:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200
-        assert resp.json()["deleted"] is True
+        assert resp.json() == {"deleted": True, "warnings": []}
 
     def test_delete_active_user_blocked(self, seeded_admin_client, admin_session_factory):
         """cannot delete an active user."""

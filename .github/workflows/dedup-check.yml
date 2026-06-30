@@ -1,0 +1,47 @@
+name: Dedup Check
+
+# Advisory copy-paste-duplication gate + monthly debt sweep.
+# Diff-scoped pipeline review (harnext-review) only blocks duplication a PR
+# *introduces*; it cannot see inherited/cross-file clones. This measures the
+# whole tree's duplication so regressions surface and the seed debt stays visible.
+# Not in ci.yml required-checks yet — advisory until opted into branch protection.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'backend/app/**'
+      - 'frontend/src/**'
+  schedule:
+    # 06:00 UTC on the 1st of every month
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dedup-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jscpd:
+    name: Copy-paste duplication
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # baseline 2.63% as of docs/audits/2026-06-30-unsloppify-audit.md; threshold
+      # leaves headroom so cleanup PRs pass and only real regressions fail.
+      - name: Run jscpd
+        run: |
+          npx --yes jscpd backend/app frontend/src \
+            --ignore "**/*.test.*,**/__pycache__/**,**/video_processing/**,**/node_modules/**" \
+            --min-tokens 50 --mode mild \
+            --threshold 3.0 \
+            --reporters console | tee "$GITHUB_STEP_SUMMARY"

@@ -57,7 +57,6 @@
     "dashboard": "Prehľad",
     "missions": "Misie",
     "airport": "Letisko",
-    "results": "Výsledky",
     "fieldOps": "Terénne operácie",
     "missionCenter": "Mission Center",
     "configuratorCenter": "Coordinator Center",
@@ -485,6 +484,7 @@
     "configuration": "Konfigurácia",
     "map": "Mapa",
     "validationExport": "Validácia a export",
+    "results": "Výsledky",
     "duplicate": "Duplikovať",
     "overview": {
       "missionInfo": "Informácie o misii",
@@ -2205,6 +2205,12 @@
     "status": "Stav: {{status}}",
     "loadError": "Výsledky merania sa nepodarilo načítať.",
     "notReady": "Toto meranie ešte nedokončilo spracovanie. Výsledky sa zobrazia po dokončení behu.",
+    "noMeasurements": "Pre túto misiu zatiaľ nie sú merania. Spustite ho cez Validácia a export.",
+    "pickInspection": "Vyberte zmeranú inšpekciu pre zobrazenie jej výsledkov.",
+    "inspectionInfo": "Informácie o inšpekcii",
+    "picker": {
+      "notMeasured": "Nezmerané"
+    },
     "downloadPdf": "Stiahnuť PDF report",
     "generatingPdf": "Generuje sa…",
     "passRollup": "{{pass}}/{{total}} vyhovuje",
@@ -2236,12 +2242,11 @@
       "fail": "NEVYHOVEL",
       "pending": "Čaká sa"
     },
-    "perPapi": {
-      "title": "Verdikt podľa PAPI",
+    "perLha": {
+      "title": "Verdikt podľa LHA",
       "empty": "Žiadne súhrny svetiel."
     },
     "sections": {
-      "navTitle": "Prejsť na sekciu",
       "vertical": "Vertikálna analýza PAPI",
       "horizontal": "Horizontálna analýza PAPI",
       "horizontalEmpty": "Horizontálna analýza pribudne v ďalšej aktualizácii.",
@@ -2371,7 +2376,6 @@
   },
   "fieldOps": {
     "refresh": "Obnoviť",
-    "hubOffline": "Terénny hub je offline. Cloudové misie môžu byť neaktuálne alebo nedostupné.",
     "cloudMissions": {
       "title": "Cloudové misie",
       "empty": "Na terénnom hube nie sú žiadne cloudové misie.",

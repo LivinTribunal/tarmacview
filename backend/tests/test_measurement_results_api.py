@@ -9,8 +9,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
-from app.domain.measurement.entities import LightSummary
-from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
+from app.models.measurement import Measurement
 from app.services import measurement_service
 from tests.data.airports import AIRPORT_PAYLOAD
 
@@ -100,24 +99,22 @@ def _drive_to_done(db_engine, measurement_id: str) -> None:
     """walk the aggregate to DONE with a results blob, a summary, and a video key."""
     s = sessionmaker(bind=db_engine)()
     try:
-        repo = SqlAlchemyMeasurementRepository(s)
-        m = repo.get_by_id(UUID(measurement_id))
+        m = s.query(Measurement).filter(Measurement.id == UUID(measurement_id)).first()
         m.transition_to(MeasurementStatus.FIRST_FRAME)
         m.transition_to(MeasurementStatus.AWAITING_CONFIRM)
         m.transition_to(MeasurementStatus.PROCESSING)
         m.summaries = [
-            LightSummary(
-                light_name="PAPI_A",
-                setting_angle=3.0,
-                tolerance=0.5,
-                measured_transition_angle=3.0,
-                passed=True,
-            )
+            {
+                "light_name": "PAPI_A",
+                "setting_angle": 3.0,
+                "tolerance": 0.5,
+                "measured_transition_angle": 3.0,
+                "passed": True,
+            }
         ]
         m.object_key = "measurements/x/results.json.gz"
         m.annotated_video_keys = {"PAPI_A": "measurements/x/PAPI_A.mp4"}
         m.transition_to(MeasurementStatus.DONE)
-        repo.save(m)
         s.commit()
     finally:
         s.close()

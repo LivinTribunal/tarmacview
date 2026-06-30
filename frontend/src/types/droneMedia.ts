@@ -53,8 +53,3 @@ export interface UploadUrlResponse {
   object_key: string;
   upload_url: string;
 }
-
-export interface ConfirmIngestResponse {
-  mission_id: string;
-  ingested_count: number;
-}

@@ -328,3 +328,10 @@ area), drone path, reference points, runway, video URLs, transition angles.
 - Whether a DynamoDB measurement adapter is ever needed (the port keeps it cheap).
 - Whether to retire or keep the field-hub auto-ingest path long-term (kept for now;
   `origin` distinguishes the two).
+- REL (runway-edge-light) measurement is a separate path the wired engine does not
+  have yet. The Phase 2/3 pipeline is PAPI-only - `measurement_service.run_processing`
+  runs the two-pass PAPI engine unconditionally with no branch on inspection method,
+  so a legal REL plan (`FLY_OVER` / `PARALLEL_SIDE_SWEEP` against `RUNWAY_EDGE_LIGHTS`)
+  silently measures as PAPI. The real REL algorithm and a staged porting plan are
+  vendored as read-only reference under `docs/reference/rel/` (`VENDORED.md`,
+  `PORTING-SPEC.md`); three staged REL integration issues follow from it.

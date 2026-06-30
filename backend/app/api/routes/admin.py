@@ -11,7 +11,9 @@ from app.api.dependencies import OperatorUser, SuperAdminUser
 from app.core.dependencies import get_db
 from app.core.enums import AuditAction, UserRole
 from app.schemas.admin import (
+    AdminAirportListResponse,
     AirportAssignmentUpdate,
+    AuditLogListResponse,
     AuditLogResponse,
     InvitationResponse,
     SystemSettingsResponse,
@@ -20,7 +22,9 @@ from app.schemas.admin import (
     UserAdminUpdate,
     UserInviteRequest,
     UserListMeta,
+    UserListResponse,
 )
+from app.schemas.common import DeleteResponse
 from app.services import admin_service, audit_service, runtime_settings
 from app.utils.audit import log_audit
 
@@ -30,7 +34,7 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 # user management
 
 
-@router.get("/users", response_model=dict)
+@router.get("/users", response_model=UserListResponse)
 def list_users(
     current_user: SuperAdminUser,
     db: Session = Depends(get_db),
@@ -51,10 +55,10 @@ def list_users(
         limit=limit,
         offset=offset,
     )
-    return {
-        "data": [UserAdminResponse.model_validate(u) for u in users],
-        "meta": UserListMeta(total=total, limit=limit, offset=offset),
-    }
+    return UserListResponse(
+        data=[UserAdminResponse.model_validate(u) for u in users],
+        meta=UserListMeta(total=total, limit=limit, offset=offset),
+    )
 
 
 @router.get("/users/{user_id}", response_model=UserAdminResponse)
@@ -176,7 +180,7 @@ def activate_user(
     return UserAdminResponse.model_validate(user)
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", response_model=DeleteResponse)
 def delete_user(
     user_id: UUID,
     current_user: SuperAdminUser,
@@ -199,7 +203,7 @@ def delete_user(
     )
     db.commit()
 
-    return {"deleted": True}
+    return DeleteResponse(deleted=True)
 
 
 @router.post("/users/{user_id}/reset-password")
@@ -255,7 +259,7 @@ def update_airport_assignments(
 # airports admin overview
 
 
-@router.get("/airports")
+@router.get("/airports", response_model=AdminAirportListResponse)
 def list_airports(
     current_user: SuperAdminUser,
     db: Session = Depends(get_db),
@@ -264,7 +268,7 @@ def list_airports(
 ):
     """list airports with user/mission counts."""
     airports = admin_service.list_airports_admin(db, search=search, country=country)
-    return {"data": airports}
+    return AdminAirportListResponse(data=airports)
 
 
 # system settings
@@ -276,11 +280,8 @@ def get_system_settings(
     db: Session = Depends(get_db),
 ):
     """get all system settings (admin-only fields blanked for non-super-admin callers)."""
-    settings = admin_service.get_system_settings(db)
-    if current_user.role != UserRole.SUPER_ADMIN.value:
-        settings["cesium_ion_token"] = ""
-        settings["elevation_api_url"] = ""
-        settings["elevation_api_key"] = None
+    is_super_admin = current_user.role == UserRole.SUPER_ADMIN.value
+    settings = admin_service.get_system_settings(db, is_super_admin=is_super_admin)
     return SystemSettingsResponse(**settings)
 
 
@@ -330,7 +331,7 @@ def update_system_settings(
 # audit log
 
 
-@router.get("/audit-log")
+@router.get("/audit-log", response_model=AuditLogListResponse)
 def list_audit_logs(
     current_user: SuperAdminUser,
     db: Session = Depends(get_db),
@@ -361,10 +362,10 @@ def list_audit_logs(
         limit=limit,
         offset=offset,
     )
-    return {
-        "data": [AuditLogResponse.model_validate(e) for e in entries],
-        "meta": {"total": total, "limit": limit, "offset": offset},
-    }
+    return AuditLogListResponse(
+        data=[AuditLogResponse.model_validate(e) for e in entries],
+        meta={"total": total, "limit": limit, "offset": offset},
+    )
 
 
 @router.get("/audit-log/export")

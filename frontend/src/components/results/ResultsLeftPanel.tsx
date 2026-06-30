@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Check, Minus, X } from "lucide-react";
+import type { InspectionResponse } from "@/types/mission";
+import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
 import type {
   LightSummary,
   MeasurementListItem,
@@ -9,13 +11,10 @@ import {
   INSPECTION_LIGHT_COLORS,
   INSPECTION_LIGHT_FALLBACK_COLOR,
 } from "@/constants/palette";
-import { formatDate } from "@/utils/format";
-import MeasurementStatusChip from "./MeasurementStatusChip";
-import { measurementDisplayName } from "./MeasurementListTable";
+import InspectionPicker from "./InspectionPicker";
+import InspectionInfoPanel from "./InspectionInfoPanel";
 import { computeGlidePathAngle } from "./resultsStats";
 import { transitionVerdict } from "./TransitionAngleTable";
-
-const PAPI_NAMES = ["PAPI_A", "PAPI_B", "PAPI_C", "PAPI_D"] as const;
 
 export type OverallVerdict = "pass" | "fail" | "pending";
 
@@ -26,177 +25,104 @@ export function overallVerdict(summaries: LightSummary[]): OverallVerdict {
   return scored.some((s) => s.passed === false) ? "fail" : "pass";
 }
 
-/** nominal glide path = midpoint of PAPI_B upper transition and PAPI_C lower transition. */
-// solid pill tones matching TransitionAngleTable / the measurement status tags
-const OVERALL_CLASS: Record<OverallVerdict, string> = {
-  pass: "bg-[var(--tv-status-completed-bg)] text-[var(--tv-status-completed-text)]",
-  fail: "bg-[var(--tv-status-cancelled-bg)] text-[var(--tv-status-cancelled-text)]",
-  pending: "bg-tv-surface-hover text-tv-text-muted",
-};
-
 const CARD_CLASS = "bg-tv-surface border border-tv-border rounded-2xl p-4";
 
 interface ResultsLeftPanelProps {
-  results: MeasurementResults;
+  inspections: InspectionResponse[];
+  templates: Map<string, InspectionTemplateResponse>;
+  measurementByInspection: Map<string, MeasurementListItem>;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  // selected inspection's loaded results + run row, null until one is picked
+  results: MeasurementResults | null;
   currentRow: MeasurementListItem | null;
-  sections: ReadonlyArray<{ id: string; labelKey: string }>;
 }
 
-/** stacked summary / verdict / glide-path / section-nav cards for the results page. */
+/** results left panel - inspection picker, inspection info, and per-LHA verdict. */
 export default function ResultsLeftPanel({
+  inspections,
+  templates,
+  measurementByInspection,
+  selectedId,
+  onSelect,
   results,
   currentRow,
-  sections,
 }: ResultsLeftPanelProps) {
   const { t } = useTranslation();
 
-  const verdict = overallVerdict(results.summaries);
-  const glidePath = computeGlidePathAngle(results.lights);
-  const summariesByName = new Map(results.summaries.map((s) => [s.light_name, s]));
-
-  // the run's display name - prefer the list row (carries the non-null inspection
-  // context measurementDisplayName needs), else the operator label
-  const title = currentRow
-    ? measurementDisplayName(currentRow, t)
-    : results.label || t("results.summary.title");
-
   return (
     <>
-      {/* measurement summary */}
-      <div className={CARD_CLASS} data-testid="results-summary-card">
-        <h2 className="text-sm font-semibold text-tv-text-primary mb-3">
-          {title}
-        </h2>
-        <dl className="space-y-2 text-sm">
-          <SummaryRow
-            label={t("results.summary.method")}
-            value={
-              results.inspection_method
-                ? t(
-                    `map.inspectionMethod.${results.inspection_method}`,
-                    results.inspection_method,
-                  )
-                : "—"
-            }
-          />
-          <SummaryRow
-            label={t("results.summary.sequence")}
-            value={results.inspection_sequence_order ?? "—"}
-          />
-          <SummaryRow
-            label={t("results.summary.runwayHeading")}
-            value={
-              results.runway_heading != null
-                ? `${results.runway_heading.toFixed(0)}°`
-                : "—"
-            }
-          />
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-tv-text-secondary">
-              {t("measurementsList.columns.status")}
-            </dt>
-            <dd>
-              <MeasurementStatusChip status={results.status} size="sm" />
-            </dd>
-          </div>
-          <SummaryRow
-            label={t("results.summary.processed")}
-            value={currentRow?.created_at ? formatDate(currentRow.created_at) : "—"}
-          />
-        </dl>
+      <div className={CARD_CLASS}>
+        <InspectionPicker
+          inspections={inspections}
+          templates={templates}
+          measurementByInspection={measurementByInspection}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
       </div>
 
-      {/* overall verdict */}
-      <div className={CARD_CLASS} data-testid="results-overall-verdict">
-        <h2 className="text-sm font-semibold text-tv-text-primary mb-3">
-          {t("results.verdictRollup.title")}
-        </h2>
-        <span
-          className={`inline-block rounded-md px-3 py-1 text-sm font-semibold ${OVERALL_CLASS[verdict]}`}
-        >
-          {t(`results.verdictRollup.${verdict}`)}
-        </span>
-      </div>
+      {results && (
+        <div className={CARD_CLASS}>
+          <InspectionInfoPanel
+            results={results}
+            createdAt={currentRow?.created_at ?? null}
+            verdict={overallVerdict(results.summaries)}
+            glidePathAngle={computeGlidePathAngle(results.lights)}
+          />
+        </div>
+      )}
 
-      {/* per-PAPI verdict list */}
-      <div className={CARD_CLASS} data-testid="results-per-papi">
-        <h2 className="text-sm font-semibold text-tv-text-primary mb-3">
-          {t("results.perPapi.title")}
-        </h2>
-        {results.summaries.length === 0 ? (
-          <p className="text-sm text-tv-text-muted">
-            {t("results.perPapi.empty")}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {PAPI_NAMES.map((name) => {
-              const s = summariesByName.get(name);
-              if (!s) return null;
-              return <PerPapiRow key={name} name={name} summary={s} />;
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* glide-path angle */}
-      <div className={CARD_CLASS} data-testid="results-glide-path">
-        <h2 className="text-sm font-semibold text-tv-text-primary mb-3">
-          {t("results.glidePath.title")}
-        </h2>
-        <p className="text-lg font-semibold text-tv-text-primary">
-          {glidePath !== null
-            ? `${glidePath.toFixed(2)}°`
-            : t("results.glidePath.unavailable")}
-        </p>
-      </div>
-
-      {/* section navigation */}
-      <div className={CARD_CLASS} data-testid="results-section-nav">
-        <h2 className="text-sm font-semibold text-tv-text-primary mb-3">
-          {t("results.sections.navTitle")}
-        </h2>
-        <nav className="flex flex-col gap-1">
-          {sections.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() =>
-                document
-                  .getElementById(section.id)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              className="text-left text-sm text-tv-text-secondary hover:text-tv-text-primary transition-colors"
-            >
-              {t(section.labelKey)}
-            </button>
-          ))}
-        </nav>
-      </div>
+      {results && (
+        <div className={CARD_CLASS} data-testid="results-per-lha">
+          <h2 className="text-sm font-semibold text-tv-text-primary mb-3">
+            {t("results.perLha.title")}
+          </h2>
+          {results.lights.length === 0 ? (
+            <p className="text-sm text-tv-text-muted">
+              {t("results.perLha.empty")}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {results.lights.map((light) => {
+                const summary = results.summaries.find(
+                  (s) => s.light_name === light.light_name,
+                );
+                return (
+                  <PerLhaRow
+                    key={light.light_name}
+                    name={light.light_name}
+                    summary={summary ?? null}
+                  />
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
     </>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <dt className="text-tv-text-secondary">{label}</dt>
-      <dd className="text-tv-text-primary font-medium">{value}</dd>
-    </div>
-  );
-}
-
-function PerPapiRow({ name, summary }: { name: string; summary: LightSummary }) {
+function PerLhaRow({
+  name,
+  summary,
+}: {
+  name: string;
+  summary: LightSummary | null;
+}) {
+  /** one per-light row - colour dot, measured / nominal angle, and pass icon. */
   const verdict = transitionVerdict(
-    summary.measured_transition_angle,
-    summary.setting_angle,
-    summary.tolerance,
+    summary?.measured_transition_angle ?? null,
+    summary?.setting_angle ?? null,
+    summary?.tolerance ?? null,
   );
   const measured =
-    summary.measured_transition_angle !== null
+    summary?.measured_transition_angle != null
       ? `${summary.measured_transition_angle.toFixed(2)}°`
       : "—";
   const nominal =
-    summary.setting_angle !== null && summary.tolerance !== null
+    summary?.setting_angle != null && summary?.tolerance != null
       ? `${summary.setting_angle.toFixed(1)}±${summary.tolerance.toFixed(1)}°`
       : "—";
   const Icon = verdict === "pass" ? Check : verdict === "fail" ? X : Minus;

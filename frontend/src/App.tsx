@@ -9,7 +9,6 @@ import OperatorLayout from "@/components/Layout/OperatorLayout";
 import CoordinatorLayout from "@/components/Layout/CoordinatorLayout";
 import SuperAdminLayout from "@/components/Layout/SuperAdminLayout";
 import MissionTabNav from "@/components/Layout/MissionTabNav";
-import MeasurementTabNav from "@/components/Layout/MeasurementTabNav";
 import LoginPage from "@/pages/LoginPage";
 import SetupPasswordPage from "@/pages/SetupPasswordPage";
 import MaintenancePage from "@/pages/MaintenancePage";
@@ -22,8 +21,8 @@ import MissionValidationPage from "@/pages/operator-center/MissionValidationPage
 import AirportPage from "@/pages/operator-center/AirportPage";
 import OperatorDronesPage from "@/pages/operator-center/OperatorDronesPage";
 import OperatorDroneDetailPage from "@/pages/operator-center/OperatorDroneDetailPage";
-import ResultsPage from "@/pages/operator-center/ResultsPage";
-import MeasurementsListPage from "@/pages/operator-center/MeasurementsListPage";
+import MissionResultsPage from "@/pages/operator-center/MissionResultsPage";
+import MeasurementResultsRedirect from "@/pages/operator-center/MeasurementResultsRedirect";
 import FieldOpsPage from "@/pages/operator-center/FieldOpsPage";
 import AirportListPage from "@/pages/coordinator-center/AirportListPage";
 import AirportEditPage from "@/pages/coordinator-center/AirportEditPage";
@@ -79,13 +78,15 @@ function App() {
               <Route path="field-ops" element={<FieldOpsPage />} />
               <Route path="drones" element={<OperatorDronesPage />} />
               <Route path="drones/:id" element={<OperatorDroneDetailPage />} />
-              <Route path="measurements" element={<MeasurementsListPage />} />
+              {/* old airport-wide results deep-links now resolve to the mission tab */}
+              <Route
+                path="measurements"
+                element={<Navigate to="/operator-center/missions" replace />}
+              />
               <Route
                 path="measurements/:measurementId/results"
-                element={<MeasurementTabNav />}
-              >
-                <Route index element={<ResultsPage />} />
-              </Route>
+                element={<MeasurementResultsRedirect />}
+              />
               {/* airport-required routes - redirect to dashboard if no airport */}
               <Route element={<RequireAirport />}>
                 <Route path="missions" element={<MissionListPage />} />
@@ -101,6 +102,7 @@ function App() {
                       path="validation-export"
                       element={<MissionValidationPage />}
                     />
+                    <Route path="results" element={<MissionResultsPage />} />
                   </Route>
                 </Route>
                 <Route path="airport" element={<AirportPage />} />

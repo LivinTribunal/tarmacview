@@ -1,6 +1,6 @@
 import { NavLink } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, FileText } from "lucide-react";
 import { MS_PER_DAY } from "@/constants/ui";
 import type { SaveContext, ComputeContext } from "./MissionTabNav";
 
@@ -35,6 +35,7 @@ export default function MissionActionBar({ missionId, saveCtx, computeCtx }: Mis
     { label: t("mission.configuration"), path: "configuration" },
     { label: t("mission.map"), path: "map" },
     { label: t("mission.validationExport"), path: "validation-export" },
+    { label: t("mission.results"), path: "results" },
   ];
 
   const showSave = saveCtx.onSave !== null;
@@ -82,6 +83,7 @@ export default function MissionActionBar({ missionId, saveCtx, computeCtx }: Mis
         >
           {computeCtx.isComputing && <Loader2 className="h-4 w-4 animate-spin" />}
           {!computeCtx.isComputing && computeCtx.icon === "upload" && <Upload className="h-4 w-4" />}
+          {!computeCtx.isComputing && computeCtx.icon === "file" && <FileText className="h-4 w-4" />}
           {computeCtx.isComputing ? t("mission.config.computing") : computeCtx.label ?? t("mission.config.computeTrajectory")}
         </button>
       )}

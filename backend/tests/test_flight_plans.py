@@ -60,34 +60,81 @@ def fp_mission_id(client, fp_airport_id, fp_drone_id):
     return r.json()["id"]
 
 
-def test_generate_trajectory_without_coordinates(client, fp_airport_id):
-    """generate trajectory returns 400 when takeoff/landing coordinates are missing."""
-    r = client.post(
-        "/api/v1/missions",
-        json={"name": "No Coords Mission", "airport_id": fp_airport_id},
+def _setup_inspection_mission(client, icao: str, *, takeoff=None, landing=None) -> str:
+    """build a mission with one inspection and optional takeoff/landing coordinates.
+
+    omitting a coordinate exercises the orchestrator's takeoff/landing precondition
+    (the no-inspections check would otherwise fire first).
+    """
+    from tests.data.trajectory import (
+        TRAJECTORY_AGL_PAYLOAD,
+        TRAJECTORY_AIRPORT_PAYLOAD,
+        TRAJECTORY_DRONE_PAYLOAD,
+        TRAJECTORY_SURFACE_PAYLOAD,
+        make_lha_payload,
     )
-    mission_id = r.json()["id"]
 
-    r = client.post(f"/api/v1/missions/{mission_id}/generate-trajectory")
-    assert r.status_code == 400
-    assert "Takeoff/landing coordinates must be set" in r.json()["detail"]
-
-
-def test_generate_trajectory_without_landing_coordinate(client, fp_airport_id):
-    """generate trajectory returns 400 when only takeoff is set."""
-    r = client.post(
-        "/api/v1/missions",
+    airport_id = client.post(
+        "/api/v1/airports", json={**TRAJECTORY_AIRPORT_PAYLOAD, "icao_code": icao}
+    ).json()["id"]
+    surface_id = client.post(
+        f"/api/v1/airports/{airport_id}/surfaces", json=TRAJECTORY_SURFACE_PAYLOAD
+    ).json()["id"]
+    agl = client.post(
+        f"/api/v1/airports/{airport_id}/surfaces/{surface_id}/agls", json=TRAJECTORY_AGL_PAYLOAD
+    ).json()
+    for i in range(1, 4):
+        client.post(
+            f"/api/v1/airports/{airport_id}/surfaces/{surface_id}/agls/{agl['id']}/lhas",
+            json=make_lha_payload(i),
+        )
+    template = client.post(
+        "/api/v1/inspection-templates",
         json={
-            "name": "No Landing Mission",
-            "airport_id": fp_airport_id,
-            "takeoff_coordinate": {"type": "Point", "coordinates": [18.11, 49.69, 260.0]},
+            "name": f"Precondition Template {icao}",
+            "methods": ["HORIZONTAL_RANGE"],
+            "target_agl_ids": [agl["id"]],
+            "default_config": {"measurement_density": 3},
         },
+    ).json()
+    drone = client.post("/api/v1/drone-profiles", json=TRAJECTORY_DRONE_PAYLOAD).json()
+
+    payload = {
+        "name": f"Precondition Mission {icao}",
+        "airport_id": airport_id,
+        "drone_profile_id": drone["id"],
+    }
+    if takeoff is not None:
+        payload["takeoff_coordinate"] = takeoff
+    if landing is not None:
+        payload["landing_coordinate"] = landing
+    mission_id = client.post("/api/v1/missions", json=payload).json()["id"]
+
+    client.post(
+        f"/api/v1/missions/{mission_id}/inspections",
+        json={"template_id": template["id"], "method": "HORIZONTAL_RANGE"},
     )
-    mission_id = r.json()["id"]
+    return mission_id
+
+
+def test_generate_trajectory_without_coordinates(client):
+    """generate trajectory returns 400 when takeoff/landing coordinates are missing."""
+    mission_id = _setup_inspection_mission(client, "ZPNC")
 
     r = client.post(f"/api/v1/missions/{mission_id}/generate-trajectory")
     assert r.status_code == 400
-    assert "Takeoff/landing coordinates must be set" in r.json()["detail"]
+    assert "takeoff coordinates must be set before generating a trajectory" in r.json()["detail"]
+
+
+def test_generate_trajectory_without_landing_coordinate(client):
+    """generate trajectory returns 400 when only takeoff is set."""
+    mission_id = _setup_inspection_mission(
+        client, "ZPNL", takeoff={"type": "Point", "coordinates": [18.11, 49.69, 260.0]}
+    )
+
+    r = client.post(f"/api/v1/missions/{mission_id}/generate-trajectory")
+    assert r.status_code == 400
+    assert "landing coordinates must be set before generating a trajectory" in r.json()["detail"]
 
 
 def test_batch_update_no_flight_plan(client, fp_mission_id):

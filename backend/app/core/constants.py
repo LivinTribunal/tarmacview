@@ -27,6 +27,10 @@ OPENAIP_NEARBY_RADIUS_KM: float = 25.0
 # projection, and the openaip ingest path.
 EARTH_RADIUS_M: float = 6_371_000.0
 
+# meters per degree of latitude (WGS84 mean) - shared by the litchi/dji local
+# equirectangular projection, the media-match bbox padding, and lha_selection.
+METERS_PER_DEG_LAT: float = 111_320.0
+
 # vertical-profile climb angle envelope - clamps both PAPI-resolved bookends
 # and CUSTOM-mode operator input. enforced at the request schema (Field
 # bounds on angle_start / angle_end) and at the trajectory engine

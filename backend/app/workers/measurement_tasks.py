@@ -47,7 +47,7 @@ def _run(runner_name: str, measurement_id: str) -> str:
     db = SessionLocal()
     try:
         measurement = runner(db, UUID(measurement_id))
-        return measurement.status.value
+        return measurement.status
     finally:
         db.close()
 

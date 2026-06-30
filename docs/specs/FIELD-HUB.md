@@ -443,8 +443,11 @@ for the sweep inside `GET /api/v1/drone-media` to retry.
   (`/operator-center/field-ops`, nav item `nav.fieldOps`). *Landed in #162*:
   a *Cloud Missions* table (waylines on the hub + per-row delete) and a *Drone
   Media* table (returned files with view/download + a mission/inspection
-  *Link & process* picker that starts the measurement in one step). Shows an
-  offline banner when the hub can't answer; EN + SK strings under `fieldOps.*`.
+  *Link & process* picker that starts the measurement in one step). *Reshaped
+  in #179* into the 30/70 shell: a left **Field Hub connection** card (the
+  shared `FieldHubPanel`) over the two tables, with the hub-offline state in
+  that card instead of a banner. EN + SK strings under `fieldOps.*` +
+  `mission.fieldHub.*`.
 - All new strings via `react-i18next`; styling per `--tv-*` design system.
 
 ### fieldhub service (new top-level dir `fieldhub/`)

@@ -15,6 +15,16 @@ SafetyZoneTypeStr = Literal[
 ]
 
 
+def _check_altitude_range(zone_type, floor, ceiling) -> None:
+    """reject boundary zones with altitude bounds and inverted floor/ceiling."""
+    if zone_type == "AIRPORT_BOUNDARY" and (floor is not None or ceiling is not None):
+        raise ValueError(
+            "altitude_floor and altitude_ceiling are not allowed for AIRPORT_BOUNDARY zones"
+        )
+    if floor is not None and ceiling is not None and floor > ceiling:
+        raise ValueError("altitude_floor must be <= altitude_ceiling")
+
+
 class SafetyZoneCreate(BaseModel):
     """safety zone create schema."""
 
@@ -28,18 +38,7 @@ class SafetyZoneCreate(BaseModel):
     @model_validator(mode="after")
     def _validate_altitude_range(self) -> "SafetyZoneCreate":
         """reject inverted altitude envelopes and boundary zones with altitude bounds."""
-        if self.type == "AIRPORT_BOUNDARY" and (
-            self.altitude_floor is not None or self.altitude_ceiling is not None
-        ):
-            raise ValueError(
-                "altitude_floor and altitude_ceiling are not allowed for AIRPORT_BOUNDARY zones"
-            )
-        if (
-            self.altitude_floor is not None
-            and self.altitude_ceiling is not None
-            and self.altitude_floor > self.altitude_ceiling
-        ):
-            raise ValueError("altitude_floor must be <= altitude_ceiling")
+        _check_altitude_range(self.type, self.altitude_floor, self.altitude_ceiling)
         return self
 
 
@@ -59,18 +58,7 @@ class SafetyZoneUpdate(BaseModel):
         # partial patches (no type field) skip the boundary check here;
         # the service layer re-checks against the persisted zone type and
         # nulls any stale altitude columns when target_type is AIRPORT_BOUNDARY.
-        if self.type == "AIRPORT_BOUNDARY" and (
-            self.altitude_floor is not None or self.altitude_ceiling is not None
-        ):
-            raise ValueError(
-                "altitude_floor and altitude_ceiling are not allowed for AIRPORT_BOUNDARY zones"
-            )
-        if (
-            self.altitude_floor is not None
-            and self.altitude_ceiling is not None
-            and self.altitude_floor > self.altitude_ceiling
-        ):
-            raise ValueError("altitude_floor must be <= altitude_ceiling")
+        _check_altitude_range(self.type, self.altitude_floor, self.altitude_ceiling)
         return self
 
 

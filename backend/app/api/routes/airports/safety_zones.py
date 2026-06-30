@@ -98,13 +98,14 @@ def delete_safety_zone(
 ):
     """delete safety zone."""
     check_airport_access(current_user, airport_id)
-    airport_service.delete_safety_zone(db, airport_id, zone_id)
+    zone = airport_service.delete_safety_zone(db, airport_id, zone_id)
     log_audit(
         db,
         current_user,
         AuditAction.DELETE,
         entity_type="SafetyZone",
         entity_id=zone_id,
+        entity_name=zone.name,
         details={"airport_id": str(airport_id)},
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,

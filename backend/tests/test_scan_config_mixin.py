@@ -13,8 +13,7 @@ from pydantic import ValidationError
 
 from app.schemas.inspection_config import InspectionConfigOverride, ScanConfigFields
 from app.schemas.inspection_config import InspectionConfigResponse as OverrideConfigResponse
-from app.schemas.inspection_template import InspectionConfigCreate
-from app.schemas.inspection_template import InspectionConfigResponse as TemplateConfigResponse
+from app.schemas.inspection_template import InspectionConfigCreate, TemplateConfigResponse
 
 SCAN_FIELDS = {
     "scan_surface_id",

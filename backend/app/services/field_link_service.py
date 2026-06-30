@@ -24,6 +24,17 @@ STATUS_PATH = "/internal/api/v1/status"
 WAYLINES_PATH = "/internal/api/v1/waylines"
 
 
+def _hub_client(transport: httpx.BaseTransport | None = None) -> httpx.Client:
+    """configured httpx client for the field hub (base url, timeout, TLS verify)."""
+    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
+    return httpx.Client(
+        base_url=settings.fieldhub_url,
+        timeout=settings.fieldhub_timeout,
+        verify=verify,
+        transport=transport,
+    )
+
+
 def _no_hub() -> FieldLinkStatusResponse:
     """degraded response - hub unconfigured or unreachable."""
     return FieldLinkStatusResponse(hub_online=False)
@@ -40,14 +51,8 @@ def get_field_link_status(
     if not settings.fieldhub_url:
         return _no_hub()
 
-    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
     try:
-        with httpx.Client(
-            base_url=settings.fieldhub_url,
-            timeout=settings.fieldhub_timeout,
-            verify=verify,
-            transport=transport,
-        ) as client:
+        with _hub_client(transport) as client:
             response = client.get(
                 STATUS_PATH, headers={"X-Hub-Secret": settings.fieldhub_shared_secret}
             )
@@ -78,14 +83,8 @@ def list_field_link_waylines(
     if not settings.fieldhub_url:
         return FieldLinkWaylineListResponse(waylines=[])
 
-    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
     try:
-        with httpx.Client(
-            base_url=settings.fieldhub_url,
-            timeout=settings.fieldhub_timeout,
-            verify=verify,
-            transport=transport,
-        ) as client:
+        with _hub_client(transport) as client:
             response = client.get(
                 WAYLINES_PATH, headers={"X-Hub-Secret": settings.fieldhub_shared_secret}
             )
@@ -111,14 +110,8 @@ def delete_field_link_wayline(
     if not settings.fieldhub_url:
         raise DomainError("field hub is not configured", status_code=502)
 
-    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
     try:
-        with httpx.Client(
-            base_url=settings.fieldhub_url,
-            timeout=settings.fieldhub_timeout,
-            verify=verify,
-            transport=transport,
-        ) as client:
+        with _hub_client(transport) as client:
             response = client.delete(
                 f"{WAYLINES_PATH}/{wayline_id}",
                 headers={"X-Hub-Secret": settings.fieldhub_shared_secret},

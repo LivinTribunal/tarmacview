@@ -23,9 +23,3 @@ export interface PolygonZ {
   type: "Polygon";
   coordinates: [number, number, number][][];
 }
-
-export interface Coordinate {
-  latitude: number;
-  longitude: number;
-  altitude: number;
-}

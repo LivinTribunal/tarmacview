@@ -7,8 +7,8 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import MeasurementStatus
-from app.infra.measurement.sqlalchemy_repository import SqlAlchemyMeasurementRepository
 from app.models.audit_log import AuditLog
+from app.models.measurement import Measurement
 from app.models.mission import Mission
 from app.services import measurement_service
 from tests.data.airports import AIRPORT_PAYLOAD
@@ -155,12 +155,10 @@ def _seed_artifacts(db_engine, measurement_id: str) -> set[str]:
     """attach object-storage keys to a created run so delete has artifacts to drop."""
     s = sessionmaker(bind=db_engine)()
     try:
-        repo = SqlAlchemyMeasurementRepository(s)
-        m = repo.get_by_id(UUID(measurement_id))
+        m = s.query(Measurement).filter(Measurement.id == UUID(measurement_id)).first()
         m.object_key = "measurements/x/results.json.gz"
         m.first_frame_object_key = "measurements/x/first_frame.jpg"
         m.annotated_video_keys = {"PAPI_A": "measurements/x/PAPI_A.mp4"}
-        repo.save(m)
         s.commit()
     finally:
         s.close()
@@ -296,37 +294,36 @@ def test_patch_label_appears_in_airport_list_and_results_carry_inspection_contex
 
 
 def test_to_response_maps_full_aggregate():
-    """service to_response renders every field of a populated aggregate (layering-move guard)."""
+    """service to_response renders every field of a populated row (layering-move guard)."""
     from datetime import datetime, timezone
-
-    from app.domain.measurement.entities import LightBox, LightSummary, Measurement, ReferencePoint
 
     insp_id, lha_id = uuid4(), uuid4()
     m = Measurement(
+        id=uuid4(),
         inspection_id=insp_id,
-        status=MeasurementStatus.DONE,
+        status=MeasurementStatus.DONE.value,
         runway_heading=187.0,
         reference_points=[
-            ReferencePoint(
-                light_name="PAPI_A",
-                latitude=48.1,
-                longitude=17.2,
-                elevation=133.0,
-                lha_id=lha_id,
-                unit_designator="A",
-                setting_angle=3.0,
-                tolerance=0.17,
-            )
+            {
+                "light_name": "PAPI_A",
+                "latitude": 48.1,
+                "longitude": 17.2,
+                "elevation": 133.0,
+                "lha_id": str(lha_id),
+                "unit_designator": "A",
+                "setting_angle": 3.0,
+                "tolerance": 0.17,
+            }
         ],
-        light_boxes=[LightBox(light_name="PAPI_A", x=10.0, y=50.0, size=8.0)],
+        light_boxes=[{"light_name": "PAPI_A", "x": 10.0, "y": 50.0, "size": 8.0}],
         summaries=[
-            LightSummary(
-                light_name="PAPI_A",
-                setting_angle=3.0,
-                tolerance=0.17,
-                measured_transition_angle=3.05,
-                passed=True,
-            )
+            {
+                "light_name": "PAPI_A",
+                "setting_angle": 3.0,
+                "tolerance": 0.17,
+                "measured_transition_angle": 3.05,
+                "passed": True,
+            }
         ],
         object_key="measurements/x/results.json.gz",
         first_frame_object_key="measurements/x/first_frame.jpg",

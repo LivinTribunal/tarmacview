@@ -1,11 +1,6 @@
-import {
-  Cartesian3,
-  Cartographic,
-  Math as CesiumMath,
-  Cartesian2,
-} from "cesium";
+import { Cartesian3, Cartographic, Math as CesiumMath } from "cesium";
 import { EARTH_RADIUS_M } from "@/constants/geo";
-import type { PolygonZ, PointZ, LineStringZ } from "@/types/common";
+import type { PolygonZ, LineStringZ } from "@/types/common";
 
 /** convert a geojson polygon to a cesium cartesian3 array for polygon hierarchy. */
 export function polygonToCartesian3(polygon: PolygonZ): Cartesian3[] {
@@ -20,12 +15,6 @@ export function lineStringToCartesian3(line: LineStringZ): Cartesian3[] {
   return line.coordinates.map(([lng, lat, alt]) =>
     Cartesian3.fromDegrees(lng, lat, alt ?? 0),
   );
-}
-
-/** convert a geojson pointz to a cesium cartesian3. */
-export function pointToCartesian3(point: PointZ): Cartesian3 {
-  const [lng, lat, alt] = point.coordinates;
-  return Cartesian3.fromDegrees(lng, lat, alt ?? 0);
 }
 
 // maplibre ground resolution at zoom 0 (metres per pixel at equator)
@@ -124,28 +113,5 @@ export function cesiumToMaplibreCamera(
   };
 }
 
-/** simplify an array by keeping every nth item. always keeps first and last.
- * step defaults to 2 for large arrays, but can be forced for simplified view. */
-export function simplifyForPerformance<T>(items: T[], step?: number): T[] {
-  const s = step ?? (items.length > 500 ? 2 : 1);
-  if (s <= 1) return items;
-  const result: T[] = [];
-  for (let i = 0; i < items.length; i += s) {
-    result.push(items[i]);
-  }
-  if (result[result.length - 1] !== items[items.length - 1]) {
-    result.push(items[items.length - 1]);
-  }
-  return result;
-}
-
 // re-exported so 2D and 3D buffer renderers stay in sync
 export { bufferPolygon } from "../layers/obstacleLayers";
-
-/** get a screen-space point from a cartesian3. used for pick checks. */
-export function toScreenPosition(
-  viewer: { scene: { cartesianToCanvasCoordinates: (c: Cartesian3) => Cartesian2 | undefined } },
-  position: Cartesian3,
-): Cartesian2 | undefined {
-  return viewer.scene.cartesianToCanvasCoordinates(position);
-}

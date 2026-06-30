@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import InspectionMethod, WaypointType
 from app.core.exceptions import DomainError, NotFoundError
+from app.core.geometry import point_lonlatalt
 from app.models.flight_plan import (
     FlightPlan,
     ValidationResult,
@@ -30,8 +31,6 @@ from app.services.flight_plan_agl import (
     _GROUND_LEVEL_WAYPOINT_TYPES,
     _backfill_waypoint_agl,
     _compute_waypoint_data_agl,
-    _extract_altitude,
-    _extract_coords,
     _refresh_persisted_agl,
 )
 from app.services.geometry_converter import geojson_to_wkt
@@ -107,7 +106,7 @@ def build_enriched_response(db: Session, flight_plan: FlightPlan) -> FlightPlanR
     # global altitude stats - exclude only ground-level waypoints
     in_flight = [wp for wp in waypoints if wp.waypoint_type not in _GROUND_LEVEL_WAYPOINT_TYPES]
     if in_flight:
-        altitudes_msl = [_extract_altitude(wp.position) for wp in in_flight]
+        altitudes_msl = [point_lonlatalt(wp.position)[2] for wp in in_flight]
         response.min_altitude_msl = min(altitudes_msl)
         response.max_altitude_msl = max(altitudes_msl)
         response.min_altitude_agl = response.min_altitude_msl - elevation
@@ -138,13 +137,13 @@ def build_enriched_response(db: Session, flight_plan: FlightPlan) -> FlightPlanR
 
     inspection_stats = []
     for insp_id, insp_wps in by_inspection.items():
-        insp_alts = [_extract_altitude(wp.position) for wp in insp_wps]
+        insp_alts = [point_lonlatalt(wp.position)[2] for wp in insp_wps]
         insp_min_msl = min(insp_alts)
         insp_max_msl = max(insp_alts)
 
         # segment duration: sum of travel time + hover durations
         seg_duration = 0.0
-        coords_list = [_extract_coords(wp.position) for wp in insp_wps]
+        coords_list = [point_lonlatalt(wp.position) for wp in insp_wps]
         for i in range(1, len(coords_list)):
             dist = distance_between(
                 coords_list[i - 1][0],
@@ -164,7 +163,7 @@ def build_enriched_response(db: Session, flight_plan: FlightPlan) -> FlightPlanR
         direction_bearing: int | None = None
         if method_by_inspection.get(insp_id) in _BEARING_METHODS:
             meas_coords = [
-                _extract_coords(wp.position)
+                point_lonlatalt(wp.position)
                 for wp in insp_wps
                 if wp.waypoint_type == WaypointType.MEASUREMENT.value
             ]

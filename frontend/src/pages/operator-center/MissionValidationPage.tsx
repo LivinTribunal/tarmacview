@@ -216,7 +216,9 @@ export default function MissionValidationPage() {
               clampWarning={clampWarning}
               onDismissClampWarning={dismissClampWarning}
               onDispatched={fetchData}
-              onViewResults={() => navigate("/operator-center/measurements")}
+              onViewResults={() =>
+                navigate(`/operator-center/missions/${id}/results`)
+              }
               statsSlot={
                 <div className="bg-tv-surface border border-tv-border rounded-2xl p-4">
                   <StatsPanel

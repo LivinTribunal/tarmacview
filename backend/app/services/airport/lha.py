@@ -19,6 +19,7 @@ from app.services.airport.altitude import (
 )
 from app.services.elevation_provider import create_elevation_provider
 from app.services.geometry_converter import apply_schema_update, schema_to_model_data
+from app.utils.geo import distance_between
 
 
 # LHAs
@@ -466,8 +467,6 @@ def bulk_generate_lhas(
     schema: LHABulkGenerateRequest,
 ) -> list[LHA]:
     """linearly interpolate LHAs between two points spaced by spacing_m meters."""
-    from app.utils.geo import distance_between
-
     surface = (
         db.query(AirfieldSurface)
         .filter(AirfieldSurface.id == surface_id, AirfieldSurface.airport_id == airport_id)

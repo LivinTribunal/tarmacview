@@ -72,8 +72,8 @@ class InspectionConfigCreate(ScanConfigFields):
         return self
 
 
-class InspectionConfigResponse(ScanConfigFields):
-    """inspection config response schema."""
+class TemplateConfigResponse(ScanConfigFields):
+    """template default-config response schema."""
 
     id: UUID
     altitude_offset: float | None = None
@@ -149,7 +149,7 @@ class InspectionTemplateResponse(BaseModel):
     created_by: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    default_config: InspectionConfigResponse | None = None
+    default_config: TemplateConfigResponse | None = None
     target_agl_ids: list[UUID] = []
     methods: list[InspectionMethodStr] = []
     mission_count: int = 0

@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ZoomIn,
@@ -18,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 
+import ZoomDropdown from "@/components/common/ZoomDropdown";
 import type { DrawingTool } from "@/types/map";
 export type { DrawingTool } from "@/types/map";
 
@@ -46,8 +46,6 @@ interface ToolDef {
   icon: React.ComponentType<{ className?: string }>;
   tooltipKey: string;
 }
-
-const ZOOM_PRESETS = [50, 75, 100, 150, 200, 300];
 
 // group 1 - interact
 const interactTools: ToolDef[] = [
@@ -90,31 +88,6 @@ export default function MapDrawingToolbar({
 }: MapDrawingToolbarProps) {
   /** top-center pill-shaped drawing tools toolbar with grouped sections. */
   const { t } = useTranslation();
-  const [zoomDropdownOpen, setZoomDropdownOpen] = useState(false);
-  const [zoomInput, setZoomInput] = useState("");
-  const zoomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!zoomDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      /** close zoom dropdown on outside click. */
-      if (zoomRef.current && !zoomRef.current.contains(e.target as Node)) {
-        setZoomDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [zoomDropdownOpen]);
-
-  function handleZoomInputSubmit() {
-    /** parse custom zoom input and apply. */
-    const val = parseInt(zoomInput, 10);
-    if (!isNaN(val) && val > 0 && val <= 1000) {
-      onZoomTo(val);
-    }
-    setZoomInput("");
-    setZoomDropdownOpen(false);
-  }
 
   function handleClick(tool: DrawingTool) {
     /** handle tool button click. */
@@ -216,41 +189,11 @@ export default function MapDrawingToolbar({
         >
           <Maximize2 className="h-4 w-4" />
         </button>
-        <div className="relative" ref={zoomRef}>
-          <button
-            type="button"
-            onClick={() => setZoomDropdownOpen(!zoomDropdownOpen)}
-            className="w-16 text-center text-xs rounded-full px-2 py-1.5 border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-            data-testid="zoom-field"
-          >
-            {Math.round(zoomPercent)}%
-          </button>
-          {zoomDropdownOpen && (
-            <div className="absolute top-full mt-1 left-0 w-24 rounded-2xl border border-tv-border bg-tv-bg p-1 z-20">
-              {ZOOM_PRESETS.map((p) => (
-                <button
-                  type="button"
-                  key={p}
-                  onClick={() => { onZoomTo(p); setZoomDropdownOpen(false); }}
-                  className="w-full text-left px-3 py-1.5 text-xs rounded-xl text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-                >
-                  {p}%
-                </button>
-              ))}
-              <div className="border-t border-tv-border mt-1 pt-1">
-                <input
-                  value={zoomInput}
-                  onChange={(e) => setZoomInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleZoomInputSubmit(); }}
-                  placeholder="%"
-                  aria-label={t("coordinator.airports.tools.zoomTo")}
-                  className="w-full px-3 py-1 text-xs rounded-xl bg-tv-bg border border-tv-border text-tv-text-primary outline-none"
-                  data-testid="zoom-input"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        <ZoomDropdown
+          zoomPercent={zoomPercent}
+          onZoomTo={onZoomTo}
+          ariaLabel={t("coordinator.airports.tools.zoomTo")}
+        />
       </div>
 
       {/* undo/redo pill */}
@@ -300,8 +243,8 @@ export default function MapDrawingToolbar({
           viewBox="0 0 28 28"
           style={{ transform: `rotate(${-bearing}deg)` }}
         >
-          <text x="14" y="5.5" textAnchor="middle" dominantBaseline="middle" fill="#e54545" fontSize="5.5" fontWeight="bold">N</text>
-          <polygon points="14,8 12.8,14 15.2,14" fill="#e54545" />
+          <text x="14" y="5.5" textAnchor="middle" dominantBaseline="middle" fill="var(--tv-accent)" fontSize="5.5" fontWeight="bold">N</text>
+          <polygon points="14,8 12.8,14 15.2,14" fill="var(--tv-accent)" />
           <polygon points="14,20 12.8,14 15.2,14" fill="var(--tv-text-muted)" />
         </svg>
       </button>

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Loader2, Check, X } from "lucide-react";
 import { useComputation } from "@/contexts/ComputationContext";
+import ToastShell from "@/components/common/ToastShell";
 
 /** corner toast reflecting the background trajectory computation status. */
 export default function ComputationNotification() {
@@ -10,9 +11,9 @@ export default function ComputationNotification() {
   if (status === "IDLE") return null;
 
   return (
-    <div
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-tv-surface border border-tv-border text-sm text-tv-text-primary min-w-[280px] max-w-[400px]"
-      data-testid="computation-notification"
+    <ToastShell
+      className="flex items-center gap-3 px-4 py-3 text-sm text-tv-text-primary min-w-[280px] max-w-[400px]"
+      testId="computation-notification"
     >
       {status === "COMPUTING" && (
         <>
@@ -65,6 +66,6 @@ export default function ComputationNotification() {
           </button>
         </>
       )}
-    </div>
+    </ToastShell>
   );
 }

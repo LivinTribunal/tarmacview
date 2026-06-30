@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { Copy, Trash2 } from "lucide-react";
 import { createDroneProfile, deleteDroneProfile } from "@/api/droneProfiles";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
+import Toast from "@/components/common/Toast";
+import RowActionButtons from "@/components/common/RowActionButtons";
 import {
   ListPageContainer,
   ListPageContent,
   Pagination,
-  SearchBar,
 } from "@/components/common/ListPageLayout";
 import CreateDroneDialog from "@/components/drone/CreateDroneDialog";
-import DroneListTable from "@/components/drone/DroneListTable";
+import DroneListSearchBar from "@/components/drone/DroneListSearchBar";
+import DroneTable from "@/components/drone/DroneTable";
 import useDroneProfileList from "@/hooks/useDroneProfileList";
 
 /** drone profile list with sorting, pagination, and filtering. */
@@ -66,36 +69,23 @@ export default function DroneListPage() {
 
   return (
     <ListPageContainer>
-      <SearchBar
-        value={list.search}
-        onChange={list.handleSearchChange}
-        placeholder={t("coordinator.drones.searchPlaceholder")}
-        testId="drone-search"
+      <DroneListSearchBar
+        search={list.search}
+        onSearchChange={list.handleSearchChange}
+        manufacturerFilter={list.manufacturerFilter}
+        onManufacturerChange={list.handleManufacturerChange}
+        manufacturers={list.manufacturers}
       >
-        <select
-          value={list.manufacturerFilter}
-          onChange={(e) => list.handleManufacturerChange(e.target.value)}
-          className="rounded-full border border-tv-border bg-tv-surface px-4 h-10 text-sm
-            text-tv-text-primary focus:outline-none focus:border-tv-accent"
-          data-testid="manufacturer-filter"
-        >
-          <option value="">{t("coordinator.drones.allManufacturers")}</option>
-          {list.manufacturers.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
         <Button
           onClick={() => setShowCreateDialog(true)}
           data-testid="add-drone-btn"
         >
           {t("coordinator.drones.addNew")}
         </Button>
-      </SearchBar>
+      </DroneListSearchBar>
 
       <ListPageContent className="rounded-2xl border border-tv-border bg-tv-surface overflow-hidden">
-        <DroneListTable
+        <DroneTable
           rows={list.paged}
           totalDrones={list.drones.length}
           loading={list.loading}
@@ -106,9 +96,24 @@ export default function DroneListPage() {
           onRowClick={(drone) =>
             navigate(`/coordinator-center/drones/${drone.id}`)
           }
-          onDuplicate={handleDuplicate}
-          onDelete={setDeleteTarget}
           onRetry={list.fetchDrones}
+          renderRowActions={(drone) => (
+            <RowActionButtons
+              actions={[
+                {
+                  icon: Copy,
+                  onClick: () => handleDuplicate(drone),
+                  title: t("coordinator.drones.actions.duplicate"),
+                },
+                {
+                  icon: Trash2,
+                  onClick: () => setDeleteTarget(drone),
+                  variant: "danger",
+                  title: t("coordinator.drones.actions.delete"),
+                },
+              ]}
+            />
+          )}
         />
       </ListPageContent>
 
@@ -151,11 +156,7 @@ export default function DroneListPage() {
         </div>
       </Modal>
 
-      {list.notification && (
-        <div className="fixed bottom-6 right-6 z-50 rounded-2xl border border-tv-border bg-tv-surface px-4 py-3 text-sm text-tv-text-primary">
-          {list.notification}
-        </div>
-      )}
+      {list.notification && <Toast message={list.notification} />}
     </ListPageContainer>
   );
 }

@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MousePointer,
@@ -15,6 +14,8 @@ import {
 } from "lucide-react";
 import { MapTool, EDITING_TOOLS } from "@/hooks/useMapTools";
 import type { FlyAlongState, FlyAlongSpeed } from "@/types/map";
+import ZoomDropdown from "@/components/common/ZoomDropdown";
+import Map2D3DToggle from "@/components/common/Map2D3DToggle";
 
 interface MapControlsToolbarProps {
   activeTool: MapTool;
@@ -40,8 +41,6 @@ interface MapControlsToolbarProps {
   onFlyAlongSpeedChange?: (speed: FlyAlongSpeed) => void;
 }
 
-const ZOOM_PRESETS = [50, 75, 100, 150, 200, 300, 500];
-const MAX_ZOOM_PERCENT = 1000;
 const FLY_ALONG_SPEEDS: FlyAlongSpeed[] = [1, 2, 5, 10];
 
 interface ToolDef {
@@ -86,30 +85,6 @@ export default function MapControlsToolbar({
 }: MapControlsToolbarProps) {
   /** floating map toolbar - tools, zoom, bearing, 2d/3d, terrain, fly-along, undo/redo. */
   const { t } = useTranslation();
-  const [zoomDropdownOpen, setZoomDropdownOpen] = useState(false);
-  const [zoomInput, setZoomInput] = useState("");
-  const zoomRef = useRef<HTMLDivElement>(null);
-
-  // close zoom dropdown on outside click
-  useEffect(() => {
-    if (!zoomDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (zoomRef.current && !zoomRef.current.contains(e.target as Node)) {
-        setZoomDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [zoomDropdownOpen]);
-
-  function handleZoomInputSubmit() {
-    const parsed = parseInt(zoomInput, 10);
-    if (!isNaN(parsed) && parsed > 0 && parsed <= MAX_ZOOM_PERCENT) {
-      onZoomTo(parsed);
-    }
-    setZoomInput("");
-    setZoomDropdownOpen(false);
-  }
 
   function renderToolButton(def: ToolDef) {
     const isActive = activeTool === def.tool;
@@ -165,40 +140,13 @@ export default function MapControlsToolbar({
         </button>
 
         {/* zoom field */}
-        <div className="relative ml-1" ref={zoomRef}>
-          <button
-            type="button"
-            onClick={() => setZoomDropdownOpen(!zoomDropdownOpen)}
-            className="w-16 text-center text-xs rounded-full px-2 py-1.5 border border-tv-border bg-tv-surface text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-            data-testid="zoom-field"
-          >
-            {Math.round(zoomPercent)}%
-          </button>
-          {zoomDropdownOpen && (
-            <div className="absolute top-full mt-1 left-0 w-24 rounded-2xl border border-tv-border bg-tv-bg p-1 z-20">
-              {ZOOM_PRESETS.map((p) => (
-                <button
-                  type="button"
-                  key={p}
-                  onClick={() => { onZoomTo(p); setZoomDropdownOpen(false); }}
-                  className="w-full text-left px-3 py-1.5 text-xs rounded-xl text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-                >
-                  {p}%
-                </button>
-              ))}
-              <div className="border-t border-tv-border mt-1 pt-1">
-                <input
-                  value={zoomInput}
-                  onChange={(e) => setZoomInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleZoomInputSubmit(); }}
-                  placeholder="%"
-                  aria-label={t("map.zoom")}
-                  className="w-full px-3 py-1 text-xs rounded-xl bg-tv-bg border border-tv-border text-tv-text-primary outline-none"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        <ZoomDropdown
+          zoomPercent={zoomPercent}
+          onZoomTo={onZoomTo}
+          ariaLabel={t("map.zoom")}
+          presets={[50, 75, 100, 150, 200, 300, 500]}
+          className="ml-1"
+        />
 
         {/* heading compass */}
         <button
@@ -222,28 +170,13 @@ export default function MapControlsToolbar({
         <div className="w-px h-5 mx-0.5" style={{ backgroundColor: "var(--tv-border)" }} />
 
         {/* 2D/3D toggle */}
-        <div className="flex rounded-full bg-tv-surface border border-tv-border p-0.5">
-          <button
-            type="button"
-            onClick={() => onToggle3D(false)}
-            title={t("map.tools.2d")}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-              !is3D ? "bg-tv-accent text-tv-accent-text" : "text-tv-text-secondary"
-            }`}
-          >
-            {t("common.2d")}
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggle3D(true)}
-            title={t("map.tools.3d")}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-              is3D ? "bg-tv-accent text-tv-accent-text" : "text-tv-text-secondary"
-            }`}
-          >
-            {t("common.3d")}
-          </button>
-        </div>
+        <Map2D3DToggle
+          is3D={is3D}
+          onSet3D={onToggle3D}
+          className="flex rounded-full bg-tv-surface border border-tv-border p-0.5"
+          buttonClassName="rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
+          inactiveClassName="text-tv-text-secondary"
+        />
 
         {/* map/satellite toggle */}
         <div className="ml-1 flex rounded-full bg-tv-surface border border-tv-border p-0.5">

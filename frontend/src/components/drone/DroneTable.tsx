@@ -1,6 +1,5 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, Trash2 } from "lucide-react";
-import RowActionButtons from "@/components/common/RowActionButtons";
 import { SortIndicator } from "@/components/common/ListPageLayout";
 import type { SortDir } from "@/components/common/useListSort";
 import DroneModelThumbnail from "@/components/drone/DroneModelThumbnail";
@@ -10,7 +9,7 @@ import {
 } from "@/hooks/useDroneProfileList";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 
-interface DroneListTableProps {
+interface DroneTableProps {
   rows: DroneProfileResponse[];
   totalDrones: number;
   loading: boolean;
@@ -19,13 +18,13 @@ interface DroneListTableProps {
   sortDir: SortDir;
   onSort: (key: DroneSortKey) => void;
   onRowClick: (drone: DroneProfileResponse) => void;
-  onDuplicate: (drone: DroneProfileResponse) => void;
-  onDelete: (drone: DroneProfileResponse) => void;
   onRetry: () => void;
+  renderRowActions: (drone: DroneProfileResponse, isDefault: boolean) => ReactNode;
+  defaultDroneId?: string | null;
 }
 
-/** coordinator-variant drone table with duplicate/delete affordances. */
-export default function DroneListTable({
+/** shared drone profile table; the action cell and default badge are the only variation points. */
+export default function DroneTable({
   rows,
   totalDrones,
   loading,
@@ -34,10 +33,10 @@ export default function DroneListTable({
   sortDir,
   onSort,
   onRowClick,
-  onDuplicate,
-  onDelete,
   onRetry,
-}: DroneListTableProps) {
+  renderRowActions,
+  defaultDroneId,
+}: DroneTableProps) {
   const { t } = useTranslation();
 
   const columns: { key: DroneSortKey; label: string }[] = [
@@ -115,64 +114,56 @@ export default function DroneListTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((drone) => (
-          <tr
-            key={drone.id}
-            onClick={() => onRowClick(drone)}
-            className="border-b border-tv-border last:border-b-0 cursor-pointer
-              text-sm text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-            data-testid={`drone-row-${drone.id}`}
-          >
-            <td className="px-4 py-3 font-semibold">
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-lg bg-[var(--tv-surface-hover)] flex-shrink-0 overflow-hidden">
-                  <DroneModelThumbnail
-                    modelUrl={resolveModelUrl(drone.model_identifier)}
-                    size={128}
-                    className="h-full w-full"
-                  />
+        {rows.map((drone) => {
+          const isDefault = defaultDroneId != null && defaultDroneId === drone.id;
+          return (
+            <tr
+              key={drone.id}
+              onClick={() => onRowClick(drone)}
+              className="border-b border-tv-border last:border-b-0 cursor-pointer
+                text-sm text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
+              data-testid={`drone-row-${drone.id}`}
+            >
+              <td className="px-4 py-3 font-semibold">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-lg bg-[var(--tv-surface-hover)] flex-shrink-0 overflow-hidden">
+                    <DroneModelThumbnail
+                      modelUrl={resolveModelUrl(drone.model_identifier)}
+                      size={128}
+                      className="h-full w-full"
+                    />
+                  </div>
+                  <span>{drone.name}</span>
+                  {isDefault && (
+                    <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold bg-[var(--tv-status-validated-bg)] text-[var(--tv-status-validated-text)]">
+                      {t("operatorDrones.defaultBadge")}
+                    </span>
+                  )}
                 </div>
-                <span>{drone.name}</span>
-              </div>
-            </td>
-            <td className="px-4 py-3 text-tv-text-secondary">
-              {drone.manufacturer || "—"}
-            </td>
-            <td className="px-4 py-3 text-tv-text-secondary">
-              {drone.model || "—"}
-            </td>
-            <td className="px-4 py-3 text-tv-text-secondary">
-              {drone.max_speed != null
-                ? `${drone.max_speed} ${t("coordinator.drones.units.ms")}`
-                : "—"}
-            </td>
-            <td className="px-4 py-3 text-tv-text-secondary">
-              {drone.endurance_minutes != null
-                ? `${drone.endurance_minutes} ${t("coordinator.drones.units.min")}`
-                : "—"}
-            </td>
-            <td className="px-4 py-3 text-tv-text-secondary">
-              {drone.mission_count}
-            </td>
-            <td className="px-4 py-3">
-              <RowActionButtons
-                actions={[
-                  {
-                    icon: Copy,
-                    onClick: () => onDuplicate(drone),
-                    title: t("coordinator.drones.actions.duplicate"),
-                  },
-                  {
-                    icon: Trash2,
-                    onClick: () => onDelete(drone),
-                    variant: "danger",
-                    title: t("coordinator.drones.actions.delete"),
-                  },
-                ]}
-              />
-            </td>
-          </tr>
-        ))}
+              </td>
+              <td className="px-4 py-3 text-tv-text-secondary">
+                {drone.manufacturer || "—"}
+              </td>
+              <td className="px-4 py-3 text-tv-text-secondary">
+                {drone.model || "—"}
+              </td>
+              <td className="px-4 py-3 text-tv-text-secondary">
+                {drone.max_speed != null
+                  ? `${drone.max_speed} ${t("coordinator.drones.units.ms")}`
+                  : "—"}
+              </td>
+              <td className="px-4 py-3 text-tv-text-secondary">
+                {drone.endurance_minutes != null
+                  ? `${drone.endurance_minutes} ${t("coordinator.drones.units.min")}`
+                  : "—"}
+              </td>
+              <td className="px-4 py-3 text-tv-text-secondary">
+                {drone.mission_count}
+              </td>
+              <td className="px-4 py-3">{renderRowActions(drone, isDefault)}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

@@ -18,5 +18,4 @@ frontend/src/components/map/layers/icons/iconFactories.ts
 frontend/src/components/map/layers/surface/surfaceMarkers.ts
 frontend/src/components/map/cesium/CesiumTrajectory.tsx
 frontend/src/components/map/cesium/trajectoryEntityBuilders.ts
-frontend/src/components/coordinator/MapDrawingToolbar.tsx
 frontend/src/pages/coordinator-center/AirportEditPage.tsx

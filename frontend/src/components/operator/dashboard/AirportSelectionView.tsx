@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import type { AirportSummaryResponse } from "@/types/airport";
 import { useAirport } from "@/contexts/AirportContext";
 import { useAirportSummaries } from "@/api/queries/airports";
 import {
@@ -7,21 +8,15 @@ import {
   ListPageContent,
   SearchBar,
   Pagination,
-  SortIndicator,
 } from "@/components/common/ListPageLayout";
+import useListSort from "@/components/common/useListSort";
+import AirportTable, {
+  compareAirport,
+  type AirportSortKey,
+} from "@/components/common/AirportTable";
 import { DEFAULT_PAGE_SIZE } from "@/constants/pagination";
 
-type SortKey =
-  | "icao_code"
-  | "name"
-  | "city"
-  | "country"
-  | "surfaces_count"
-  | "agls_count"
-  | "missions_count";
-
-type SortDir = "asc" | "desc";
-
+/** dashboard airport picker with search, filters, sortable table, and pagination. */
 export default function AirportSelectionView() {
   const { selectAirport } = useAirport();
   const { t } = useTranslation();
@@ -30,8 +25,6 @@ export default function AirportSelectionView() {
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
   const [hasAglFilter, setHasAglFilter] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("icao_code");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
@@ -43,7 +36,7 @@ export default function AirportSelectionView() {
     [airports],
   );
 
-  const columns: { key: SortKey; label: string }[] = [
+  const columns: { key: AirportSortKey; label: string }[] = [
     { key: "icao_code", label: t("airportSelection.columns.icaoCode") },
     { key: "name", label: t("airportSelection.columns.name") },
     { key: "city", label: t("airportSelection.columns.city") },
@@ -52,16 +45,6 @@ export default function AirportSelectionView() {
     { key: "agls_count", label: t("airportSelection.columns.aglSystems") },
     { key: "missions_count", label: t("airportSelection.columns.missions") },
   ];
-
-  function handleSort(key: SortKey) {
-    const numeric: SortKey[] = ["surfaces_count", "agls_count", "missions_count"];
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir(numeric.includes(key) ? "desc" : "asc");
-    }
-  }
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -77,17 +60,14 @@ export default function AirportSelectionView() {
     });
   }, [airports, search, countryFilter, hasAglFilter]);
 
-  const sorted = useMemo(() => {
-    return filtered.slice().sort((a, b) => {
-      const av = a[sortKey] ?? "";
-      const bv = b[sortKey] ?? "";
-      if (typeof av === "number" && typeof bv === "number") {
-        return sortDir === "asc" ? av - bv : bv - av;
-      }
-      const cmp = String(av).localeCompare(String(bv));
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [filtered, sortKey, sortDir]);
+  const { sortedRows: sorted, sortKey, sortDir, handleSort } = useListSort<
+    AirportSummaryResponse,
+    AirportSortKey
+  >(filtered, "icao_code", compareAirport, "asc", [
+    "surfaces_count",
+    "agls_count",
+    "missions_count",
+  ]);
 
   const paged = sorted.slice(page * pageSize, (page + 1) * pageSize);
 
@@ -137,91 +117,23 @@ export default function AirportSelectionView() {
       </SearchBar>
 
       <ListPageContent className="rounded-2xl border border-tv-border bg-tv-surface overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <svg
-              className="h-6 w-6 animate-spin text-tv-text-muted"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-          </div>
-        ) : error ? (
-          <div className="px-6 py-16 text-center text-sm text-tv-error">
-            {t("airportSelection.loadError")}
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="ml-2 underline hover:no-underline"
-            >
-              {t("common.retry")}
-            </button>
-          </div>
-        ) : sorted.length === 0 ? (
-          <div className="px-6 py-16 text-center text-sm text-tv-text-muted">
-            {airports.length === 0
+        <AirportTable
+          columns={columns}
+          rows={paged}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
+          onRowClick={(airport) => selectAirport(airport)}
+          loading={loading}
+          error={error}
+          loadErrorMessage={t("airportSelection.loadError")}
+          emptyMessage={
+            airports.length === 0
               ? t("airportSelection.noAirports")
-              : t("airportSelection.noMatch")}
-          </div>
-        ) : (
-          <>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-tv-border">
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    onClick={() => handleSort(col.key)}
-                    className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider
-                      text-tv-text-secondary cursor-pointer select-none hover:text-tv-text-primary transition-colors"
-                  >
-                    {col.label}
-                    <SortIndicator
-                      active={sortKey === col.key}
-                      dir={sortDir}
-                    />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((airport) => (
-                <tr
-                  key={airport.id}
-                  onClick={() => selectAirport(airport)}
-                  className="border-b border-tv-border last:border-b-0 cursor-pointer
-                    text-sm text-tv-text-primary hover:bg-tv-surface-hover transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{airport.icao_code}</td>
-                  <td className="px-4 py-3">{airport.name}</td>
-                  <td className="px-4 py-3 text-tv-text-secondary">
-                    {airport.city ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-tv-text-secondary">
-                    {airport.country ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">{airport.surfaces_count}</td>
-                  <td className="px-4 py-3">{airport.agls_count}</td>
-                  <td className="px-4 py-3">{airport.missions_count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </>
-        )}
+              : t("airportSelection.noMatch")
+          }
+          onRetry={() => refetch()}
+        />
       </ListPageContent>
 
       {/* pagination bar */}

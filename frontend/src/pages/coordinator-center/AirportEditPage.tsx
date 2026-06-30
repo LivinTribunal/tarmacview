@@ -16,7 +16,7 @@ import TerrainSettingsCard from "@/components/coordinator/TerrainSettingsCard";
 import UnsavedChangesDialog from "@/components/coordinator/UnsavedChangesDialog";
 import ConfirmDeleteDialog from "@/components/coordinator/ConfirmDeleteDialog";
 import MapDrawingToolbar from "@/components/coordinator/MapDrawingToolbar";
-import CoordinatorMapHelpPanel from "@/components/coordinator/CoordinatorMapHelpPanel";
+import MapHelpPanel from "@/components/map/overlays/MapHelpPanel";
 import GeoJsonEditorModal from "@/components/coordinator/GeoJsonEditorModal";
 import ImageMetadataExtractorModal from "@/components/coordinator/ImageMetadataExtractorModal";
 import AirportInfraPanels from "@/components/coordinator/AirportInfraPanels";
@@ -571,7 +571,7 @@ export default function AirportEditPage() {
 
           {/* bottom-left: coordinator help panel */}
           <div className="absolute bottom-3 left-3 z-10">
-            <CoordinatorMapHelpPanel />
+            <MapHelpPanel variant="coordinator" />
           </div>
 
           {/* bottom-right: view toggles + error messages */}

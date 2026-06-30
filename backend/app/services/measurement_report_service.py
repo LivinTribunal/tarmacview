@@ -21,12 +21,16 @@ from sqlalchemy.orm import Session
 
 from app.schemas.measurement import MeasurementResultsResponse
 from app.services import measurement_service
+from app.services.mission_report.chrome import (
+    CONTENT_W,
+    MARGIN,
+    PAGE_H,
+    PAGE_W,
+    _draw_footer,
+    _draw_header,
+)
 
 matplotlib.use("Agg")
-
-PAGE_W, PAGE_H = A4
-MARGIN = 20 * mm
-CONTENT_W = PAGE_W - 2 * MARGIN
 
 # per-light line colors, mirrors --tv-inspection-* so the pdf reads like the ui
 _LIGHT_COLORS = {
@@ -36,27 +40,6 @@ _LIGHT_COLORS = {
     "PAPI_D": "#9b59b6",
 }
 _FALLBACK_COLOR = "#6b6b6b"
-
-
-def _draw_header(c: canvas.Canvas, title: str, page_num: int) -> None:
-    """page header band with title and page number."""
-    c.setFont("Helvetica-Bold", 11)
-    c.setFillColor(colors.HexColor("#333333"))
-    c.drawString(MARGIN, PAGE_H - 15 * mm, title)
-    c.setFont("Helvetica", 9)
-    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 15 * mm, f"Page {page_num}")
-    c.setStrokeColor(colors.HexColor("#CCCCCC"))
-    c.line(MARGIN, PAGE_H - 18 * mm, PAGE_W - MARGIN, PAGE_H - 18 * mm)
-
-
-def _draw_footer(c: canvas.Canvas) -> None:
-    """page footer band."""
-    c.setFont("Helvetica", 8)
-    c.setFillColor(colors.HexColor("#999999"))
-    c.drawString(MARGIN, 10 * mm, "TarmacView Measurement Report")
-    c.drawRightString(
-        PAGE_W - MARGIN, 10 * mm, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    )
 
 
 def _pass_label(passed: bool | None) -> tuple[str, colors.Color]:
@@ -112,7 +95,7 @@ def _fmt_angle(value: float | None) -> str:
 
 def _build_cover_page(c: canvas.Canvas, results: MeasurementResultsResponse, label: str) -> None:
     """title, run metadata, and the PASS/FAIL summary table."""
-    _draw_header(c, "Measurement Results", 1)
+    _draw_header(c, "Measurement Results", 1, title_size=11, page_size=9)
     y = PAGE_H - 32 * mm
 
     c.setFillColor(colors.HexColor("#161616"))
@@ -141,7 +124,7 @@ def _build_cover_page(c: canvas.Canvas, results: MeasurementResultsResponse, lab
     c.drawString(MARGIN, y, "Transition angles (PASS / FAIL)")
     y -= 8 * mm
     _draw_summary_table(c, results, y)
-    _draw_footer(c)
+    _draw_footer(c, label="TarmacView Measurement Report", time_size=8)
 
 
 def _series_chart(results: MeasurementResultsResponse, attr: str, title: str, ylabel: str) -> bytes:
@@ -176,7 +159,7 @@ def _build_charts_page(
     c: canvas.Canvas, results: MeasurementResultsResponse, page_num: int
 ) -> None:
     """angle / intensity / chromaticity charts stacked on one page."""
-    _draw_header(c, "Measurement Results", page_num)
+    _draw_header(c, "Measurement Results", page_num, title_size=11, page_size=9)
     charts = [
         _series_chart(results, "angle", "Elevation angle vs time", "Angle (deg)"),
         _series_chart(results, "intensity", "Intensity vs time", "Intensity"),
@@ -197,7 +180,7 @@ def _build_charts_page(
             anchor="n",
         )
         y -= chart_h + 4 * mm
-    _draw_footer(c)
+    _draw_footer(c, label="TarmacView Measurement Report", time_size=8)
 
 
 def generate_measurement_report(

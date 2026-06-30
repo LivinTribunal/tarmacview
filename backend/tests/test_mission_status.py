@@ -52,12 +52,13 @@ def test_draft_cannot_complete(client, airport_id):
     assert response.status_code == 409
 
 
-def test_draft_cannot_cancel(client, airport_id):
-    """DRAFT -> CANCELLED should fail"""
+def test_draft_can_cancel(client, airport_id):
+    """DRAFT -> CANCELLED succeeds - cancel is allowed from any non-terminal status"""
     mission_id = _create_mission(client, airport_id)
 
     response = client.post(f"/api/v1/missions/{mission_id}/cancel")
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["status"] == "CANCELLED"
 
 
 def test_invalid_transition_returns_allowed(client, airport_id):
@@ -109,6 +110,22 @@ def test_measured_to_terminal_allowed(target):
     assert m.status == target
 
 
+@pytest.mark.parametrize("start", ["DRAFT", "PLANNED", "VALIDATED", "EXPORTED", "MEASURED"])
+def test_cancel_allowed_from_any_non_terminal(start):
+    """CANCELLED is reachable from every non-terminal status."""
+    m = _mission(start)
+    m.transition_to(MissionStatus.CANCELLED)
+    assert m.status == MissionStatus.CANCELLED
+
+
+@pytest.mark.parametrize("start", ["COMPLETED", "CANCELLED"])
+def test_cancel_blocked_from_terminal(start):
+    """terminal missions stay terminal - CANCELLED is not reachable from them."""
+    m = _mission(start)
+    with pytest.raises(ValueError):
+        m.transition_to(MissionStatus.CANCELLED)
+
+
 @pytest.mark.parametrize("start", ["DRAFT", "PLANNED"])
 def test_measured_blocked_before_export(start):
     """MEASURED is unreachable before VALIDATED/EXPORTED."""
@@ -155,9 +172,3 @@ def test_measured_locks_trajectory_edits():
     with pytest.raises(ValueError, match="after measurement"):
         m.invalidate_trajectory()
     assert m.status == "MEASURED"
-
-
-def test_measured_stays_deletable():
-    """MEASURED is not terminal - it can still be deleted (unlike COMPLETED/CANCELLED)."""
-    m = _mission("MEASURED")
-    m.assert_deletable()

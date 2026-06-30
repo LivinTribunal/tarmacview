@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import en from "@/i18n/locales/en.json";
 import ExportPanel, { type ExportPanelProps } from "./ExportPanel";
@@ -690,21 +690,21 @@ describe("ExportPanel - altitude clamp warning", () => {
   });
 });
 
-// lifecycle gating - complete / cancel are reachable only from MEASURED, the
-// one non-terminal status the state machine lets reach a terminal state.
+// lifecycle gating - complete only at MEASURED; cancel from any non-terminal
+// status; delete anytime. tooltips reflect the real reason a button is off.
 describe("ExportPanel - lifecycle gating", () => {
-  it("disables complete/cancel for a VALIDATED mission", () => {
+  it("disables complete but enables cancel for a VALIDATED mission", () => {
     renderPanel({ mission: makeMission({ status: "VALIDATED" }) });
 
     expect(screen.getByTestId("complete-btn")).toBeDisabled();
-    expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
   });
 
-  it("disables complete/cancel for an EXPORTED mission", () => {
+  it("disables complete but enables cancel for an EXPORTED mission", () => {
     renderPanel({ mission: makeMission({ status: "EXPORTED" }) });
 
     expect(screen.getByTestId("complete-btn")).toBeDisabled();
-    expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+    expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
   });
 
   it("enables complete/cancel for a MEASURED mission", () => {
@@ -712,6 +712,54 @@ describe("ExportPanel - lifecycle gating", () => {
 
     expect(screen.getByTestId("complete-btn")).not.toBeDisabled();
     expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
+  });
+
+  it("enables cancel from any non-terminal status", () => {
+    for (const status of ["DRAFT", "PLANNED", "VALIDATED", "EXPORTED", "MEASURED"] as const) {
+      const { unmount } = renderPanel({ mission: makeMission({ status }) });
+      expect(screen.getByTestId("cancel-mission-btn")).not.toBeDisabled();
+      unmount();
+    }
+  });
+
+  it("disables cancel for terminal statuses", () => {
+    for (const status of ["COMPLETED", "CANCELLED"] as const) {
+      const { unmount } = renderPanel({ mission: makeMission({ status }) });
+      expect(screen.getByTestId("cancel-mission-btn")).toBeDisabled();
+      unmount();
+    }
+  });
+
+  it("enables delete at any status", () => {
+    const all = [
+      "DRAFT",
+      "PLANNED",
+      "VALIDATED",
+      "EXPORTED",
+      "MEASURED",
+      "COMPLETED",
+      "CANCELLED",
+    ] as const;
+    for (const status of all) {
+      const { unmount } = renderPanel({ mission: makeMission({ status }) });
+      expect(screen.getByTestId("delete-btn")).not.toBeDisabled();
+      unmount();
+    }
+  });
+
+  it("shows the real reason in disabled-button tooltips", () => {
+    renderPanel({ mission: makeMission({ status: "VALIDATED" }) });
+    expect(screen.getByTestId("complete-btn")).toHaveAttribute(
+      "title",
+      resolveKey("mission.validationExportPage.completeTooltip"),
+    );
+    cleanup();
+
+    renderPanel({ mission: makeMission({ status: "COMPLETED" }) });
+    expect(screen.getByTestId("cancel-mission-btn")).toHaveAttribute(
+      "title",
+      resolveKey("mission.validationExportPage.cancelTooltip"),
+    );
   });
 
   it("routes complete/cancel clicks through the confirm modal for MEASURED", () => {

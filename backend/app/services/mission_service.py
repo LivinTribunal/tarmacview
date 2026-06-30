@@ -179,15 +179,10 @@ def update_mission(db: Session, mission_id: UUID, schema: MissionUpdate) -> Miss
 
 
 def delete_mission(db: Session, mission_id: UUID):
-    """delete mission - blocked for COMPLETED status."""
+    """delete mission - allowed from any status."""
     mission = db.query(Mission).filter(Mission.id == mission_id).first()
     if not mission:
         raise NotFoundError("mission not found")
-
-    try:
-        mission.assert_deletable()
-    except ValueError as e:
-        raise DomainError(str(e), status_code=409)
 
     db.delete(mission)
     db.flush()

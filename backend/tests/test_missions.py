@@ -762,17 +762,27 @@ def test_update_terminal_mission_non_trajectory_field_is_unguarded(
 
 
 @pytest.mark.parametrize("status", ["COMPLETED", "CANCELLED"])
-def test_delete_terminal_mission_returns_409(client, airport_id, db_session, status):
-    """DELETE on a terminal mission returns 409 and the mission survives."""
+def test_delete_terminal_mission_succeeds(client, airport_id, db_session, status):
+    """DELETE on a terminal mission succeeds - delete is allowed from any status."""
     mission_id = _terminal_mission(
         client, db_session, airport_id, status, f"Terminal Delete {status}"
     )
 
     response = client.delete(f"/api/v1/missions/{mission_id}")
-    assert response.status_code == 409
-    assert "cannot delete" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json()["deleted"] is True
 
-    assert client.get(f"/api/v1/missions/{mission_id}").status_code == 200
+    assert client.get(f"/api/v1/missions/{mission_id}").status_code == 404
+
+
+@pytest.mark.parametrize("status", ["DRAFT", "PLANNED", "VALIDATED", "EXPORTED", "MEASURED"])
+def test_cancel_mission_from_any_non_terminal(client, airport_id, db_session, status):
+    """POST cancel succeeds from every non-terminal status and lands CANCELLED."""
+    mission_id = _terminal_mission(client, db_session, airport_id, status, f"Cancel {status}")
+
+    response = client.post(f"/api/v1/missions/{mission_id}/cancel")
+    assert response.status_code == 200
+    assert response.json()["status"] == "CANCELLED"
 
 
 @pytest.mark.parametrize("status", ["COMPLETED", "CANCELLED"])

@@ -323,7 +323,7 @@ def cancel_mission(
     current_user: OperatorUser,
     db: Session = Depends(get_db),
 ):
-    """EXPORTED -> CANCELLED."""
+    """cancel mission - any non-terminal status -> CANCELLED."""
     check_mission_access(db, current_user, mission_id)
     result = mission_service.transition_mission(db, mission_id, "CANCELLED")
     log_audit(

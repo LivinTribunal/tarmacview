@@ -2366,7 +2366,6 @@
   },
   "fieldOps": {
     "refresh": "Refresh",
-    "hubOffline": "Field hub is offline. Cloud missions may be stale or unavailable.",
     "cloudMissions": {
       "title": "Cloud Missions",
       "empty": "No cloud missions on the field hub.",

@@ -126,7 +126,7 @@ jobs:
           claude_args: '--model claude-opus-4-8 --effort xhigh --max-turns 200 --allowedTools "Read,Glob,Grep,Bash,Edit,Write"'
           allowed_bots: 'github-actions'
 
-      - name: Open PR (as user, via PAT)
+      - name: Open PR and enable auto-merge (as user, via PAT)
         if: success()
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
@@ -143,9 +143,13 @@ jobs:
             exit 0
           fi
           TITLE="$(cat /tmp/harnext-pr-meta/title.txt)"
-          gh pr create --draft --base main --head "$BRANCH" \
+          # created ready (not draft) so auto-merge can fire once required checks pass
+          PR_URL="$(gh pr create --base main --head "$BRANCH" \
             --title "$TITLE" \
-            --body-file /tmp/harnext-pr-meta/body.md
+            --body-file /tmp/harnext-pr-meta/body.md)"
+          # squash-merge automatically once the required CI checks are green;
+          # branch protection (lint + risk gate) still blocks merge on failure
+          gh pr merge --auto --squash --delete-branch "$PR_URL"
 
       - name: Comment on PR on failure
         if: failure()

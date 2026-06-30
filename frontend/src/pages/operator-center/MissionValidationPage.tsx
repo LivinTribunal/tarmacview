@@ -161,6 +161,18 @@ export default function MissionValidationPage() {
                 selectedWarningId={selectedWarning?.id}
               />
             </div>
+
+            <div className="bg-tv-surface border border-tv-border rounded-2xl p-4">
+              <StatsPanel
+                flightPlan={flightPlan}
+                hasTrajectory={flightPlan !== null}
+                droneProfile={
+                  droneProfiles.find(
+                    (dp) => dp.id === mission.drone_profile_id,
+                  ) ?? null
+                }
+              />
+            </div>
           </>,
           leftPanelEl,
         )}
@@ -219,19 +231,6 @@ export default function MissionValidationPage() {
               onDispatched={fetchData}
               onViewResults={() =>
                 navigate(`/operator-center/missions/${id}/results`)
-              }
-              statsSlot={
-                <div className="bg-tv-surface border border-tv-border rounded-2xl p-4">
-                  <StatsPanel
-                    flightPlan={flightPlan}
-                    hasTrajectory={flightPlan !== null}
-                    droneProfile={
-                      droneProfiles.find(
-                        (dp) => dp.id === mission.drone_profile_id,
-                      ) ?? null
-                    }
-                  />
-                </div>
               }
             />
           </div>

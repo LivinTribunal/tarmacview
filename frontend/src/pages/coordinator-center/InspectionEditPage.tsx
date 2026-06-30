@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, X, Pencil, Copy, Trash2, Plus, Link } from "lucide-react";
@@ -13,6 +13,7 @@ import DetailSelectorItem from "@/components/common/DetailSelectorItem";
 import CreateTemplateDialog from "@/components/mission/CreateTemplateDialog";
 import InspectionConfigCard from "@/components/mission/InspectionConfigCard";
 import useTemplateAutosave from "@/hooks/useTemplateAutosave";
+import useToast from "@/hooks/useToast";
 import { methodBadgeStyle } from "@/utils/inspectionMethodBadge";
 import { SLOW_NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
 
@@ -24,8 +25,7 @@ export default function InspectionEditPage() {
   const { airportDetail } = useAirport();
 
   const [isRenamingName, setIsRenamingName] = useState(false);
-  const [notification, setNotification] = useState<string | null>(null);
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { message: notification, show: showNotif } = useToast(SLOW_NOTIFICATION_TIMEOUT_MS);
 
   // ui
   const [configExpanded, setConfigExpanded] = useState(true);
@@ -40,19 +40,6 @@ export default function InspectionEditPage() {
 
   // map
   const [terrainMode, setTerrainMode] = useState<"map" | "satellite">("satellite");
-
-  function showNotif(msg: string) {
-    /**show a temporary notification toast.*/
-    setNotification(msg);
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    notificationTimer.current = setTimeout(() => setNotification(null), SLOW_NOTIFICATION_TIMEOUT_MS);
-  }
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
 
   const {
     template,

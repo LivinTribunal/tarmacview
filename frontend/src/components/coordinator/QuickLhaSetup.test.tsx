@@ -149,7 +149,7 @@ describe("QuickLhaSetup", () => {
     await waitFor(() => {
       expect(mockBulk).toHaveBeenCalled();
     });
-    expect(mockBulk.mock.calls[0][3]).toMatchObject({ setting_angle: null });
+    expect(mockBulk.mock.calls[0][3]).toMatchObject({ setting_angle: null, tolerance: 0.1 });
   });
 
   it("validates missing coordinates", async () => {

@@ -1,6 +1,6 @@
 """tests for bulk LHA generation: edge-lights vs PAPI, designator caps, cumulative limits."""
 
-from tests.data.airports import AGL_PAYLOAD, AIRPORT_PAYLOAD, SURFACE_PAYLOAD
+from tests.data.airports import AGL_PAYLOAD, AIRPORT_PAYLOAD, LHA_PAYLOAD, SURFACE_PAYLOAD
 
 
 def _setup(client, icao: str, agl_type: str = "RUNWAY_EDGE_LIGHTS"):
@@ -79,14 +79,14 @@ def test_bulk_generate_rejects_same_position(client):
     assert r.status_code == 422
 
 
-def test_bulk_generate_papi_lhas_have_null_setting_angle(client):
-    """PAPI bulk-generate leaves setting_angle null for coordinator fill-in per lha."""
-    apt_id, surface_id, agl_id = _setup(client, "LZPN", agl_type="PAPI")
+def test_bulk_generate_papi_seeds_standard_setting_angles(client):
+    """PAPI bulk-generate seeds the four standard setting angles by box position."""
+    apt_id, surface_id, agl_id = _setup(client, "LZPQ", agl_type="PAPI")
 
     body = {
         "first_position": {"type": "Point", "coordinates": [14.2700, 50.1000, 380.0]},
-        "last_position": {"type": "Point", "coordinates": [14.2704, 50.1000, 380.0]},
-        "spacing_m": 10.0,
+        "last_position": {"type": "Point", "coordinates": [14.2702, 50.1000, 380.0]},
+        "spacing_m": 5.0,
     }
     r = client.post(
         f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/bulk",
@@ -94,10 +94,59 @@ def test_bulk_generate_papi_lhas_have_null_setting_angle(client):
     )
     assert r.status_code == 201
     generated = r.json()["generated"]
-    assert len(generated) >= 2
+    assert len(generated) == 4
+    angles = {lha["unit_designator"]: lha["setting_angle"] for lha in generated}
+    assert angles == {"A": 2.5, "B": 2.86, "C": 3.16, "D": 3.5}
+    # tolerance cascades from DEFAULT_LHA_TOLERANCE_DEG through the schema default
     for lha in generated:
-        assert lha["setting_angle"] is None
-        assert lha["lamp_type"] == "HALOGEN"
+        assert lha["tolerance"] == 0.1
+
+
+def test_bulk_generate_papi_explicit_setting_angle_overrides_defaults(client):
+    """an explicit request setting_angle wins over the per-box PAPI defaults."""
+    apt_id, surface_id, agl_id = _setup(client, "LZPR", agl_type="PAPI")
+
+    body = {
+        "first_position": {"type": "Point", "coordinates": [14.2700, 50.1000, 380.0]},
+        "last_position": {"type": "Point", "coordinates": [14.2702, 50.1000, 380.0]},
+        "spacing_m": 5.0,
+        "setting_angle": 3.0,
+    }
+    r = client.post(
+        f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/bulk",
+        json=body,
+    )
+    assert r.status_code == 201
+    generated = r.json()["generated"]
+    assert len(generated) == 4
+    for lha in generated:
+        assert lha["setting_angle"] == 3.0
+
+
+def test_bulk_generate_papi_partial_seeds_by_box_position(client):
+    """angles key on box position, not loop index - pre-filled A,B leave C,D at 3.16/3.5."""
+    apt_id, surface_id, agl_id = _setup(client, "LZPS", agl_type="PAPI")
+
+    # pre-create boxes A and B via the single-create endpoint
+    for designator in ("A", "B"):
+        client.post(
+            f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}/lhas",
+            json={**LHA_PAYLOAD, "unit_designator": designator},
+        )
+
+    body = {
+        "first_position": {"type": "Point", "coordinates": [14.2700, 50.1000, 380.0]},
+        "last_position": {"type": "Point", "coordinates": [14.2702, 50.1000, 380.0]},
+        "spacing_m": 5.0,
+    }
+    r = client.post(
+        f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}/lhas/bulk",
+        json=body,
+    )
+    assert r.status_code == 201
+    generated = r.json()["generated"]
+    angles = {lha["unit_designator"]: lha["setting_angle"] for lha in generated}
+    assert angles == {"C": 3.16, "D": 3.5}
 
 
 def test_bulk_generate_edge_lights_setting_angle_is_zero_not_null(client):

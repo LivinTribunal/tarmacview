@@ -55,7 +55,14 @@ export default function ValidationResultsPanel({
 }: ValidationResultsPanelProps) {
   /** per-check validation results with approve action, collapsible. */
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(missionStatus !== "PLANNED");
+
+  // auto-collapse (animated) once the operator approves: PLANNED -> non-PLANNED.
+  const [prevStatus, setPrevStatus] = useState(missionStatus);
+  if (missionStatus !== prevStatus) {
+    setPrevStatus(missionStatus);
+    if (prevStatus === "PLANNED") setCollapsed(true);
+  }
 
   const hasTrajectory = flightPlan !== null;
   const validation = flightPlan?.validation_result;
@@ -84,9 +91,10 @@ export default function ValidationResultsPanel({
   const canAccept = missionStatus === "PLANNED";
 
   return (
-    <div data-testid="validation-results-panel">
+    <div data-testid="validation-results-panel" data-collapsed={collapsed}>
       <button
         type="button"
+        data-testid="validation-results-toggle"
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center justify-between w-full text-sm font-semibold text-tv-text-primary"
       >
@@ -124,91 +132,96 @@ export default function ValidationResultsPanel({
         </div>
       </button>
 
-      {!collapsed && <div className="border-b border-tv-border -mx-4 mt-3" />}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+          collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-b border-tv-border -mx-4 mt-3" />
+          <div className="mt-3 flex flex-col gap-3">
+            {!hasTrajectory ? (
+              <p className="text-sm italic text-tv-text-muted">
+                {t("mission.validationExportPage.noData")}
+              </p>
+            ) : (
+              <>
+                {/* hard constraints */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold text-tv-text-secondary">
+                    {t("mission.validationExportPage.hardConstraints")}
+                  </span>
+                  {VALIDATION_CHECKS.flatMap((check) => {
+                    if (!check.isHard) return [];
+                    const result = getCheckResult(check, violations);
+                    return [
+                      <div
+                        key={check.key}
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-tv-bg"
+                        data-testid={`constraint-${check.key}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ResultIcon result={result} />
+                          <span className="text-sm text-tv-text-primary">
+                            {t(`mission.validationExportPage.${check.key}`)}
+                          </span>
+                        </div>
+                      </div>,
+                    ];
+                  })}
+                </div>
 
-      {!collapsed && (
-        <div className="mt-3 flex flex-col gap-3">
-          {!hasTrajectory ? (
-            <p className="text-sm italic text-tv-text-muted">
-              {t("mission.validationExportPage.noData")}
-            </p>
-          ) : (
-            <>
-              {/* hard constraints */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-tv-text-secondary">
-                  {t("mission.validationExportPage.hardConstraints")}
-                </span>
-                {VALIDATION_CHECKS.flatMap((check) => {
-                  if (!check.isHard) return [];
-                  const result = getCheckResult(check, violations);
-                  return [
-                    <div
-                      key={check.key}
-                      className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-tv-bg"
-                      data-testid={`constraint-${check.key}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <ResultIcon result={result} />
-                        <span className="text-sm text-tv-text-primary">
-                          {t(`mission.validationExportPage.${check.key}`)}
-                        </span>
-                      </div>
-                    </div>,
-                  ];
-                })}
-              </div>
+                {/* soft constraints */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-semibold text-tv-text-secondary">
+                    {t("mission.validationExportPage.softConstraints")}
+                  </span>
+                  {VALIDATION_CHECKS.flatMap((check) => {
+                    if (check.isHard) return [];
+                    const result = getCheckResult(check, violations);
+                    return [
+                      <div
+                        key={check.key}
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-tv-bg"
+                        data-testid={`constraint-${check.key}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ResultIcon result={result} />
+                          <span className="text-sm text-tv-text-primary">
+                            {t(`mission.validationExportPage.${check.key}`)}
+                          </span>
+                        </div>
+                      </div>,
+                    ];
+                  })}
+                </div>
+              </>
+            )}
 
-              {/* soft constraints */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-tv-text-secondary">
-                  {t("mission.validationExportPage.softConstraints")}
-                </span>
-                {VALIDATION_CHECKS.flatMap((check) => {
-                  if (check.isHard) return [];
-                  const result = getCheckResult(check, violations);
-                  return [
-                    <div
-                      key={check.key}
-                      className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-tv-bg"
-                      data-testid={`constraint-${check.key}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <ResultIcon result={result} />
-                        <span className="text-sm text-tv-text-primary">
-                          {t(`mission.validationExportPage.${check.key}`)}
-                        </span>
-                      </div>
-                    </div>,
-                  ];
-                })}
-              </div>
-            </>
-          )}
-
-          {/* action buttons */}
-          <div className="flex flex-col gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onNavigateConfig}
-              className="w-full px-4 py-2.5 text-sm font-semibold rounded-full transition-colors border border-tv-accent text-tv-accent hover:bg-tv-accent hover:text-tv-accent-text"
-            >
-              {t("mission.validationExportPage.editConfiguration")}
-            </button>
-            <Button
-              variant="primary"
-              onClick={onValidate}
-              disabled={!canAccept || isValidating}
-              title={isApproved ? t("mission.validationExportPage.alreadyApproved") : undefined}
-              data-testid="accept-btn"
-            >
-              {isValidating
-                ? t("mission.validationExportPage.approving")
-                : t("mission.validationExportPage.approve")}
-            </Button>
+            {/* action buttons */}
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onNavigateConfig}
+                className="w-full px-4 py-2.5 text-sm font-semibold rounded-full transition-colors border border-tv-accent text-tv-accent hover:bg-tv-accent hover:text-tv-accent-text"
+              >
+                {t("mission.validationExportPage.editConfiguration")}
+              </button>
+              <Button
+                variant="primary"
+                onClick={onValidate}
+                disabled={!canAccept || isValidating}
+                title={isApproved ? t("mission.validationExportPage.alreadyApproved") : undefined}
+                data-testid="accept-btn"
+              >
+                {isValidating
+                  ? t("mission.validationExportPage.approving")
+                  : t("mission.validationExportPage.approve")}
+              </Button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

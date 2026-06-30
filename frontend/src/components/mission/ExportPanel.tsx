@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { MissionStatus } from "@/types/enums";
 import type { DjiHeadingMode, MissionDetailResponse } from "@/types/mission";
@@ -46,7 +46,6 @@ export interface ExportPanelProps {
   onCancel: () => void;
   onDelete: () => void;
   isExporting: boolean;
-  statsSlot?: ReactNode;
   onDownloadReport?: () => void;
   isDownloadingReport?: boolean;
   hasFlightPlan?: boolean;
@@ -70,7 +69,6 @@ export default function ExportPanel({
   onCancel,
   onDelete,
   isExporting,
-  statsSlot,
   onDownloadReport,
   isDownloadingReport = false,
   hasFlightPlan = false,
@@ -343,8 +341,6 @@ export default function ExportPanel({
         hasFlightPlan={hasFlightPlan}
         onViewResults={onViewResults}
       />
-
-      {statsSlot}
 
       <MissionLifecycleSection
         canComplete={canComplete}

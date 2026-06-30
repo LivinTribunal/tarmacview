@@ -10,6 +10,7 @@ import {
   SortIndicator,
 } from "@/components/common/ListPageLayout";
 import { DEFAULT_PAGE_SIZE } from "@/constants/pagination";
+import Spinner from "./Spinner";
 
 type SortKey =
   | "icao_code"
@@ -138,27 +139,7 @@ export default function AirportSelectionView() {
 
       <ListPageContent className="rounded-2xl border border-tv-border bg-tv-surface overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <svg
-              className="h-6 w-6 animate-spin text-tv-text-muted"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-          </div>
+          <Spinner />
         ) : error ? (
           <div className="px-6 py-16 text-center text-sm text-tv-error">
             {t("airportSelection.loadError")}

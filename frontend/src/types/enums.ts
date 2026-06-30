@@ -23,18 +23,6 @@ export type CameraAction =
 
 export type CaptureMode = "VIDEO_CAPTURE" | "PHOTO_CAPTURE";
 
-export type ExportFormat =
-  | "MAVLINK"
-  | "KML"
-  | "KMZ"
-  | "JSON"
-  | "UGCS"
-  | "WPML"
-  | "CSV"
-  | "GPX"
-  | "LITCHI"
-  | "DRONEDEPLOY";
-
 export type InspectionMethod =
   | "VERTICAL_PROFILE"
   | "HORIZONTAL_RANGE"
@@ -75,6 +63,7 @@ export type SurfaceType = "RUNWAY" | "TAXIWAY";
 
 export type FlightPlanScope = "FULL" | "MEASUREMENTS_ONLY";
 
+// parity-guarded against backend app.core.enums.ConstraintType (test_enum_parity.py); keep even if unused in TS
 export type ConstraintType =
   | "ALTITUDE"
   | "SPEED"

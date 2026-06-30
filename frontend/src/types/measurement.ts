@@ -28,11 +28,6 @@ export interface MeasurementListItem {
   error_message: string | null;
 }
 
-// partial update for a measurement - sets/clears its free-text label
-export interface MeasurementUpdate {
-  label: string | null;
-}
-
 export interface ReferencePoint {
   light_name: string;
   latitude: number;

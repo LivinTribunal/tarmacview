@@ -1,5 +1,4 @@
 import type {
-  ConfirmIngestResponse,
   DroneMediaFileResponse,
   DroneMediaListResponse,
   InspectionMediaGroup,
@@ -100,15 +99,6 @@ export async function assignDroneMedia(
   missionId: string | null,
 ): Promise<DroneMediaFileResponse> {
   const res = await client.post(`/drone-media/${mediaId}/assign`, {
-    mission_id: missionId,
-  });
-  return res.data;
-}
-
-export async function confirmDroneMediaIngest(
-  missionId: string,
-): Promise<ConfirmIngestResponse> {
-  const res = await client.post("/drone-media/confirm-ingest", {
     mission_id: missionId,
   });
   return res.data;

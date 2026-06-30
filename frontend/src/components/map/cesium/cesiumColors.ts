@@ -48,10 +48,6 @@ export const SAFETY_ZONE_COLORS: Record<string, { fill: Color; outline: Color }>
   },
 };
 
-// obstacles - single color (legacy)
-export const OBSTACLE_BODY = Color.fromCssColorString(OBSTACLE_COLORS.BUILDING.fill).withAlpha(0.7);
-export const OBSTACLE_BUFFER = Color.fromCssColorString(OBSTACLE_COLORS.BUILDING.fill).withAlpha(0.1);
-
 // per-type obstacle colors matching 2d layer palette
 export const OBSTACLE_TYPE_COLORS: Record<ObstacleType, { fill: Color; outline: Color }> = {
   BUILDING: {
@@ -103,14 +99,6 @@ export function aglCesiumColor(aglType: string | null | undefined): Color {
   return AGL_COLOR_BY_TYPE[aglType] ?? AGL_COLOR;
 }
 
-// waypoint inspection colors
-export const INSPECTION_COLORS = [
-  Color.fromCssColorString(TRAJECTORY_COLORS.PATH),
-  Color.fromCssColorString(ZONE_COLORS.CTR),
-  Color.fromCssColorString(ZONE_COLORS.RESTRICTED),
-  Color.fromCssColorString(OBSTACLE_COLORS.TOWER.fill),
-  Color.fromCssColorString(OBSTACLE_COLORS.BUILDING.fill),
-];
 export const TRANSIT_COLOR = Color.fromCssColorString("#7eb8e5");
 export const MEASUREMENT_COLOR = Color.fromCssColorString(TRAJECTORY_COLORS.PATH);
 

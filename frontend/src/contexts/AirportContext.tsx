@@ -131,7 +131,6 @@ export function AirportProvider({ children }: { children: ReactNode }) {
 
   const selectAirport = useCallback(
     (airport: AirportResponse) => {
-      localStorage.setItem(AIRPORT_KEY, JSON.stringify(airport));
       setSelectedAirport(airport);
       setAirportDetail(null);
       setAirportDetailError(false);
@@ -141,7 +140,6 @@ export function AirportProvider({ children }: { children: ReactNode }) {
   );
 
   const clearAirport = useCallback(() => {
-    localStorage.removeItem(AIRPORT_KEY);
     setSelectedAirport(null);
     setAirportDetail(null);
     setAirportDetailError(false);

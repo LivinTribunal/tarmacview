@@ -116,8 +116,6 @@ export const SCAN_FIELDS = [
   "scan_frontlap_percent",
 ] as const satisfies readonly (keyof ScanConfigFields)[];
 
-export type ScanField = (typeof SCAN_FIELDS)[number];
-
 // shared core mirrored by the template-side InspectionConfigResponse in inspectionTemplate.ts
 export interface BaseInspectionConfigFields extends ScanConfigFields {
   altitude_offset: number | null;
@@ -173,44 +171,9 @@ export interface InspectionResponse {
   config: InspectionConfigResponse | null;
 }
 
-export interface InspectionConfigOverride extends Partial<ScanConfigFields> {
-  altitude_offset?: number | null;
-  angle_offset_above?: number | null;
-  angle_offset_below?: number | null;
-  measurement_speed_override?: number | null;
-  measurement_density?: number | null;
-  custom_tolerances?: Record<string, number> | null;
-  hover_duration?: number | null;
-  horizontal_distance?: number | null;
-  sweep_angle?: number | null;
-  angle_source?: AngleSource | null;
-  angle_start?: number | null;
-  angle_end?: number | null;
-  lha_ids?: string[] | null;
-  lha_selection_rules?: LhaSelectionRules | null;
-  capture_mode?: CaptureMode | null;
-  recording_setup_duration?: number | null;
-  buffer_distance?: number | null;
-  height_above_lights?: number | null;
-  lateral_offset?: number | null;
-  distance_from_lha?: number | null;
-  height_above_lha?: number | null;
-  camera_gimbal_angle?: number | null;
-  selected_lha_id?: string | null;
-  lha_setting_angle_override_id?: string | null;
-  hover_bearing?: number | null;
-  hover_bearing_reference?: "RUNWAY" | "COMPASS" | null;
-  descent_start_distance?: number | null;
-  descent_glide_slope_override?: number | null;
-  camera_mode?: CameraMode | null;
-  direction?: InspectionDirection | null;
-  white_balance?: string | null;
-  iso?: number | null;
-  shutter_speed?: string | null;
-  focus_mode?: "AUTO" | "INFINITY" | null;
-  optical_zoom?: number | null;
-  camera_preset_id?: string | null;
-}
+export type InspectionConfigOverride = Partial<
+  Omit<InspectionConfigResponse, "resolved_direction">
+>;
 
 export interface MissionCreate {
   name: string;
@@ -238,30 +201,7 @@ export interface MissionCreate {
   dji_heading_mode?: DjiHeadingMode | null;
 }
 
-export interface MissionUpdate {
-  name?: string;
-  operator_notes?: string | null;
-  drone_profile_id?: string | null;
-  date_time?: string | null;
-  default_speed?: number | null;
-  measurement_speed_override?: number | null;
-  default_altitude_offset?: number | null;
-  takeoff_coordinate?: PointZ | null;
-  landing_coordinate?: PointZ | null;
-  default_capture_mode?: CaptureMode | null;
-  default_buffer_distance?: number | null;
-  camera_mode?: CameraMode;
-  default_white_balance?: string | null;
-  default_iso?: number | null;
-  default_shutter_speed?: string | null;
-  default_focus_mode?: "AUTO" | "INFINITY" | null;
-  transit_agl?: number | null;
-  require_perpendicular_runway_crossing?: boolean;
-  keep_inside_airport_boundary?: boolean;
-  flight_plan_scope?: FlightPlanScope;
-  direction?: MissionDirection;
-  dji_heading_mode?: DjiHeadingMode | null;
-}
+export type MissionUpdate = Partial<Omit<MissionCreate, "airport_id">>;
 
 export interface InspectionCreate {
   template_id: string;

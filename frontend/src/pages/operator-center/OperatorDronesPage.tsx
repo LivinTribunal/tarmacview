@@ -8,7 +8,7 @@ import {
   Pagination,
   SearchBar,
 } from "@/components/common/ListPageLayout";
-import BulkChangeDroneModal from "@/components/drone/BulkChangeDroneModal";
+import BulkChangeDroneSimpleDialog from "@/components/drone/BulkChangeDroneSimpleDialog";
 import OperatorDroneTable from "@/components/drone/OperatorDroneTable";
 import useDroneProfileList from "@/hooks/useDroneProfileList";
 import { setDefaultDrone } from "@/api/airports";
@@ -116,7 +116,7 @@ export default function OperatorDronesPage() {
       )}
 
       {selectedAirport && (
-        <BulkChangeDroneModal
+        <BulkChangeDroneSimpleDialog
           isOpen={showBulkDialog}
           onClose={() => setShowBulkDialog(false)}
           airportId={selectedAirport.id}

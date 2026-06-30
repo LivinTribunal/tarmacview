@@ -1,6 +1,7 @@
 import { useState, useEffect, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Save, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import Button from "@/components/common/Button";
 import {
   ListPageContainer,
   ListPageContent,
@@ -332,12 +333,11 @@ export default function SuperAdminSystemPage() {
 
         {/* save */}
         <div className="flex justify-end">
-          <button
-            type="button"
+          <Button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 rounded-full bg-tv-accent px-6 py-2 text-sm font-medium text-tv-accent-text hover:opacity-90 transition-opacity disabled:opacity-50"
             data-testid="save-button"
+            className="flex items-center gap-2"
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -345,7 +345,7 @@ export default function SuperAdminSystemPage() {
               <Save className="w-4 h-4" />
             )}
             {saving ? t("admin.saving") : saved ? t("admin.saved") : t("common.save")}
-          </button>
+          </Button>
         </div>
       </ListPageContent>
     </ListPageContainer>

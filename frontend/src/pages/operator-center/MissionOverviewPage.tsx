@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { useAirport } from "@/contexts/AirportContext";
 import { useComputation } from "@/contexts/ComputationContext";
 import { useOnComputationCompleted } from "@/hooks/useOnComputationCompleted";
+import { buildInspectionIndexMap } from "@/utils/inspectionIndex";
 import { getMission, getFlightPlan } from "@/api/missions";
 import { listDroneProfiles } from "@/api/droneProfiles";
 import type { MissionDetailResponse } from "@/types/mission";
@@ -43,11 +44,7 @@ export default function MissionOverviewPage() {
   const [selectedWarning, setSelectedWarning] = useState<ValidationViolation | null>(null);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<MapFeature | null>(null);
-  const inspectionIndexMap = useMemo(() => {
-    if (!mission) return undefined;
-    const sorted = mission.inspections.slice().sort((a, b) => a.sequence_order - b.sequence_order);
-    return Object.fromEntries(sorted.map((insp, i) => [insp.id, i + 1]));
-  }, [mission]);
+  const inspectionIndexMap = useMemo(() => buildInspectionIndexMap(mission), [mission]);
 
   useOnComputationCompleted((result) => {
     setFlightPlan(result);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getDroneProfile,
   listDroneProfiles,
@@ -7,7 +7,7 @@ import { listMissions } from "@/api/missions";
 import { setDefaultDrone } from "@/api/airports";
 import { useAirport } from "@/contexts/AirportContext";
 import { MAX_LIST_LIMIT } from "@/constants/pagination";
-import { NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
+import useToast from "@/hooks/useToast";
 import { resolveModelUrl } from "@/hooks/useDroneProfileList";
 import type { DroneProfileResponse } from "@/types/droneProfile";
 import type { MissionResponse } from "@/types/mission";
@@ -28,7 +28,7 @@ interface UseOperatorDroneDetailResult {
   modelUrl: string | null;
   fetchDrone: () => void;
   toggleDefault: () => Promise<boolean>;
-  notification: string;
+  notification: string | null;
   showToast: (msg: string) => void;
 }
 
@@ -44,8 +44,7 @@ export default function useOperatorDroneDetail({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const [notification, setNotification] = useState("");
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { message: notification, show: showToast } = useToast();
 
   const defaultDroneId = selectedAirport?.default_drone_profile_id;
   const isDefault = defaultDroneId === id;
@@ -86,21 +85,6 @@ export default function useOperatorDroneDetail({
   useEffect(() => {
     fetchDrone();
   }, [fetchDrone]);
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
-
-  const showToast = useCallback((msg: string) => {
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    setNotification(msg);
-    notificationTimer.current = setTimeout(
-      () => setNotification(""),
-      NOTIFICATION_TIMEOUT_MS,
-    );
-  }, []);
 
   const toggleDefault = useCallback(async () => {
     /** toggle default drone for this airport; returns true on success. */

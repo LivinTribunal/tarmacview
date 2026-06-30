@@ -323,46 +323,34 @@ function buildMatrix(
     return finderPenaltyCountPatterns(runHistory);
   }
 
+  // penalty contributed by one row/column scan (N1 runs + N3 finder patterns)
+  function scanAxis(at: (i: number) => boolean): number {
+    let penalty = 0;
+    let runColor = false;
+    let runLen = 0;
+    const runHistory = [0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < size; i++) {
+      if (at(i) === runColor) {
+        runLen++;
+        if (runLen === 5) penalty += PENALTY_N1;
+        else if (runLen > 5) penalty++;
+      } else {
+        finderPenaltyAddHistory(runLen, runHistory);
+        if (!runColor) penalty += finderPenaltyCountPatterns(runHistory) * PENALTY_N3;
+        runColor = at(i);
+        runLen = 1;
+      }
+    }
+    penalty += finderPenaltyTerminate(runColor, runLen, runHistory) * PENALTY_N3;
+    return penalty;
+  }
+
   function getPenaltyScore(): number {
     let result = 0;
     // runs in rows
-    for (let y = 0; y < size; y++) {
-      let runColor = false;
-      let runLen = 0;
-      const runHistory = [0, 0, 0, 0, 0, 0, 0];
-      for (let x = 0; x < size; x++) {
-        if (modules[y][x] === runColor) {
-          runLen++;
-          if (runLen === 5) result += PENALTY_N1;
-          else if (runLen > 5) result++;
-        } else {
-          finderPenaltyAddHistory(runLen, runHistory);
-          if (!runColor) result += finderPenaltyCountPatterns(runHistory) * PENALTY_N3;
-          runColor = modules[y][x];
-          runLen = 1;
-        }
-      }
-      result += finderPenaltyTerminate(runColor, runLen, runHistory) * PENALTY_N3;
-    }
+    for (let y = 0; y < size; y++) result += scanAxis((x) => modules[y][x]);
     // runs in columns
-    for (let x = 0; x < size; x++) {
-      let runColor = false;
-      let runLen = 0;
-      const runHistory = [0, 0, 0, 0, 0, 0, 0];
-      for (let y = 0; y < size; y++) {
-        if (modules[y][x] === runColor) {
-          runLen++;
-          if (runLen === 5) result += PENALTY_N1;
-          else if (runLen > 5) result++;
-        } else {
-          finderPenaltyAddHistory(runLen, runHistory);
-          if (!runColor) result += finderPenaltyCountPatterns(runHistory) * PENALTY_N3;
-          runColor = modules[y][x];
-          runLen = 1;
-        }
-      }
-      result += finderPenaltyTerminate(runColor, runLen, runHistory) * PENALTY_N3;
-    }
+    for (let x = 0; x < size; x++) result += scanAxis((y) => modules[y][x]);
     // 2x2 blocks of one color
     for (let y = 0; y < size - 1; y++) {
       for (let x = 0; x < size - 1; x++) {

@@ -46,6 +46,8 @@ import MeasureInfoCard from "@/components/map/overlays/MeasureInfoCard";
 import HeadingInfoCard from "@/components/map/overlays/HeadingInfoCard";
 import useWaypointEditing from "@/hooks/useWaypointEditing";
 import useMapInteractionTools from "@/hooks/useMapInteractionTools";
+import useToast from "@/hooks/useToast";
+import { buildInspectionIndexMap } from "@/utils/inspectionIndex";
 import { SLOW_NOTIFICATION_TIMEOUT_MS } from "@/constants/ui";
 
 export default function MissionMapPage() {
@@ -70,7 +72,9 @@ export default function MissionMapPage() {
   const [flightPlan, setFlightPlan] = useState<FlightPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notification, setNotification] = useState<string | null>(null);
+  const { message: notification, show: showNotification } = useToast(
+    SLOW_NOTIFICATION_TIMEOUT_MS,
+  );
   const [revalidating, setRevalidating] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [enduranceMinutes, setEnduranceMinutes] = useState<number | null>(null);
@@ -96,22 +100,8 @@ export default function MissionMapPage() {
     return t[0] === l[0] && t[1] === l[1] && t[2] === l[2];
   }, [mission?.takeoff_coordinate, mission?.landing_coordinate]);
 
-  const notificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const isDraft = mission?.status === "DRAFT";
   const hasFlightPlan = flightPlan !== null;
-
-  useEffect(() => {
-    return () => {
-      if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    };
-  }, []);
-
-  function showNotification(msg: string) {
-    setNotification(msg);
-    if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    notificationTimer.current = setTimeout(() => setNotification(null), SLOW_NOTIFICATION_TIMEOUT_MS);
-  }
 
   // elevation resolver - shared by handleSave (drag → ground snap for TAKEOFF/LANDING)
   // and handleMapClick (PLACE_TAKEOFF / PLACE_LANDING tool placement).
@@ -235,12 +225,7 @@ export default function MissionMapPage() {
     );
   }, [effectiveWaypoints, selectedInspectionId]);
 
-  // inspection index map
-  const inspectionIndexMap = useMemo(() => {
-    if (!mission) return undefined;
-    const sorted = mission.inspections.slice().sort((a, b) => a.sequence_order - b.sequence_order);
-    return Object.fromEntries(sorted.map((insp, i) => [insp.id, i + 1]));
-  }, [mission]);
+  const inspectionIndexMap = useMemo(() => buildInspectionIndexMap(mission), [mission]);
 
   const violations = useMemo((): ValidationViolation[] => {
     return flightPlan?.validation_result?.violations ?? [];

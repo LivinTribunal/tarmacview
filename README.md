@@ -116,4 +116,4 @@ Bachelor's thesis at the Faculty of Informatics, Masaryk University.
 - **Author:** Štefan Moravík
 - **Supervisor:** doc. Ing. Václav Oujezský, Ph.D. (FI MUNI)
 - **Consultant:** Ing. Viktor Zeman (QualityUnit)
-- **License:** Apache 2.0 — see [`LICENSE`](LICENSE); copyright attribution in [`NOTICE`](NOTICE).
+- **License:** Proprietary — all rights reserved; see [`LICENSE`](LICENSE). Third-party components noted in [`NOTICE`](NOTICE).

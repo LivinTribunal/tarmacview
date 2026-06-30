@@ -1,8 +1,16 @@
 TarmacView — Drone Mission Planning Module
-Copyright 2026 Štefan Moravík
+Copyright (c) 2026 Štefan Moravík. All rights reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This software is proprietary. See LICENSE for terms.
 
-    http://www.apache.org/licenses/LICENSE-2.0
+THIRD-PARTY COMPONENTS
+----------------------
+The video-processing engine under `backend/app/services/video_processing/` and the
+reference experiment under `docs/reference/rel/` are the work of Viktor Zeman
+(github.com/vzeman/airport-lights-detection) and remain his intellectual property.
+They are NOT covered by the TarmacView proprietary license in LICENSE and may only
+be used, distributed, or sublicensed under a separate written agreement with their
+author. No such grant is implied by, or conferred through, this repository.
+
+NOTE (draft): this third-party section is a placeholder pending a written license
+or assignment from Viktor Zeman. Update it to reflect the actual terms once agreed.

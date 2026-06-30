@@ -21,14 +21,20 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
-from app.core.enums import ScanLengthAnchor, ScanLengthMode, ScanRunOrientation, ScanWidthSide
+from app.core.enums import (
+    ScanLengthAnchor,
+    ScanLengthMode,
+    ScanRunOrientation,
+    ScanWidthSide,
+    enum_check_values,
+)
 
 # enum values rendered inline into CheckConstraint bodies so the db constraint
 # and the python enum cannot drift (mirrors the airport models pattern).
-_SCAN_LENGTH_MODE_VALUES = ", ".join(f"'{m.value}'" for m in ScanLengthMode)
-_SCAN_LENGTH_ANCHOR_VALUES = ", ".join(f"'{m.value}'" for m in ScanLengthAnchor)
-_SCAN_WIDTH_SIDE_VALUES = ", ".join(f"'{m.value}'" for m in ScanWidthSide)
-_SCAN_RUN_ORIENTATION_VALUES = ", ".join(f"'{m.value}'" for m in ScanRunOrientation)
+_SCAN_LENGTH_MODE_VALUES = enum_check_values(ScanLengthMode)
+_SCAN_LENGTH_ANCHOR_VALUES = enum_check_values(ScanLengthAnchor)
+_SCAN_WIDTH_SIDE_VALUES = enum_check_values(ScanWidthSide)
+_SCAN_RUN_ORIENTATION_VALUES = enum_check_values(ScanRunOrientation)
 
 # junction tables - no ORM class needed, just a Table for many-to-many with no extra columns
 insp_template_targets = Table(

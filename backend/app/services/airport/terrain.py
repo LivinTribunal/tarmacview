@@ -8,7 +8,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
 
-from app.core.config import TERRAIN_DIR, settings
+from app.core.config import settings
 from app.core.exceptions import DomainError, NotFoundError
 from app.core.geometry import wkt_to_geojson
 from app.models.airport import Airport
@@ -27,6 +27,25 @@ MAX_BATCH_TIMEOUT_SECONDS = 60.0
 # copernicus GLO-30 COGs are tiled on a 1x1 degree grid named by their SW corner.
 # the leading "10" is the resolution code for the 30m product (90m is "30").
 _GLO30_TILE_PREFIX = "Copernicus_DSM_COG_10"
+
+
+def _write_airport_geotiff(final_path, data, transform, height: int, width: int) -> None:
+    """write a single-band float32 geotiff for an airport's DEM cache."""
+    import rasterio
+
+    with rasterio.open(
+        str(final_path),
+        "w",
+        driver="GTiff",
+        height=height,
+        width=width,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=transform,
+        nodata=GEOTIFF_NODATA,
+    ) as dst:
+        dst.write(data, 1)
 
 
 def upload_terrain_dem(
@@ -168,7 +187,6 @@ def download_terrain_for_location(
     """
     try:
         import numpy as np
-        import rasterio
         from rasterio.transform import from_bounds
     except ImportError as e:
         raise DomainError(
@@ -274,23 +292,11 @@ def download_terrain_for_location(
     # flip rows - raster origin is top-left
     data = np.flipud(data)
 
-    TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
-    final_path = TERRAIN_DIR / f"{airport_id}_api_cache.tif"
+    settings.terrain_dir.mkdir(parents=True, exist_ok=True)
+    final_path = settings.terrain_dir / f"{airport_id}_api_cache.tif"
 
     transform = from_bounds(min_lon, min_lat, max_lon, max_lat, width, height)
-    with rasterio.open(
-        str(final_path),
-        "w",
-        driver="GTiff",
-        height=height,
-        width=width,
-        count=1,
-        dtype="float32",
-        crs="EPSG:4326",
-        transform=transform,
-        nodata=GEOTIFF_NODATA,
-    ) as dst:
-        dst.write(data, 1)
+    _write_airport_geotiff(final_path, data, transform, height, width)
 
     return {
         "terrain_source": "DEM_API",
@@ -396,22 +402,10 @@ def download_srtm_for_location(
     data = mosaic[0].astype(np.float32)
     height, width = data.shape
 
-    TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
-    final_path = TERRAIN_DIR / f"{airport_id}_srtm_cache.tif"
+    settings.terrain_dir.mkdir(parents=True, exist_ok=True)
+    final_path = settings.terrain_dir / f"{airport_id}_srtm_cache.tif"
 
-    with rasterio.open(
-        str(final_path),
-        "w",
-        driver="GTiff",
-        height=height,
-        width=width,
-        count=1,
-        dtype="float32",
-        crs="EPSG:4326",
-        transform=transform,
-        nodata=GEOTIFF_NODATA,
-    ) as dst:
-        dst.write(data, 1)
+    _write_airport_geotiff(final_path, data, transform, height, width)
 
     return {
         "terrain_source": "DEM_SRTM",

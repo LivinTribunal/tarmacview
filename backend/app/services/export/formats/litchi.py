@@ -4,6 +4,7 @@ import csv
 import io
 import math
 
+from app.core.constants import METERS_PER_DEG_LAT
 from app.core.geometry import point_lonlatalt
 from app.models.flight_plan import FlightPlan
 from app.models.mission import Mission
@@ -40,9 +41,6 @@ _LITCHI_CURVE_FRACTION = 0.5
 # litchi accepts at most 15 action pairs per waypoint
 _LITCHI_MAX_ACTION_PAIRS = 15
 
-# rough metres-per-degree of latitude for the local 3d distance estimate
-_METERS_PER_DEG_LAT = 111320.0
-
 # waypoint types that carry a measurement-target / dwell
 _MEASUREMENT_TYPES = ("MEASUREMENT", "HOVER")
 
@@ -52,8 +50,8 @@ def _dist_3d(a: tuple, b: tuple) -> float:
     lon1, lat1, alt1 = a
     lon2, lat2, alt2 = b
     mean_lat = math.radians((lat1 + lat2) / 2.0)
-    dx = (lon2 - lon1) * _METERS_PER_DEG_LAT * math.cos(mean_lat)
-    dy = (lat2 - lat1) * _METERS_PER_DEG_LAT
+    dx = (lon2 - lon1) * METERS_PER_DEG_LAT * math.cos(mean_lat)
+    dy = (lat2 - lat1) * METERS_PER_DEG_LAT
     dz = alt2 - alt1
     return math.sqrt(dx * dx + dy * dy + dz * dz)
 

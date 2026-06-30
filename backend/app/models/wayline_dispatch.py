@@ -1,5 +1,6 @@
 """wayline dispatch model - mission to field-hub wayline mapping."""
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, func
@@ -42,4 +43,4 @@ class WaylineDispatch(Base):
     def mark_dispatched(self) -> None:
         """refresh the record for a (re-)dispatch - status reset, timestamp bumped."""
         self.status = DISPATCH_STATUS_DISPATCHED
-        self.dispatched_at = func.now()
+        self.dispatched_at = datetime.now(timezone.utc)

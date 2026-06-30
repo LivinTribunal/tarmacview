@@ -13,14 +13,14 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.constants import METERS_PER_DEG_LAT
 from app.core.exceptions import DomainError
 from app.core.geometry import wkt_to_geojson
 from app.models.agl import AGL, LHA
 from app.models.airport import AirfieldSurface
 
-# WGS84 1 degree -> meters at equator. mirrors EARTH_M_PER_DEG in
+# the resolver mirrors METERS_PER_DEG_LAT in
 # frontend/src/utils/resolveLhaSelection.ts - keep both in lockstep.
-EARTH_M_PER_DEG = 111_320.0
 
 
 def _point_xy(geom) -> tuple[float, float] | None:
@@ -56,11 +56,11 @@ def _along_track_distance_m(
 
     cos_lat = math.cos(math.radians(anchor_pt[1]))
     # vector from anchor toward the other endpoint
-    vx = (other_pt[0] - anchor_pt[0]) * cos_lat * EARTH_M_PER_DEG
-    vy = (other_pt[1] - anchor_pt[1]) * EARTH_M_PER_DEG
+    vx = (other_pt[0] - anchor_pt[0]) * cos_lat * METERS_PER_DEG_LAT
+    vy = (other_pt[1] - anchor_pt[1]) * METERS_PER_DEG_LAT
     # vector from anchor to lha
-    px = (lha_pt[0] - anchor_pt[0]) * cos_lat * EARTH_M_PER_DEG
-    py = (lha_pt[1] - anchor_pt[1]) * EARTH_M_PER_DEG
+    px = (lha_pt[0] - anchor_pt[0]) * cos_lat * METERS_PER_DEG_LAT
+    py = (lha_pt[1] - anchor_pt[1]) * METERS_PER_DEG_LAT
 
     v_len = math.hypot(vx, vy)
     if v_len == 0:

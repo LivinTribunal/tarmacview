@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFil
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CoordinatorUser, check_airport_access
-from app.core.config import TERRAIN_DIR
+from app.core.config import settings
 from app.core.dependencies import get_db
 from app.core.enums import AuditAction
 from app.core.exceptions import DomainError, NotFoundError
@@ -82,8 +82,8 @@ def upload_terrain_dem(
     try:
         bounds, res_x, res_y = airport_service.validate_dem_file(db, airport_id, tmp_path)
 
-        TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
-        final_path = TERRAIN_DIR / f"{airport_id}.tif"
+        settings.terrain_dir.mkdir(parents=True, exist_ok=True)
+        final_path = settings.terrain_dir / f"{airport_id}.tif"
         shutil.move(tmp_path, str(final_path))
         cleanup_path = str(final_path)
 

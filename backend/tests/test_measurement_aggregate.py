@@ -1,21 +1,17 @@
-"""measurement domain aggregate - state machine, scoring, summary rollup (no db)."""
+"""measurement orm model - state machine, scoring, summary rollup (no db flush)."""
 
 from uuid import uuid4
 
 import pytest
 
 from app.core.enums import MeasurementStatus
-from app.domain.measurement.entities import (
-    LightBox,
-    Measurement,
-    MeasurementError,
-    ReferencePoint,
-)
+from app.models.measurement import Measurement, MeasurementError
 
 
-def _measurement(**kw) -> Measurement:
-    """a fresh QUEUED measurement for one inspection."""
-    return Measurement(inspection_id=uuid4(), **kw)
+def _measurement(*, status=MeasurementStatus.QUEUED, **kw) -> Measurement:
+    """a fresh measurement row for one inspection (status set explicitly, no flush)."""
+    value = status.value if isinstance(status, MeasurementStatus) else status
+    return Measurement(inspection_id=uuid4(), status=value, **kw)
 
 
 # state machine
@@ -97,14 +93,14 @@ def test_reference_point_payload_shape():
     """the engine payload keys each ref point by light name with nominal angle."""
     m = _measurement(
         reference_points=[
-            ReferencePoint(
-                light_name="PAPI_A",
-                latitude=50.1,
-                longitude=14.2,
-                elevation=380.0,
-                setting_angle=3.0,
-                tolerance=0.5,
-            )
+            {
+                "light_name": "PAPI_A",
+                "latitude": 50.1,
+                "longitude": 14.2,
+                "elevation": 380.0,
+                "setting_angle": 3.0,
+                "tolerance": 0.5,
+            }
         ]
     )
     payload = m.reference_point_payload()
@@ -119,30 +115,44 @@ def test_score_light_pass_fail_unknown():
     bad = Measurement.score_light("PAPI_B", 3.0, 0.5, 4.0)
     unknown = Measurement.score_light("PAPI_C", 3.0, 0.5, None)
     no_truth = Measurement.score_light("PAPI_D", None, None, 3.0)
-    assert ok.passed is True
-    assert bad.passed is False
-    assert unknown.passed is None
-    assert no_truth.passed is None
+    assert ok["passed"] is True
+    assert bad["passed"] is False
+    assert unknown["passed"] is None
+    assert no_truth["passed"] is None
 
 
 def test_with_summaries_from_rolls_up_by_light_name():
     """summaries are built only for lights that have a reference point."""
     m = _measurement(
         reference_points=[
-            ReferencePoint("PAPI_A", 50.1, 14.2, 380.0, setting_angle=3.0, tolerance=0.5),
-            ReferencePoint("PAPI_B", 50.1, 14.2, 380.0, setting_angle=3.0, tolerance=0.5),
+            {
+                "light_name": "PAPI_A",
+                "latitude": 50.1,
+                "longitude": 14.2,
+                "elevation": 380.0,
+                "setting_angle": 3.0,
+                "tolerance": 0.5,
+            },
+            {
+                "light_name": "PAPI_B",
+                "latitude": 50.1,
+                "longitude": 14.2,
+                "elevation": 380.0,
+                "setting_angle": 3.0,
+                "tolerance": 0.5,
+            },
         ]
     )
     m.with_summaries_from({"PAPI_A": 3.1, "PAPI_B": 4.5})
-    by_name = {s.light_name: s for s in m.summaries}
+    by_name = {s["light_name"]: s for s in m.summaries}
     assert len(m.summaries) == 2
-    assert by_name["PAPI_A"].passed is True
-    assert by_name["PAPI_B"].passed is False
+    assert by_name["PAPI_A"]["passed"] is True
+    assert by_name["PAPI_B"]["passed"] is False
 
 
 def test_confirm_boxes_replaces_boxes():
     """confirm_boxes stores the operator-adjusted set."""
     m = _measurement()
-    m.confirm_boxes([LightBox("PAPI_A", 10.0, 50.0, 8.0)])
+    m.confirm_boxes([{"light_name": "PAPI_A", "x": 10.0, "y": 50.0, "size": 8.0}])
     assert len(m.light_boxes) == 1
-    assert m.light_boxes[0].light_name == "PAPI_A"
+    assert m.light_boxes[0]["light_name"] == "PAPI_A"

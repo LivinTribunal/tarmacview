@@ -612,19 +612,19 @@ class TestAglViolationSeverity:
 
 
 class TestTerrainDirConfig:
-    """tests for consolidated TERRAIN_DIR constant."""
+    """tests for the settings.terrain_dir path."""
 
     def test_terrain_dir_is_absolute(self):
-        """TERRAIN_DIR is an absolute path."""
-        from app.core.config import TERRAIN_DIR
+        """settings.terrain_dir is an absolute path."""
+        from app.core.config import settings
 
-        assert TERRAIN_DIR.is_absolute()
+        assert settings.terrain_dir.is_absolute()
 
     def test_terrain_dir_ends_with_data_terrain(self):
-        """TERRAIN_DIR points to data/terrain under project root."""
-        from app.core.config import TERRAIN_DIR
+        """settings.terrain_dir points to data/terrain under project root."""
+        from app.core.config import settings
 
-        assert TERRAIN_DIR.parts[-2:] == ("data", "terrain")
+        assert settings.terrain_dir.parts[-2:] == ("data", "terrain")
 
 
 class TestCreateElevationProviderDEM:
@@ -1204,9 +1204,9 @@ class TestDownloadTerrainForLocation:
         if tmp_path:
             mock_terrain_dir.__truediv__ = lambda self, name: tmp_path / name
         mock_terrain_dir.mkdir = MagicMock()
+        mock_settings.terrain_dir = mock_terrain_dir
 
         patches = [
-            patch("app.services.airport.terrain.TERRAIN_DIR", mock_terrain_dir),
             patch.dict(
                 sys.modules,
                 {"numpy": mock_np, "rasterio": mock_rio, "rasterio.transform": mock_rio.transform},
@@ -1257,11 +1257,11 @@ class TestDownloadTerrainForLocation:
         mock_rio = _mock_rasterio()
         mock_terrain_dir = MagicMock()
         mock_terrain_dir.mkdir = MagicMock()
+        mock_settings.terrain_dir = mock_terrain_dir
 
         from contextlib import ExitStack
 
         with ExitStack() as stack:
-            stack.enter_context(patch("app.services.airport.terrain.TERRAIN_DIR", mock_terrain_dir))
             stack.enter_context(
                 patch.dict(
                     sys.modules,
@@ -1302,11 +1302,11 @@ class TestDownloadTerrainForLocation:
         mock_rio = _mock_rasterio()
         mock_terrain_dir = MagicMock()
         mock_terrain_dir.mkdir = MagicMock()
+        mock_settings.terrain_dir = mock_terrain_dir
 
         from contextlib import ExitStack
 
         with ExitStack() as stack:
-            stack.enter_context(patch("app.services.airport.terrain.TERRAIN_DIR", mock_terrain_dir))
             stack.enter_context(
                 patch.dict(
                     sys.modules,

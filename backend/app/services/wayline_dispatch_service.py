@@ -13,6 +13,7 @@ from app.core.exceptions import DomainError, NotFoundError
 from app.models.mission import DroneProfile, Mission
 from app.models.wayline_dispatch import WaylineDispatch
 from app.services import export as export_service
+from app.services.field_link_service import _hub_client
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +54,8 @@ def _post_kmz_to_hub(
     if not settings.fieldhub_url:
         raise DomainError("field hub is not configured", status_code=502)
 
-    verify = settings.fieldhub_ca if settings.fieldhub_ca else True
     try:
-        with httpx.Client(
-            base_url=settings.fieldhub_url,
-            timeout=settings.fieldhub_timeout,
-            verify=verify,
-            transport=transport,
-        ) as client:
+        with _hub_client(transport) as client:
             response = client.post(
                 REGISTER_PATH,
                 headers={"X-Hub-Secret": settings.fieldhub_shared_secret},

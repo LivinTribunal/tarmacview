@@ -75,6 +75,7 @@ from app.services.airport.terrain import (
     get_airport_lonlat,
     get_dem_file_path,
     upload_terrain_dem,
+    validate_dem_file,
 )
 
 __all__ = [
@@ -128,4 +129,5 @@ __all__ = [
     "update_safety_zone",
     "update_surface",
     "upload_terrain_dem",
+    "validate_dem_file",
 ]

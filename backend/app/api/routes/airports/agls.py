@@ -104,13 +104,14 @@ def delete_agl(
 ):
     """delete AGL."""
     check_airport_access(current_user, airport_id)
-    airport_service.delete_agl(db, airport_id, surface_id, agl_id)
+    agl = airport_service.delete_agl(db, airport_id, surface_id, agl_id)
     log_audit(
         db,
         current_user,
         AuditAction.DELETE,
         entity_type="AGL",
         entity_id=agl_id,
+        entity_name=agl.name,
         details={"airport_id": str(airport_id), "surface_id": str(surface_id)},
         ip_address=request.client.host if request.client else None,
         airport_id=airport_id,

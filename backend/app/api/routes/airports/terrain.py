@@ -55,18 +55,6 @@ def _stream_upload_to_tempfile(file: UploadFile) -> str:
     return tmp_path
 
 
-def _read_dem_bounds_and_resolution(rasterio_module, tmp_path: str) -> tuple[list, float, float]:
-    """validate the DEM is WGS84 and return its (bounds, res_x, res_y)."""
-    with rasterio_module.open(tmp_path) as dataset:
-        if dataset.crs is None or dataset.crs.to_epsg() != 4326:
-            raise HTTPException(status_code=400, detail="DEM must be in WGS84 (EPSG:4326)")
-
-        bounds = list(dataset.bounds)
-        res_x = abs(dataset.transform.a)
-        res_y = abs(dataset.transform.e)
-    return bounds, res_x, res_y
-
-
 @router.post("/{airport_id}/terrain-dem", response_model=TerrainUploadResponse)
 def upload_terrain_dem(
     airport_id: UUID,
@@ -81,13 +69,6 @@ def upload_terrain_dem(
     # AGL / LHA / mission takeoff-landing coord against the new DEM; rewrite_existing=false
     # lets new entities use the DEM while persisted altitudes stay untouched
     check_airport_access(current_user, airport_id)
-    try:
-        import rasterio
-    except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail="rasterio not installed - DEM upload not available",
-        )
 
     if not file.filename or not file.filename.lower().endswith((".tif", ".tiff")):
         raise HTTPException(status_code=400, detail="file must be a GeoTIFF (.tif/.tiff)")
@@ -99,13 +80,7 @@ def upload_terrain_dem(
     cleanup_path = tmp_path
 
     try:
-        bounds, res_x, res_y = _read_dem_bounds_and_resolution(rasterio, tmp_path)
-
-        airport = airport_service.get_airport(db, airport_id)
-        apt_lon, apt_lat = airport_service.get_airport_lonlat(airport)
-
-        if not (bounds[0] <= apt_lon <= bounds[2] and bounds[1] <= apt_lat <= bounds[3]):
-            raise HTTPException(status_code=400, detail="DEM does not cover airport location")
+        bounds, res_x, res_y = airport_service.validate_dem_file(db, airport_id, tmp_path)
 
         TERRAIN_DIR.mkdir(parents=True, exist_ok=True)
         final_path = TERRAIN_DIR / f"{airport_id}.tif"

@@ -109,6 +109,8 @@ def delete_obstacle(db: Session, airport_id: UUID, obstacle_id: UUID):
     db.delete(obstacle)
     db.flush()
 
+    return obstacle
+
 
 def recalculate_obstacle_dimensions(db: Session, airport_id: UUID, obstacle_id: UUID) -> dict:
     """compute obstacle dimensions from boundary, returns current + recalculated."""

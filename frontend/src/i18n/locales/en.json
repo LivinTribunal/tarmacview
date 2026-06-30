@@ -1000,6 +1000,7 @@
       "acceptError": "Failed to validate mission",
       "export": "Export Mission Data",
       "formatLabel": "Format",
+      "advancedOptions": "Advanced Options",
       "formatKml": "KML",
       "formatKmlDesc": "Google Earth viewer format",
       "formatKmz": "KMZ (DJI)",
@@ -1098,7 +1099,7 @@
       }
     },
     "missionReport": {
-      "title": "Mission Technical Report",
+      "title": "Reports & Results",
       "download": "Download Mission Report (PDF)",
       "description": "Technical report with maps, altitude profile, and timeline",
       "generating": "Generating Mission Report...",
@@ -1113,7 +1114,6 @@
       "telemetryOffline": "Telemetry offline"
     },
     "fieldHub": {
-      "open": "Field Hub",
       "title": "Field Hub connection",
       "connecting": "Checking hub status…",
       "connectAddress": "Connect address",
@@ -1145,16 +1145,15 @@
       "caError": "CA certificate not available"
     },
     "sendToDrone": {
-      "title": "Send to Drone",
-      "description": "Push the mission into DJI Pilot 2's route library over the field link",
       "send": "Send to drone",
+      "online": "Online",
+      "offline": "Offline",
       "sendAnyway": "Acknowledge clamps and send",
       "sending": "Sending...",
       "success": "Mission sent – it will appear in Pilot's route library",
       "error": "Failed to send the mission to the drone",
       "clampWarning": "Some altitudes were clamped to the takeoff reference. Review the altitude warning, then acknowledge to send.",
-      "hubOffline": "Field hub not connected",
-      "statusGate": "Mission must be validated first"
+      "hubOffline": "Field hub not connected"
     },
     "uploadDroneMediaDialog": {
       "title": "Upload Drone Media",

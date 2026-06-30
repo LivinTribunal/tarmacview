@@ -6,13 +6,16 @@ interface MissionReportSectionProps {
   onDownloadReport?: () => void;
   isDownloadingReport: boolean;
   hasFlightPlan: boolean;
+  /** opens the mission's measurements list (results entry point). */
+  onViewResults?: () => void;
 }
 
-/** technical report download card. */
+/** reports & results card - technical report download + view results. */
 export default function MissionReportSection({
   onDownloadReport,
   isDownloadingReport,
   hasFlightPlan,
+  onViewResults,
 }: MissionReportSectionProps) {
   const { t } = useTranslation();
   return (
@@ -42,6 +45,17 @@ export default function MissionReportSection({
           ? t("mission.missionReport.generating")
           : t("mission.missionReport.download")}
       </Button>
+
+      {onViewResults && (
+        <Button
+          variant="secondary"
+          onClick={onViewResults}
+          className="w-full mt-2"
+          data-testid="view-results-btn"
+        >
+          {t("measurementsList.viewResults")}
+        </Button>
+      )}
     </div>
   );
 }

@@ -1004,6 +1004,7 @@
       "acceptError": "Validácia misie zlyhala",
       "export": "Exportovať údaje misie",
       "formatLabel": "Formát",
+      "advancedOptions": "Rozšírené možnosti",
       "formatKml": "KML",
       "formatKmlDesc": "Formát pre Google Earth viewer",
       "formatKmz": "KMZ (DJI)",
@@ -1102,7 +1103,7 @@
       }
     },
     "missionReport": {
-      "title": "Technický report misie",
+      "title": "Reporty a výsledky",
       "download": "Stiahnuť report misie (PDF)",
       "description": "Technický report s mapami, výškovým profilom a časovou osou",
       "generating": "Generuje sa report misie...",
@@ -1117,7 +1118,6 @@
       "telemetryOffline": "Telemetria offline"
     },
     "fieldHub": {
-      "open": "Field Hub",
       "title": "Pripojenie k Field Hubu",
       "connecting": "Zisťuje sa stav hubu…",
       "connectAddress": "Adresa pripojenia",
@@ -1149,16 +1149,15 @@
       "caError": "CA certifikát nie je dostupný"
     },
     "sendToDrone": {
-      "title": "Odoslať do drona",
-      "description": "Odošle misiu do knižnice trás DJI Pilot 2 cez field link",
       "send": "Odoslať do drona",
+      "online": "Online",
+      "offline": "Offline",
       "sendAnyway": "Potvrdiť orezanie a odoslať",
       "sending": "Odosiela sa...",
       "success": "Misia odoslaná – zobrazí sa v knižnici trás Pilota",
       "error": "Odoslanie misie do drona zlyhalo",
       "clampWarning": "Niektoré výšky boli orezané na referenčnú výšku vzletu. Skontrolujte výškové upozornenie a potvrďte odoslanie.",
-      "hubOffline": "Field hub nepripojený",
-      "statusGate": "Misia musí byť najskôr validovaná"
+      "hubOffline": "Field hub nepripojený"
     },
     "uploadDroneMediaDialog": {
       "title": "Nahrať médiá z drona",

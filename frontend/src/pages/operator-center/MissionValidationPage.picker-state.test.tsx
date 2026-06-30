@@ -316,6 +316,8 @@ describe("MissionValidationPage picker state survival", () => {
       const select = (await screen.findByTestId("format-select")) as HTMLSelectElement;
       // MAVLINK is geozone-capable and not a WPMZ format - clean direct export
       fireEvent.change(select, { target: { value: "MAVLINK" } });
+      // geozone controls live in the collapsed-by-default Advanced Options
+      fireEvent.click(screen.getByTestId("advanced-options-toggle"));
       const geozonesCheckbox = screen.getByTestId("include-geozones");
       fireEvent.click(geozonesCheckbox);
       expect(select.value).toBe("MAVLINK");

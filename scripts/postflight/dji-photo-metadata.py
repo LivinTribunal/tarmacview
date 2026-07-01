@@ -12,7 +12,6 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import sys
 
@@ -51,8 +50,7 @@ def main() -> int:
 
     if args.out:
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-        with open(args.out, "w", encoding="utf-8") as fh:
-            json.dump(results, fh, indent=2, default=float)
+        pf.write_json(args.out, results)
         print(f"-> {args.out}")
     return 0
 

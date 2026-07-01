@@ -68,7 +68,7 @@ def dispatch_trajectory(
     target_lha_position=None,
     target_agl_type=None,
     runway_center=None,
-    touchpoint=None,
+    meht_point=None,
     scan_surface=None,
     sensor_fov=None,
     drone=None,
@@ -95,7 +95,7 @@ def dispatch_trajectory(
         target_lha_pos=target_lha_position,
         target_agl_type=target_agl_type,
         runway_center=runway_center,
-        touchpoint=touchpoint,
+        meht_point=meht_point,
         scan_surface=scan_surface,
     )
     return compute_measurement_trajectory(ctx, prep)

@@ -260,7 +260,8 @@ class MethodPrep:
     target_lha_pos: Point3D | None = None
     target_agl_type: str | None = None
     rwy_heading_override: float | None = None
-    touchpoint: Point3D | None = None
+    # approach-descent: MEHT point over the threshold used as the terminal hover + terrain anchor
+    meht_point: Point3D | None = None
     # surface-scan: resolved target surface, run count, and the per-image
     # ground footprint; suggestion carries the suboptimal-run-count hint.
     scan_surface: AirfieldSurface | None = None
@@ -275,7 +276,7 @@ class MethodContext:
 
     bundles the always-present pass inputs so prepares take `(ctx)` and handlers
     take `(ctx, prep)` instead of a 16-kwarg fan-out. method-specific resolved
-    values (touchpoint, runway_center, target lha, scan surface) live on
+    values (meht_point, runway_center, target lha, scan surface) live on
     MethodPrep, not here. `speed` is the resolved transit speed the handler
     flies; prepares run before speed resolution and read `default_speed`.
     """

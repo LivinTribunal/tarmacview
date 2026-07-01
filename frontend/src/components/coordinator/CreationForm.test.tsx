@@ -30,6 +30,7 @@ const baseSurface: SurfaceResponse = {
       glide_slope_angle: 3.0,
       glide_slope_angle_tolerance: null,
       distance_from_threshold: 300,
+      meht_height_m: null,
       offset_from_centerline: null,
       position: { type: "Point", coordinates: [17.0, 48.0, 0] },
       lhas: [],
@@ -279,6 +280,7 @@ describe("CreationForm", () => {
       glide_slope_angle: 3.0,
       glide_slope_angle_tolerance: null,
       distance_from_threshold: 300,
+      meht_height_m: null,
       offset_from_centerline: null,
       position: { type: "Point" as const, coordinates: [17.0, 48.0, 0] as [number, number, number] },
       lhas: [
@@ -320,6 +322,7 @@ describe("CreationForm", () => {
       glide_slope_angle: null,
       glide_slope_angle_tolerance: null,
       distance_from_threshold: null,
+      meht_height_m: null,
       offset_from_centerline: null,
       position: { type: "Point" as const, coordinates: [17.0, 48.0, 0] as [number, number, number] },
       lhas: [

@@ -22,6 +22,7 @@ const agl: AGLResponse = {
   glide_slope_angle: null,
   glide_slope_angle_tolerance: null,
   distance_from_threshold: null,
+  meht_height_m: null,
   offset_from_centerline: null,
   lhas: [],
 };

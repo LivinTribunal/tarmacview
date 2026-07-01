@@ -44,6 +44,9 @@ class AGL(Base):
         Float, nullable=True, default=DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
     )
     distance_from_threshold = Column(Float)
+    # surveyed/published minimum eye height over threshold (m); null -> derived
+    # from distance_from_threshold * tan(glide_slope) at trajectory time
+    meht_height_m = Column(Float, nullable=True)
     offset_from_centerline = Column(Float)
 
     surface = relationship("AirfieldSurface", back_populates="agls")

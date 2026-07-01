@@ -113,9 +113,10 @@ def compute_measurement_trajectory(ctx: MethodContext, prep: MethodPrep) -> list
             # max(setting_angles) + angle_offset), so feed it back to the recompute.
             fixed_angle = ctx.glide_slope
         elif method == InspectionMethod.APPROACH_DESCENT:
-            # the descent glide slope is anchored on the touchpoint, not the LHA.
+            # the descent glide slope is anchored on the meht point over the
+            # threshold, not the LHA.
             fixed_angle = resolve_descent_angle(ctx.config, ctx.glide_slope)
-            terrain_anchor = prep.touchpoint if prep.touchpoint is not None else ctx.center
+            terrain_anchor = prep.meht_point if prep.meht_point is not None else ctx.center
         else:
             # vertical profile waypoints encode their own commanded angle in the
             # pre-shift altitude; recover per-waypoint instead of using a constant.

@@ -286,6 +286,26 @@ def _resolve_remote_backend(db) -> RemoteElevationProvider | None:
     return cls(api_key=api_key)
 
 
+def resolve_dem_file_path(stored_path: str | None) -> str | None:
+    """map a stored dem_file_path to a tarmacview-local absolute path.
+
+    a legacy absolute path (e.g. into the old drone-mission-planning-module
+    repo) that no longer exists, or a portable basename, both resolve to
+    settings.terrain_dir / <basename>. an absolute path that still exists is
+    returned as-is (custom deployments).
+    """
+    if not stored_path:
+        return None
+
+    import os
+
+    from app.core.config import settings
+
+    if os.path.isabs(stored_path) and os.path.exists(stored_path):
+        return stored_path
+    return str(settings.terrain_dir / os.path.basename(stored_path))
+
+
 def create_elevation_provider(airport, *, allow_api: bool = False, db=None) -> ElevationProvider:
     """select provider based on airport terrain source and the opt-in flag.
 
@@ -301,7 +321,7 @@ def create_elevation_provider(airport, *, allow_api: bool = False, db=None) -> E
     terrain_source = getattr(airport, "terrain_source", None) or "FLAT"
 
     if terrain_source in ("DEM", "DEM_UPLOAD", "DEM_API", "DEM_SRTM"):
-        dem_path = getattr(airport, "dem_file_path", None)
+        dem_path = resolve_dem_file_path(getattr(airport, "dem_file_path", None))
         if dem_path:
             try:
                 return DEMElevationProvider(dem_path, airport.elevation)

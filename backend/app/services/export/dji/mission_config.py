@@ -52,11 +52,16 @@ _M4T_FALLBACK_ENUM = DJI_WPML_M4T_FALLBACK_ENUM
 
 # globalRTHHeight is takeoff-relative per the dji wpml spec (sibling of
 # takeOffSecurityHeight). it must clear the highest waypoint in that same
-# relative frame by this margin, never fall below the floor, and never exceed
-# dji's documented [2,1500] ceiling. the floor doubles as the all-failure
-# fallback so a mission can never fail to export over an rth computation.
+# relative frame by this margin and stay inside dji's documented [2,1500]
+# range. the floor is the wpml spec minimum (not a safety floor): for any real
+# route the 20 m margin dominates (ceil(0 + 20) = 20), so the route-derived
+# value always wins - a low papi mission returns at highest-wp + 20 m instead
+# of the old hardcoded 100 m that made the m4t reject the wayline (error 513)
+# when Max Flight Altitude was at/below ~100 m. the floor doubles as the
+# all-failure fallback so a mission can never fail to export over an rth
+# computation.
 _RTH_MARGIN_M = 20
-_MIN_RTH_HEIGHT_M = 100
+_MIN_RTH_HEIGHT_M = 2
 _MAX_RTH_HEIGHT_M = 1500
 
 # wpml 1.0.6 documents globalTransitionalSpeed range as [0, 15]; emitting the
@@ -68,6 +73,13 @@ _MAX_GLOBAL_TRANSITIONAL_SPEED = 14
 # fallback when mission.default_speed is missing / zero; matches the cruise
 # speed dji uses in its own canonical samples.
 _DEFAULT_GLOBAL_TRANSITIONAL_SPEED = 8
+
+# cruise floor for autoFlightSpeed when mission.default_speed is null/zero on a
+# MEASUREMENTS_ONLY export - the first waypoint is a slow measurement (~0.5 m/s)
+# and pilot rc rejects a wayline whose autoFlightSpeed is below cruise. matches
+# the dji canonical-sample cruise; kept separate from
+# _DEFAULT_GLOBAL_TRANSITIONAL_SPEED so the two wpml fields can diverge.
+_DEFAULT_AUTO_FLIGHT_SPEED = 8
 
 
 def drone_supports_dji_wpml(drone_profile) -> bool:
@@ -132,8 +144,10 @@ def _global_rth_height(flight_plan, mission, airport_elevation: float) -> int:
     globalRTHHeight is relative to the takeoff point per the dji wpml spec - the
     same frame the wayline executeHeight now uses (relativeToStartPoint). it
     must clear the highest waypoint in that frame (max(wp.alt) - takeoff_msl)
-    plus a margin, clamped to dji's [100, 1500]. any data gap falls back to the
-    floor so a mission never fails to export.
+    plus a margin, clamped to dji's [2, 1500]. the 20 m margin dominates the
+    floor for any real route, so a low papi mission returns route-derived
+    instead of the old 100 m. any data gap falls back to the floor so a mission
+    never fails to export.
     """
     try:
         waypoints = sorted(flight_plan.waypoints, key=_waypoint_sort_key)
@@ -263,16 +277,19 @@ def _max_relative_height(waypoints, reference_msl: float) -> float:
 
 
 def _resolve_auto_speed(waypoints, mission, scope: str) -> str:
-    """pick autoFlightSpeed - cruise speed for MEASUREMENTS_ONLY, first-wp otherwise.
+    """pick autoFlightSpeed - cruise for MEASUREMENTS_ONLY, first-wp otherwise.
 
-    pilot RC rejects waylines whose autoFlightSpeed is below the drone's cruise
+    pilot rc rejects waylines whose autoFlightSpeed is below the drone's cruise
     threshold. in MEASUREMENTS_ONLY the first waypoint is a slow measurement
-    (often <5 m/s), so we fall back to mission.default_speed when set.
+    (often <5 m/s): use mission.default_speed when it is a usable positive
+    value, otherwise floor to _DEFAULT_AUTO_FLIGHT_SPEED so a null/zero
+    default_speed can never leak the slow measurement speed into cruise.
     """
-    if scope == "MEASUREMENTS_ONLY" and mission is not None:
-        default = getattr(mission, "default_speed", None)
-        if default:
+    if scope == "MEASUREMENTS_ONLY":
+        default = getattr(mission, "default_speed", None) if mission is not None else None
+        if isinstance(default, (int, float)) and not isinstance(default, bool) and default > 0:
             return f"{default:g}"
+        return f"{_DEFAULT_AUTO_FLIGHT_SPEED:g}"
     return f"{waypoints[0].speed or 5:g}" if waypoints else "10"
 
 

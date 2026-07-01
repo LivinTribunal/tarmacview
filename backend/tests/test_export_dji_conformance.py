@@ -51,7 +51,7 @@ _GLOBAL_TRANSITIONAL_SPEED_CEILING = 15.0
 # waypointSpeed range is (0, max_drone_speed]; M4T max_speed is 21, so a 30 m/s
 # ceiling is generous - the rule that bites is the strict `> 0` lower bound (-6).
 _MAX_WAYPOINT_SPEED = 30.0
-_RTH_MIN_M = 100
+_RTH_MIN_M = 2  # wpml globalRTHHeight range is [2, 1500]
 _RTH_MAX_M = 1500
 _MIN_TAKEOFF_SECURITY_HEIGHT_M = 1.2  # wpml [1.2, 1500] (-15 InvalidSecurityTakeOffHeight)
 _VALID_HEADING_MODES = {"smoothTransition", "towardPOI", "followWayline"}
@@ -239,7 +239,7 @@ def assert_valid_dji_wpml(
     )
 
     if is_waylines:
-        # globalRTHHeight within [100, 1500] AND >= the route peak (max
+        # globalRTHHeight within [2, 1500] AND >= the route peak (max
         # executeHeight) so RTH never drops below the highest waypoint - DJI
         # rejects "RTH altitude lower than the highest point of flight route".
         rth = int(config.findtext("wpml:globalRTHHeight", namespaces=_NS))
@@ -479,15 +479,15 @@ class TestDjiWpmlValidator:
 
     def test_rth_below_route_peak_trips_validator(self):
         """a globalRTHHeight below the route peak fails even when within clamp."""
-        # high VP climb so the route peak clears the 100 m RTH floor and the
-        # only rule a low RTH can break is the route-peak check.
+        # high VP climb so the route peak is well above the spec RTH floor and
+        # the only rule a low RTH can break is the route-peak check.
         fp, mission = _make_method_pass("VERTICAL_PROFILE", "PHOTO_CAPTURE")
         measurements = [wp for wp in fp.waypoints if wp.waypoint_type == "MEASUREMENT"]
         for i, wp in enumerate(measurements):
             wp.position = _make_wkt_point(_LON0, _LAT0, _GROUND + 400 + i * 10)
         _, waylines = _read_wpmz(_gen_kmz(fp, "Test", _GROUND, mission=mission))
         rth = int(ET.fromstring(waylines).findtext(".//wpml:globalRTHHeight", namespaces=_NS))
-        assert rth > _RTH_MIN_M, "fixture must drive RTH above the 100 m floor"
+        assert rth > _RTH_MIN_M, "fixture must drive RTH above the spec floor"
         broken = waylines.replace(
             f"<wpml:globalRTHHeight>{rth}</wpml:globalRTHHeight>",
             f"<wpml:globalRTHHeight>{_RTH_MIN_M}</wpml:globalRTHHeight>",

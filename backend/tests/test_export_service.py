@@ -604,7 +604,7 @@ class TestGenerateKmz:
 
     def test_mission_config_has_rc_lost_and_rth(self):
         """missionConfig carries goContinue/goBack; globalRTHHeight scoped to waylines."""
-        # use a WP at the airport ground so the RTH ceiling clamps to the 100 m floor
+        # all WPs at airport ground -> relative 0 -> RTH is the 20 m margin
         fp = _make_flight_plan(1)
         for wp in fp.waypoints:
             wp.position = _make_wkt_point(18.11, 49.69, 290.0)
@@ -615,7 +615,7 @@ class TestGenerateKmz:
         assert "<wpml:executeRCLostAction>goBack</wpml:executeRCLostAction>" in template
         # globalRTHHeight is a waylines-only element per common-element.md
         assert "<wpml:globalRTHHeight>" not in template
-        assert "<wpml:globalRTHHeight>100</wpml:globalRTHHeight>" in waylines
+        assert "<wpml:globalRTHHeight>20</wpml:globalRTHHeight>" in waylines
         # waylineAvoidLimitAreaMode is not in the WPML spec - dropped per audit §2.1
         assert "waylineAvoidLimitAreaMode" not in template
         assert "waylineAvoidLimitAreaMode" not in waylines
@@ -1684,7 +1684,7 @@ class TestGenerateKmz:
     def test_kmz_full_uses_relative_height_mode(self):
         """FULL export emits executeHeightMode=relativeToStartPoint."""
         fp = _make_flight_plan(3)
-        # collapse all WPs onto the airport ground so RTH ceiling falls to the 100 m floor
+        # collapse all WPs onto the airport ground -> relative 0 -> RTH is the 20 m margin
         for wp in fp.waypoints:
             wp.position = _make_wkt_point(18.11, 49.69, 290.0)
 
@@ -1694,7 +1694,7 @@ class TestGenerateKmz:
         assert "<wpml:takeOffSecurityHeight>1.5</wpml:takeOffSecurityHeight>" in template
         # globalRTHHeight scoped to waylines.wpml only (audit §2.2)
         assert "<wpml:globalRTHHeight>" not in template
-        assert "<wpml:globalRTHHeight>100</wpml:globalRTHHeight>" in waylines
+        assert "<wpml:globalRTHHeight>20</wpml:globalRTHHeight>" in waylines
 
     def test_kmz_measurements_only_structure(self):
         """MEASUREMENTS_ONLY export uses pilot-RC-compatible config.
@@ -1764,6 +1764,46 @@ class TestGenerateKmz:
         # clears the highest waypoint plus margin (not 100).
         assert "<wpml:globalRTHHeight>" not in template
         assert "<wpml:globalRTHHeight>180</wpml:globalRTHHeight>" in waylines
+
+    def test_measurements_only_null_default_speed_floors_auto_flight_speed(self):
+        """#231 fix 2 - a null default_speed floors autoFlightSpeed to cruise.
+
+        the first waypoint is a slow measurement (~0.5 m/s); when
+        mission.default_speed is null the old code leaked that slow speed into
+        autoFlightSpeed and pilot rc rejected the wayline. it must floor to
+        _DEFAULT_AUTO_FLIGHT_SPEED instead.
+        """
+        from app.services.export.dji.mission_config import (
+            _DEFAULT_AUTO_FLIGHT_SPEED,
+            _resolve_auto_speed,
+        )
+
+        fp = _make_flight_plan(3)
+        for wp in fp.waypoints:
+            wp.waypoint_type = "MEASUREMENT"
+            wp.speed = 0.5
+
+        mission = MagicMock()
+        mission.takeoff_coordinate = None
+        mission.default_speed = None
+        mission.inspections = []
+
+        template, waylines = _read_wpmz(
+            _gen_kmz(fp, "Test", 290.0, mission=mission, scope="MEASUREMENTS_ONLY")
+        )
+
+        floor = f"{_DEFAULT_AUTO_FLIGHT_SPEED:g}"
+        assert f"<wpml:autoFlightSpeed>{floor}</wpml:autoFlightSpeed>" in template
+        assert f"<wpml:autoFlightSpeed>{floor}</wpml:autoFlightSpeed>" in waylines
+        assert "<wpml:autoFlightSpeed>0.5</wpml:autoFlightSpeed>" not in template
+        assert "<wpml:autoFlightSpeed>0.5</wpml:autoFlightSpeed>" not in waylines
+
+        # unit-level: null/zero floor, positive default passes through
+        assert _resolve_auto_speed(fp.waypoints, mission, "MEASUREMENTS_ONLY") == floor
+        mission.default_speed = 0
+        assert _resolve_auto_speed(fp.waypoints, mission, "MEASUREMENTS_ONLY") == floor
+        mission.default_speed = 12
+        assert _resolve_auto_speed(fp.waypoints, mission, "MEASUREMENTS_ONLY") == "12"
 
     def test_kmz_measurements_only_takeoff_ref_anchors_at_wp1_when_takeoff_coord_set(self):
         """MEASUREMENTS_ONLY anchors takeOffRefPoint at WP1 even with takeoff_coord set.
@@ -3242,6 +3282,42 @@ class TestDjiRelativeHeightExport:
                 f"{ceiling_rel} + {RTH_MARGIN}"
             )
             assert 100 <= rth_h <= 1500, f"scope={scope}: RTH {rth_h} out of clamp"
+
+    def test_low_altitude_papi_rth_is_route_derived_below_floor(self):
+        """#231 fix 1 - a low papi mission returns route-derived RTH, not 100.
+
+        the old hardcoded 100 m floor made the m4t reject the wayline (error
+        513) when Max Flight Altitude was at/below ~100 m. with the floor at the
+        wpml spec minimum (2), the route-derived value (highest wp + 20 m
+        margin) wins for any real route.
+        """
+        RTH_MARGIN = 20
+
+        fp = _make_flight_plan(3)
+        for wp in fp.waypoints:
+            wp.waypoint_type = "MEASUREMENT"
+        # peak ~43 m above the 290 m airport ground, well under the old floor
+        fp.waypoints[1].position = _make_ewkb(18.111, 49.691, 333.0)
+
+        mission = MagicMock()
+        mission.takeoff_coordinate = None
+        mission.default_speed = 10.0
+        mission.inspections = []
+
+        _, waylines = _read_wpmz(
+            _gen_kmz(fp, "", 290.0, mission=mission, scope="MEASUREMENTS_ONLY")
+        )
+
+        root = ET.fromstring(waylines)
+        rth = [int(el.text) for el in root.findall(".//wpml:globalRTHHeight", self._WPML_NS)]
+        assert len(rth) == 1
+        rth_h = rth[0]
+
+        max_rel = 333.0 - 290.0
+        assert rth_h == math.ceil(max_rel + RTH_MARGIN) == 63
+        assert rth_h < 100, "the regression: RTH used to be floored at 100"
+        assert rth_h >= max_rel + RTH_MARGIN
+        assert rth_h <= 1500
 
 
 class TestDjiWaypointSpeedClamp:

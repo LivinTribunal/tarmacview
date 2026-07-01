@@ -1,9 +1,9 @@
-"""alembic chain - portable dem_file_path normalization migration (0023) (T3).
+"""alembic chain - portable dem_file_path normalization migration (0024) (T3).
 
-verifies the 0023 merge migration (a) collapses the two 0022 heads to a single
-head and (b) strips every stored dem_file_path to its basename so a legacy
-absolute path into the old drone-mission-planning-module repo no longer strands
-terrain resolution. a null-DEM row is a control that must stay null.
+verifies the 0024 migration strips every stored dem_file_path to its basename so
+a legacy absolute path into the old drone-mission-planning-module repo no longer
+strands terrain resolution, and that the script directory stays single-head. a
+null-DEM row is a control that must stay null.
 """
 
 from pathlib import Path
@@ -49,10 +49,10 @@ def alembic_env():
 
 
 def test_upgrade_normalizes_dem_paths_to_basename(alembic_env):
-    """0023 strips stored dem_file_path to basename and leaves null rows null."""
+    """0024 strips stored dem_file_path to basename and leaves null rows null."""
     cfg, url = alembic_env
-    # build the pre-merge schema off one of the two 0022 heads
-    command.upgrade(cfg, "0022_dji_heading_mode_default_toward_poi")
+    # build the pre-normalization schema off the single collapsed head
+    command.upgrade(cfg, "0023_merge_0022_heads")
 
     engine = create_engine(url)
     legacy = "/Users/x/drone-mission-planning-module/backend/data/terrain/MPA1_api_cache.tif"
@@ -89,7 +89,7 @@ def test_upgrade_normalizes_dem_paths_to_basename(alembic_env):
 
 
 def test_head_collapses_to_single_revision(alembic_env):
-    """after 0023 the script directory reports a single head."""
+    """after 0024 the script directory reports a single head."""
     cfg, _ = alembic_env
     script = ScriptDirectory.from_config(cfg)
-    assert script.get_heads() == ["0023_portable_dem_path"]
+    assert script.get_heads() == ["0024_portable_dem_path"]

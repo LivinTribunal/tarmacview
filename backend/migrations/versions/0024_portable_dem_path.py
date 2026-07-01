@@ -1,7 +1,7 @@
-"""merge the two 0022 heads + normalize dem_file_path to a portable basename
+"""normalize dem_file_path to a portable basename
 
-Revision ID: 0023_portable_dem_path
-Revises: 0022_dji_heading_mode_default_toward_poi, 0022_glide_slope_tolerance
+Revision ID: 0024_portable_dem_path
+Revises: 0023_merge_0022_heads
 Create Date: 2026-07-01 00:00:00.000000
 
 """
@@ -12,11 +12,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0023_portable_dem_path"
-down_revision: Union[str, Sequence[str], None] = (
-    "0022_dji_heading_mode_default_toward_poi",
-    "0022_glide_slope_tolerance",
-)
+revision: str = "0024_portable_dem_path"
+down_revision: Union[str, Sequence[str], None] = "0023_merge_0022_heads"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -43,5 +40,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # basename normalization is not reversible (the original absolute prefix is
-    # lost) and the merge has no schema effect; no-op.
+    # lost); no-op.
     pass

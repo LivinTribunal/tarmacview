@@ -14,6 +14,9 @@ vi.mock("@/api/measurements", () => ({
   listAirportMeasurements: vi.fn(),
   getMeasurementResults: vi.fn(),
   downloadMeasurementReport: vi.fn(),
+  getMeasurementStatus: vi.fn(),
+  getMeasurementPreview: vi.fn(),
+  confirmMeasurementLights: vi.fn(),
 }));
 vi.mock("@/api/inspectionTemplates", () => ({
   listInspectionTemplates: vi.fn(),
@@ -29,6 +32,8 @@ vi.mock("./ResultsPage", () => ({
 import {
   listAirportMeasurements,
   getMeasurementResults,
+  getMeasurementStatus,
+  getMeasurementPreview,
 } from "@/api/measurements";
 import { listInspectionTemplates } from "@/api/inspectionTemplates";
 
@@ -258,5 +263,32 @@ describe("MissionResultsPage", () => {
     const compute = lastComputeCtx();
     expect(compute?.icon).toBe("file");
     expect(compute?.label).toBe("results.downloadPdf");
+  });
+
+  it("opens MeasurementFlowDialog when an AWAITING_CONFIRM inspection is reviewed", async () => {
+    vi.mocked(listAirportMeasurements).mockResolvedValue([
+      row({ id: "m9", inspection_id: "i1", status: "AWAITING_CONFIRM" }),
+    ]);
+    vi.mocked(getMeasurementStatus).mockResolvedValue({
+      id: "m9",
+      status: "AWAITING_CONFIRM",
+      error_message: null,
+    });
+    vi.mocked(getMeasurementPreview).mockResolvedValue({
+      id: "m9",
+      status: "AWAITING_CONFIRM",
+      first_frame_url: "http://x/f.jpg",
+      boxes: [{ light_name: "PAPI_A", x: 50, y: 50, size: 8 }],
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-inspection-row-i1")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("results-inspection-row-i1"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-flow-dialog")).toBeInTheDocument(),
+    );
   });
 });

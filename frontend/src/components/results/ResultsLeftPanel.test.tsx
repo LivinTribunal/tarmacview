@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import en from "@/i18n/locales/en.json";
 import type { InspectionResponse } from "@/types/mission";
 import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
@@ -194,6 +194,7 @@ describe("ResultsLeftPanel", () => {
         measurementByInspection={byInspection}
         selectedId="i1"
         onSelect={vi.fn()}
+        onReview={vi.fn()}
         results={data}
         currentRow={listRow({})}
       />,
@@ -227,6 +228,7 @@ describe("ResultsLeftPanel", () => {
         measurementByInspection={byInspection}
         selectedId={null}
         onSelect={vi.fn()}
+        onReview={vi.fn()}
         results={null}
         currentRow={null}
       />,
@@ -244,6 +246,7 @@ describe("ResultsLeftPanel", () => {
         measurementByInspection={byInspection}
         selectedId="i1"
         onSelect={vi.fn()}
+        onReview={vi.fn()}
         results={results({ lights: [] })}
         currentRow={listRow({})}
       />,
@@ -253,5 +256,25 @@ describe("ResultsLeftPanel", () => {
         "No per-light summaries available.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("threads onReview to the picker for an AWAITING_CONFIRM row", () => {
+    const onReview = vi.fn();
+    render(
+      <ResultsLeftPanel
+        inspections={inspections}
+        templates={templates}
+        measurementByInspection={
+          new Map([["i1", listRow({ status: "AWAITING_CONFIRM" })]])
+        }
+        selectedId={null}
+        onSelect={vi.fn()}
+        onReview={onReview}
+        results={null}
+        currentRow={null}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("results-inspection-row-i1"));
+    expect(onReview).toHaveBeenCalledWith("i1");
   });
 });

@@ -2216,7 +2216,8 @@
     "pickInspection": "Select a measured inspection to view its results.",
     "inspectionInfo": "Inspection Info",
     "picker": {
-      "notMeasured": "Not measured"
+      "notMeasured": "Not measured",
+      "review": "Review"
     },
     "downloadPdf": "Download PDF Report",
     "generatingPdf": "Generating…",

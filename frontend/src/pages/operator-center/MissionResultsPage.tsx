@@ -18,6 +18,7 @@ import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
 import Card from "@/components/common/Card";
 import ResultsLeftPanel from "@/components/results/ResultsLeftPanel";
+import MeasurementFlowDialog from "@/components/mission/MeasurementFlowDialog";
 import ResultsPage from "./ResultsPage";
 
 /** mission-scoped results tab - inspection picker, results, and pdf download. */
@@ -32,6 +33,9 @@ export default function MissionResultsPage() {
   const [selectedInspectionId, setSelectedInspectionId] = useState<
     string | null
   >(null);
+  const [reviewInspectionId, setReviewInspectionId] = useState<string | null>(
+    null,
+  );
   const [measurements, setMeasurements] = useState<MeasurementListItem[]>([]);
   const [templates, setTemplates] = useState<
     Map<string, InspectionTemplateResponse>
@@ -64,6 +68,20 @@ export default function MissionResultsPage() {
   const currentRow = selectedInspectionId
     ? (measurementByInspection.get(selectedInspectionId) ?? null)
     : null;
+
+  // run + label backing the manual box-review dialog, null until a row is reviewed
+  const reviewRow = reviewInspectionId
+    ? (measurementByInspection.get(reviewInspectionId) ?? null)
+    : null;
+  const reviewInspection = reviewInspectionId
+    ? (inspections.find((i) => i.id === reviewInspectionId) ?? null)
+    : null;
+  const reviewLabel =
+    reviewRow?.label ||
+    (reviewInspection
+      ? templates.get(reviewInspection.template_id)?.name
+      : undefined) ||
+    t("mission.config.inspections");
 
   const firstMeasured = useMemo(
     () =>
@@ -175,6 +193,20 @@ export default function MissionResultsPage() {
     };
   }, [setSaveContext, mission]);
 
+  // re-fetch the mission's runs without re-running the one-shot default selection
+  const refreshMeasurements = useCallback(() => {
+    if (!airportId || !id) return;
+    listAirportMeasurements(airportId)
+      .then((rows) => setMeasurements(rows.filter((r) => r.mission_id === id)))
+      .catch(() => {});
+  }, [airportId, id]);
+
+  const handleReviewClose = useCallback(() => {
+    setReviewInspectionId(null);
+    // picks up AWAITING_CONFIRM -> PROCESSING after confirm; no-op on cancel
+    refreshMeasurements();
+  }, [refreshMeasurements]);
+
   const handleDownload = useCallback(async () => {
     if (!downloadTargetId) return;
     setDownloading(true);
@@ -239,11 +271,20 @@ export default function MissionResultsPage() {
             measurementByInspection={measurementByInspection}
             selectedId={selectedInspectionId}
             onSelect={setSelectedInspectionId}
+            onReview={setReviewInspectionId}
             results={results}
             currentRow={currentRow}
           />,
           leftPanelEl,
         )}
+
+      {reviewRow && (
+        <MeasurementFlowDialog
+          measurementId={reviewRow.id}
+          inspectionLabel={reviewLabel}
+          onClose={handleReviewClose}
+        />
+      )}
 
       <div
         className="h-full overflow-y-auto"

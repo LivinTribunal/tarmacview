@@ -37,6 +37,7 @@ function makeAgl(count: number): AGLResponse {
     glide_slope_angle: null,
     glide_slope_angle_tolerance: null,
     distance_from_threshold: null,
+    meht_height_m: null,
     offset_from_centerline: null,
     lhas: Array.from({ length: count }, (_, i) =>
       makeLha(i + 1, 14.24 + 0.001 * (i + 1)),

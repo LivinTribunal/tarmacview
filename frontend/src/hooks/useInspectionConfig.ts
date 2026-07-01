@@ -14,7 +14,7 @@ import {
   computeOpticalZoom,
   maxPairwiseDistanceM,
 } from "@/utils/cameraAutoCalc";
-import { computeMehtHeight } from "@/utils/mehtHeight";
+import { resolveMehtHeight } from "@/utils/mehtHeight";
 import { methodCaps } from "@/utils/methodAglCompatibility";
 
 // mirrors backend DEFAULT_HORIZONTAL_DISTANCE - when the field is empty the
@@ -275,15 +275,14 @@ export default function useInspectionConfig({
     return agls.filter((a) => template.target_agl_ids.includes(a.id));
   }, [agls, template]);
 
-  // meht height computed from first PAPI AGL's distance + glide slope
+  // meht height: surveyed meht_height_m on the first PAPI AGL, else derived from
+  // its distance + glide slope.
   const computedMehtHeight = useMemo(() => {
     if (inspection.method !== "MEHT_CHECK") return null;
     const papiAgl = targetAgls.find((a) => a.agl_type === "PAPI");
     if (!papiAgl) return null;
-    const dist = papiAgl.distance_from_threshold;
-    if (dist == null) return null;
-    const gs = papiAgl.glide_slope_angle ?? DEFAULT_GLIDE_SLOPE_DEG;
-    return Math.round(computeMehtHeight(dist, gs) * 100) / 100;
+    const h = resolveMehtHeight(papiAgl, DEFAULT_GLIDE_SLOPE_DEG);
+    return h == null ? null : Math.round(h * 100) / 100;
   }, [inspection.method, targetAgls]);
 
   // papi observation angle derived from max setting angle + offset (or override)

@@ -1069,3 +1069,39 @@ describe("InspectionConfigForm info hints", () => {
     );
   });
 });
+
+// --- MEHT_CHECK surveyed height display ---
+describe("InspectionConfigForm surveyed MEHT height", () => {
+  const papiAgl = {
+    id: "agl-papi",
+    surface_id: "s-1",
+    agl_type: "PAPI",
+    name: "PAPI",
+    position: { lat: 0, lng: 0, alt: 0 },
+    side: null,
+    glide_slope_angle: 3,
+    distance_from_threshold: 300,
+    meht_height_m: 18,
+    offset_from_centerline: null,
+    lhas: [],
+  };
+
+  it("shows the surveyed meht_height_m instead of the derived value", () => {
+    renderForm({
+      inspection: baseInspection({ method: "MEHT_CHECK" }),
+      template: papiTemplate as never,
+      agls: [papiAgl] as never,
+    });
+    // surveyed 18 wins over the derived 300*tan(3) ~= 15.72
+    expect(screen.getByTestId("computed-meht-height")).toHaveTextContent("18");
+  });
+
+  it("falls back to the derived value when meht_height_m is null", () => {
+    renderForm({
+      inspection: baseInspection({ method: "MEHT_CHECK" }),
+      template: papiTemplate as never,
+      agls: [{ ...papiAgl, meht_height_m: null }] as never,
+    });
+    expect(screen.getByTestId("computed-meht-height")).toHaveTextContent("15.72");
+  });
+});

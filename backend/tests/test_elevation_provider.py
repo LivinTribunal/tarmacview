@@ -14,6 +14,7 @@ from app.services.elevation_provider import (
     RemoteElevationProvider,
     _RemoteAwareFlatProvider,
     create_elevation_provider,
+    resolve_dem_file_path,
     resolve_elevation_with_source,
 )
 from app.services.trajectory.types import MINIMUM_ALTITUDE_THRESHOLD, TRANSIT_AGL, WaypointData
@@ -631,7 +632,13 @@ class TestCreateElevationProviderDEM:
     """tests for DEM provider creation via factory with mocked rasterio."""
 
     def test_dem_provider_created_with_valid_path(self):
-        """DEM_UPLOAD source with valid path creates DEMElevationProvider."""
+        """DEM_UPLOAD source with a stored path creates DEMElevationProvider.
+
+        the stored path is resolved to a terrain_dir-rooted absolute path first
+        (a legacy / non-existent absolute path falls back to the basename).
+        """
+        from app.core.config import settings
+
         airport = MagicMock()
         airport.terrain_source = "DEM_UPLOAD"
         airport.elevation = 300.0
@@ -643,10 +650,12 @@ class TestCreateElevationProviderDEM:
 
             provider = create_elevation_provider(airport)
             assert provider is mock_instance
-            mock_cls.assert_called_once_with("/some/valid/path.tif", 300.0)
+            mock_cls.assert_called_once_with(str(settings.terrain_dir / "path.tif"), 300.0)
 
     def test_dem_srtm_provider_created_with_valid_path(self):
-        """DEM_SRTM source with valid path creates DEMElevationProvider (offline geotiff)."""
+        """DEM_SRTM source with a stored path creates DEMElevationProvider (offline geotiff)."""
+        from app.core.config import settings
+
         airport = MagicMock()
         airport.terrain_source = "DEM_SRTM"
         airport.elevation = 280.0
@@ -658,7 +667,7 @@ class TestCreateElevationProviderDEM:
 
             provider = create_elevation_provider(airport)
             assert provider is mock_instance
-            mock_cls.assert_called_once_with("/some/srtm_cache.tif", 280.0)
+            mock_cls.assert_called_once_with(str(settings.terrain_dir / "srtm_cache.tif"), 280.0)
 
     def test_dem_provider_fallback_on_open_error(self):
         """DEM_API source falls back to flat when rasterio.open fails."""
@@ -674,6 +683,54 @@ class TestCreateElevationProviderDEM:
             provider = create_elevation_provider(airport)
             assert isinstance(provider, FlatElevationProvider)
             assert provider.elevation == 300.0
+
+
+class TestResolveDemFilePath:
+    """#231 fix 3 - portable resolution of a stored dem_file_path."""
+
+    def test_none_and_empty_return_none(self):
+        """a null / empty stored path resolves to None."""
+        assert resolve_dem_file_path(None) is None
+        assert resolve_dem_file_path("") is None
+
+    def test_bare_basename_roots_under_terrain_dir(self):
+        """a portable basename resolves under settings.terrain_dir."""
+        from app.core.config import settings
+
+        assert resolve_dem_file_path("abc.tif") == str(settings.terrain_dir / "abc.tif")
+
+    def test_legacy_absolute_path_falls_back_to_basename(self):
+        """a legacy absolute path into the old repo re-roots to terrain_dir/basename."""
+        from app.core.config import settings
+
+        legacy = "/Users/x/drone-mission-planning-module/backend/data/terrain/foo_api_cache.tif"
+        assert resolve_dem_file_path(legacy) == str(settings.terrain_dir / "foo_api_cache.tif")
+
+    def test_existing_absolute_path_returned_as_is(self, tmp_path):
+        """an absolute path that still exists is returned unchanged."""
+        f = tmp_path / "custom.tif"
+        f.write_bytes(b"x")
+        assert resolve_dem_file_path(str(f)) == str(f)
+
+
+class TestCreateElevationProviderResolvesDemPath:
+    """the factory routes the stored dem_file_path through resolve_dem_file_path."""
+
+    def test_legacy_path_resolved_before_dem_provider(self):
+        """a legacy absolute dem_file_path is re-rooted before DEMElevationProvider."""
+        from app.core.config import settings
+
+        airport = MagicMock()
+        airport.terrain_source = "DEM_API"
+        airport.elevation = 290.0
+        airport.dem_file_path = "/old/repo/data/terrain/jaro_api_cache.tif"
+
+        with patch("app.services.elevation_provider.DEMElevationProvider") as mock_cls:
+            mock_cls.return_value = MagicMock(spec=DEMElevationProvider)
+            create_elevation_provider(airport)
+            mock_cls.assert_called_once_with(
+                str(settings.terrain_dir / "jaro_api_cache.tif"), 290.0
+            )
 
 
 class _StubRemoteProvider(RemoteElevationProvider):

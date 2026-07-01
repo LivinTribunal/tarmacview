@@ -34,6 +34,9 @@ ScanWidthSideStr = Literal["LEFT", "RIGHT"]
 # surface-scan run orientation. null = LENGTH_WISE.
 ScanRunOrientationStr = Literal["LENGTH_WISE", "WIDTH_WISE"]
 
+# papi camera center-height reference - raises the LHA-centroid aim altitude.
+PapiCenterHeightReferenceStr = Literal["GROUND", "LENS", "CUSTOM"]
+
 # lha selection rule modes - mirrors LhaSelectionMode helper modes.
 LhaSelectionModeStr = Literal["ALL", "RANGE", "FROM_THRESHOLD", "CUSTOM"]
 # threshold endpoint anchor for FROM_THRESHOLD mode.
@@ -187,6 +190,9 @@ class InspectionConfigOverride(ScanConfigFields):
     # approach-descent fields
     descent_start_distance: float | None = Field(default=None, gt=0)
     descent_glide_slope_override: float | None = Field(default=None, gt=0, le=10)
+    # papi camera center-height reference + CUSTOM-mode height (meters above ground)
+    papi_center_height_reference: PapiCenterHeightReferenceStr | None = None
+    papi_center_height_custom_m: float | None = Field(default=None, ge=0)
     camera_mode: CameraModeStr | None = None
     # NULL means inherit from mission. NATURAL or REVERSED pin direction.
     direction: InspectionDirectionStr | None = None
@@ -245,6 +251,8 @@ class InspectionConfigResponse(ScanConfigFields):
     hover_bearing_reference: HoverBearingRefStr | None = None
     descent_start_distance: float | None = None
     descent_glide_slope_override: float | None = None
+    papi_center_height_reference: PapiCenterHeightReferenceStr | None = None
+    papi_center_height_custom_m: float | None = None
     camera_mode: CameraModeStr | None = None
     direction: InspectionDirectionStr | None = None
     resolved_direction: InspectionDirectionStr | None = None

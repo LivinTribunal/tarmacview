@@ -8,7 +8,12 @@ ConstraintType went from "ALTITUDE | SPEED | ..." on the backend to
 import re
 from pathlib import Path
 
-from app.core.enums import ConstraintType, MissionStatus, WaypointType
+from app.core.enums import (
+    ConstraintType,
+    MissionStatus,
+    PapiCenterHeightReference,
+    WaypointType,
+)
 
 FRONTEND_ENUMS = (
     Path(__file__).resolve().parent.parent.parent / "frontend" / "src" / "types" / "enums.ts"
@@ -58,4 +63,12 @@ def test_waypoint_type_parity():
     source = FRONTEND_ENUMS.read_text()
     frontend = _parse_union(source, "WaypointType")
     backend = {m.value for m in WaypointType}
+    assert backend == frontend, f"drift: backend={backend} frontend={frontend}"
+
+
+def test_papi_center_height_reference_parity():
+    """backend PapiCenterHeightReference matches frontend union exactly."""
+    source = FRONTEND_ENUMS.read_text()
+    frontend = _parse_union(source, "PapiCenterHeightReference")
+    backend = {m.value for m in PapiCenterHeightReference}
     assert backend == frontend, f"drift: backend={backend} frontend={frontend}"

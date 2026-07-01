@@ -184,6 +184,36 @@ def get_lha_setting_angles(template, lha_ids=None) -> list[Degrees]:
     return sorted(angles)
 
 
+def get_average_lens_height_agl(template, lha_ids: list | None = None) -> float | None:
+    """average lens_height_agl_m across selected PAPI LHAs, or None when none set."""
+    lha_id_set = {str(i) for i in lha_ids} if lha_ids else None
+    heights = []
+    for agl in template.targets:
+        for lha in agl.lhas:
+            if lha_id_set and str(lha.id) not in lha_id_set:
+                continue
+            if lha.lens_height_agl_m is not None:
+                heights.append(lha.lens_height_agl_m)
+    if not heights:
+        return None
+    return sum(heights) / len(heights)
+
+
+def resolve_center_height_offset(config: ResolvedConfig, template, lha_ids) -> float:
+    """meters to raise the LHA-centroid aim altitude per the center-height reference.
+
+    GROUND -> 0; LENS -> average selected lens_height_agl_m (0 when none set);
+    CUSTOM -> operator height (0 when unset).
+    """
+    ref = (config.papi_center_height_reference or "GROUND").upper()
+    if ref == "LENS":
+        avg = get_average_lens_height_agl(template, lha_ids)
+        return avg if avg is not None else 0.0
+    if ref == "CUSTOM":
+        return config.papi_center_height_custom_m or 0.0
+    return 0.0
+
+
 def derive_observation_angle(
     setting_angles: list[Degrees],
     angle_offset: Degrees,
@@ -586,11 +616,12 @@ def _apply_papi_glide_slope_terrain(
     commanded angle is recovered from the pre-shift altitude, which is itself
     geometric (`center.alt + horiz * tan(angle)`).
 
-    `center` is the geometry anchor for the altitude rebuild: the LHA center for
+    `center` is the geometry anchor for the altitude rebuild: the LHA centroid
+    (raised by the center-height reference offset when LENS / CUSTOM) for
     HORIZONTAL_RANGE / VERTICAL_PROFILE, the runway touchpoint for
     APPROACH_DESCENT (its glide slope is anchored on the touchpoint, not the
     PAPI). gimbal pitch is recomputed toward each waypoint's own camera_target,
-    which is the LHA center for every PAPI method.
+    which is that same LHA centroid for every PAPI method.
 
     `altitude_offset` is the operator-set vertical bias from `ResolvedConfig`
     that every PAPI generator bakes into `wp.alt` at emission time. the rebuild

@@ -59,6 +59,8 @@ export type LampType = "HALOGEN" | "LED";
 
 export type PAPISide = "LEFT" | "RIGHT";
 
+export type PapiCenterHeightReference = "GROUND" | "LENS" | "CUSTOM";
+
 export type SurfaceType = "RUNWAY" | "TAXIWAY";
 
 export type FlightPlanScope = "FULL" | "MEASUREMENTS_ONLY";

@@ -5,6 +5,7 @@ import type {
   FlightPlanScope,
   InspectionMethod,
   MissionStatus,
+  PapiCenterHeightReference,
   ScanLengthAnchor,
   ScanLengthMode,
   ScanRunOrientation,
@@ -158,6 +159,9 @@ export interface BaseInspectionConfigFields extends ScanConfigFields {
 export interface InspectionConfigResponse extends BaseInspectionConfigFields {
   camera_mode: CameraMode | null;
   camera_preset_id: string | null;
+  // papi camera center-height reference (per-inspection, not a template default)
+  papi_center_height_reference: PapiCenterHeightReference | null;
+  papi_center_height_custom_m: number | null;
 }
 
 export interface InspectionResponse {

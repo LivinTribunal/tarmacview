@@ -769,6 +769,16 @@
       "descentGlideSlopeOverride": "Náhrada uhla zostupovej dráhy (deg)",
       "descentGlideSlopeOverrideHint": "Ponechajte prázdne pre uhol PAPI",
       "descentGlideSlopeOverrideHelp": "Vlastný uhol zostupovej dráhy pre klesanie na priblížení. Ponechajte prázdne pre nominálny uhol odvodený z PAPI (zvyčajne 3 deg).",
+      "papiCenterHeight": {
+        "label": "Referenčná výška stredu PAPI",
+        "help": "Výška, na ktorú mieri kamera drona, meraná v ťažisku vybraných svetiel PAPI. Zem ponecháva mierenie na úrovni zeme; Šošovka ju zvýši o priemernú nameranú výšku šošovky; Vlastná ju zvýši o pevnú výšku, ktorú zadáte.",
+        "ground": "Zem",
+        "lens": "Šošovka (priem. AGL)",
+        "custom": "Vlastná",
+        "customHeight": "Vlastná výška stredu (m)",
+        "customHeightHint": "Výška nad zemou",
+        "customHeightHelp": "Metre nad zemou, o ktoré sa zvýši stredový bod mierenia PAPI. Použité iba ak je referencia Vlastná."
+      },
       "heightAboveLha": "Výška nad LHA (m)",
       "heightAboveLhaHint": "Predvolené: 5 m",
       "heightAboveLhaHelp": "Výška drona nad bodom LHA počas Vznášania nad bodom. So zapnutým auto-mierením zmena tejto hodnoty aktualizuje aj uhol gimbalu.",
@@ -1911,7 +1921,9 @@
     "lha": {
       "sequenceNumber": "Por. číslo",
       "sequenceNumberHelp": "Poradie tejto LHA pozdĺž línie, počíta sa od 1. Zmena poradia posunie súrodencov v rámci toho istého AGL.",
-      "sequenceOutOfRange": "Poradové číslo musí byť medzi 1 a {{max}}"
+      "sequenceOutOfRange": "Poradové číslo musí byť medzi 1 a {{max}}",
+      "lensHeightAgl": "Výška šošovky (AGL)",
+      "lensHeightMsl": "Výška šošovky (MSL)"
     },
     "zoneType": {
       "CTR": "CTR",

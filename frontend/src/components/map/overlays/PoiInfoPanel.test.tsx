@@ -43,6 +43,31 @@ describe("PoiInfoPanel - LHA", () => {
     expect(screen.getByText("B")).toBeInTheDocument();
     expect(screen.getByText("LED")).toBeInTheDocument();
   });
+
+  it("renders both lens-height rows for a PAPI LHA that carries them", () => {
+    const feature: MapFeature = {
+      type: "lha",
+      data: makeLha({ lens_height_agl_m: 4.2, lens_height_msl_m: 384.2 }),
+    };
+    render(<PoiInfoPanel feature={feature} onClose={vi.fn()} />);
+
+    expect(screen.getByText("airport.lha.lensHeightAgl")).toBeInTheDocument();
+    expect(screen.getByText("airport.lha.lensHeightMsl")).toBeInTheDocument();
+    expect(screen.getByText("4.20 common.units.m")).toBeInTheDocument();
+    expect(screen.getByText("384.20 common.units.m")).toBeInTheDocument();
+  });
+
+  it("hides both lens-height rows when the LHA has null lens heights", () => {
+    const feature: MapFeature = { type: "lha", data: makeLha() };
+    render(<PoiInfoPanel feature={feature} onClose={vi.fn()} />);
+
+    expect(
+      screen.queryByText("airport.lha.lensHeightAgl"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("airport.lha.lensHeightMsl"),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("PoiInfoPanel - click-to-copy coordinates", () => {

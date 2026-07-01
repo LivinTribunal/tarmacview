@@ -114,3 +114,28 @@ def test_downgrade_reverses_cleanly_and_upgrade_restores(alembic_env):
     command.upgrade(cfg, "head")
     assert _table_columns(url, "drone_media_file") == EXPECTED_COLUMNS
     assert _table_columns(url, "wayline_dispatch") is not None
+
+
+def test_papi_center_height_reference_upgrade_and_downgrade(alembic_env):
+    """0022 adds the papi center-height columns + CHECK; downgrade drops them."""
+    cfg, url = alembic_env
+    command.upgrade(cfg, "head")
+
+    cols = _table_columns(url, "inspection_configuration")
+    assert {"papi_center_height_reference", "papi_center_height_custom_m"} <= cols
+
+    engine = create_engine(url)
+    try:
+        checks = inspect(engine).get_check_constraints("inspection_configuration")
+        assert any(
+            c["name"] == "ck_inspection_configuration_papi_center_height_reference" for c in checks
+        )
+    finally:
+        engine.dispose()
+
+    command.downgrade(cfg, "0021_scan_length_anchor")
+    cols = _table_columns(url, "inspection_configuration")
+    assert "papi_center_height_reference" not in cols
+    assert "papi_center_height_custom_m" not in cols
+
+    command.upgrade(cfg, "head")

@@ -23,6 +23,7 @@ from ..helpers import (
     get_lha_positions,
     get_lha_positions_from_surfaces,
     get_lha_setting_angles,
+    resolve_center_height_offset,
 )
 from ..safety_validator import (
     check_battery,
@@ -636,6 +637,12 @@ def revalidate_existing_plan(
             # band violations (was an early `continue`; the empty remap below is a
             # no-op, so the persisted output is unchanged).
             config = resolve_with_defaults(inspection, template)
+
+            # mirror the generate path: raise the centroid aim altitude by the
+            # center-height reference so the band check measures the same geometry
+            # generate validated against. without this a LENS/CUSTOM reference
+            # fires spurious band warnings on every revalidate.
+            center.alt += resolve_center_height_offset(config, template, lha_ids)
             papi_violations = _papi_band_violations(
                 insp_wps, center, setting_angles, config, inspection.method
             )

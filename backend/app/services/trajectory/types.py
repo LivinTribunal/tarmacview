@@ -213,6 +213,9 @@ class ResolvedConfig:
     # and an optional operator override for the PAPI-derived glide slope angle.
     descent_start_distance: Meters | None = None
     descent_glide_slope_override: Degrees | None = None
+    # papi camera center-height reference (GROUND default) + CUSTOM-mode height.
+    papi_center_height_reference: str | None = "GROUND"
+    papi_center_height_custom_m: Meters | None = None
     # surface-scan: surface target + serpentine layout knobs.
     scan_surface_id: UUID | str | None = None
     scan_length_mode: str | None = None

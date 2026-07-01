@@ -107,6 +107,8 @@ export default function InspectionConfigForm({
     cameraGimbalAngle: cfg.cameraGimbalAngle,
     descentStartDistance: cfg.descentStartDistance,
     descentGlideSlopeOverride: cfg.descentGlideSlopeOverride,
+    papiCenterHeightReference: cfg.papiCenterHeightReference,
+    papiCenterHeightCustomM: cfg.papiCenterHeightCustomM,
     hoverBearing: cfg.hoverBearing,
     hoverBearingReference: cfg.hoverBearingReference,
     angleLocked,

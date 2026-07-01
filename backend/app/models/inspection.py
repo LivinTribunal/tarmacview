@@ -22,6 +22,7 @@ from sqlalchemy.sql import func
 
 from app.core.database import Base
 from app.core.enums import (
+    PapiCenterHeightReference,
     ScanLengthAnchor,
     ScanLengthMode,
     ScanRunOrientation,
@@ -35,6 +36,7 @@ _SCAN_LENGTH_MODE_VALUES = enum_check_values(ScanLengthMode)
 _SCAN_LENGTH_ANCHOR_VALUES = enum_check_values(ScanLengthAnchor)
 _SCAN_WIDTH_SIDE_VALUES = enum_check_values(ScanWidthSide)
 _SCAN_RUN_ORIENTATION_VALUES = enum_check_values(ScanRunOrientation)
+_PAPI_CENTER_HEIGHT_REF_VALUES = enum_check_values(PapiCenterHeightReference)
 
 # junction tables - no ORM class needed, just a Table for many-to-many with no extra columns
 insp_template_targets = Table(
@@ -96,6 +98,8 @@ CONFIG_FIELDS: tuple[str, ...] = (
     "scan_run_orientation",
     "scan_sidelap_percent",
     "scan_frontlap_percent",
+    "papi_center_height_reference",
+    "papi_center_height_custom_m",
 )
 
 
@@ -162,6 +166,11 @@ class InspectionConfiguration(Base):
     # custom glide slope angle, else the PAPI-derived angle is used.
     descent_start_distance = Column(Float, nullable=True)
     descent_glide_slope_override = Column(Float, nullable=True)
+    # papi camera center-height reference - raises the LHA-centroid aim altitude.
+    papi_center_height_reference = Column(
+        String(10), nullable=True, server_default=text("'GROUND'"), default="GROUND"
+    )
+    papi_center_height_custom_m = Column(Float, nullable=True)  # meters above ground, CUSTOM only
     # surface-scan (SURFACE_SCAN) - AGL-agnostic, targets an AirfieldSurface.
     # scan_surface_id picks the surface; the rest tune the serpentine pass.
     scan_surface_id = Column(
@@ -216,6 +225,10 @@ class InspectionConfiguration(Base):
         CheckConstraint(
             f"scan_run_orientation IN ({_SCAN_RUN_ORIENTATION_VALUES})",
             name="ck_inspection_configuration_scan_run_orientation",
+        ),
+        CheckConstraint(
+            f"papi_center_height_reference IN ({_PAPI_CENTER_HEIGHT_REF_VALUES})",
+            name="ck_inspection_configuration_papi_center_height_reference",
         ),
     )
 

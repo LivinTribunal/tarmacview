@@ -141,7 +141,7 @@ Run once while online (staging laptop — `bundle-basemap.py` is stdlib + `httpx
 
 ### Backend configuration
 
-- Place each airport's local DEM where its `dem_file_path` row points. `create_elevation_provider(airport)` in `backend/app/services/elevation_provider.py` picks `DEMElevationProvider` automatically when `terrain_source ∈ {DEM, DEM_UPLOAD, DEM_API}`, so no extra wiring is needed.
+- Place each airport's local DEM under `settings.terrain_dir` (`TERRAIN_DIR`, default `<repo>/data/terrain`). `create_elevation_provider(airport)` in `backend/app/services/elevation_provider.py` picks `DEMElevationProvider` automatically when `terrain_source ∈ {DEM, DEM_UPLOAD, DEM_API, DEM_SRTM}`, so no extra wiring is needed. The stored `dem_file_path` is re-rooted at read time by `resolve_dem_file_path`: a bare basename or a legacy absolute path that no longer exists (e.g. an old repo-checkout path) both resolve to `terrain_dir/<basename>`, while an absolute path that still exists is used as-is (custom deployments). The resolution is read-only - the stored column is never rewritten, so a DEM stays portable across deployments without a data migration.
 - Airport infrastructure (surfaces, obstacles, safety zones) is registered manually through the Coordinator interface — OpenAIP is not consulted.
 
 ## Per-Point Elevation

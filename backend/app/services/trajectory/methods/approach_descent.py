@@ -1,4 +1,4 @@
-"""approach-descent inspection-method path generator: on-axis glide-slope descent to touchpoint."""
+"""approach-descent inspection-method path generator: on-axis glide-slope descent to meht hover."""
 
 import math
 from uuid import UUID
@@ -10,6 +10,7 @@ from ..config_resolver import _resolve_measurement_speed
 from ..helpers import _opposite_bearing
 from ..types import (
     DEFAULT_DESCENT_START_DISTANCE,
+    DEFAULT_MEHT_HOVER_DURATION,
     Degrees,
     MetersPerSecond,
     Point3D,
@@ -26,7 +27,7 @@ def resolve_descent_angle(config: ResolvedConfig, glide_slope: Degrees) -> Degre
 
 
 def calculate_approach_descent_path(
-    touchpoint: Point3D,
+    meht_point: Point3D,
     lha_center: Point3D,
     runway_heading: Degrees,
     glide_slope: Degrees,
@@ -34,11 +35,12 @@ def calculate_approach_descent_path(
     inspection_id: UUID | None,
     speed: MetersPerSecond,
 ) -> list[WaypointData]:
-    """generate an on-axis approach descent down the runway centerline to the touchpoint.
+    """generate an on-axis approach descent that ends at the MEHT hover over the threshold.
 
-    the drone starts `descent_start_distance` back of the touchpoint on the
+    the drone starts `descent_start_distance` back of the threshold on the
     approach side, descends along the PAPI-derived glide slope, and terminates
-    at the runway touchpoint - the pilot's-eye view of the final approach.
+    with a hover + capture at the MEHT point over the threshold - so one approach
+    inspection yields both the descent series and the MEHT measurement.
     """
     density = config.measurement_density
     descent_distance = (
@@ -48,11 +50,14 @@ def calculate_approach_descent_path(
     )
     angle = resolve_descent_angle(config, glide_slope)
     measurement_speed = _resolve_measurement_speed(config, speed)
+    hover_dur = (
+        config.hover_duration if config.hover_duration is not None else DEFAULT_MEHT_HOVER_DURATION
+    )
 
-    # start point sits back of the touchpoint along the approach axis
+    # start point sits back of the threshold along the approach axis
     approach_bearing = _opposite_bearing(runway_heading)
     start_lon, start_lat = point_at_distance(
-        touchpoint.lon, touchpoint.lat, approach_bearing, descent_distance
+        meht_point.lon, meht_point.lat, approach_bearing, descent_distance
     )
 
     cam_action = (
@@ -63,17 +68,20 @@ def calculate_approach_descent_path(
 
     waypoints = []
     for i in range(density):
-        # frac runs 0 (start, back of touchpoint) -> 1 (touchpoint)
-        frac = i / (density - 1) if density > 1 else 0.0
-        lon = start_lon + (touchpoint.lon - start_lon) * frac
-        lat = start_lat + (touchpoint.lat - start_lat) * frac
+        # frac runs 0 (start, back of threshold) -> 1 (meht point over threshold)
+        frac = i / (density - 1) if density > 1 else 1.0
+        lon = start_lon + (meht_point.lon - start_lon) * frac
+        lat = start_lat + (meht_point.lat - start_lat) * frac
 
         remaining = descent_distance * (1.0 - frac)
-        alt = touchpoint.alt + remaining * math.tan(math.radians(angle)) + config.altitude_offset
+        alt = meht_point.alt + remaining * math.tan(math.radians(angle)) + config.altitude_offset
 
         heading = bearing_between(lon, lat, lha_center.lon, lha_center.lat)
         pitch = elevation_angle(lon, lat, alt, lha_center.lon, lha_center.lat, lha_center.alt)
 
+        # the terminal waypoint at the meht point is a hover + capture (the MEHT
+        # measurement); the rest are the descent measurement series.
+        is_terminal = i == density - 1
         waypoints.append(
             WaypointData(
                 lon=lon,
@@ -81,11 +89,11 @@ def calculate_approach_descent_path(
                 alt=alt,
                 heading=heading,
                 speed=measurement_speed,
-                waypoint_type=WaypointType.MEASUREMENT,
+                waypoint_type=WaypointType.HOVER if is_terminal else WaypointType.MEASUREMENT,
                 camera_action=cam_action,
                 camera_target=lha_center,
                 inspection_id=inspection_id,
-                hover_duration=None,
+                hover_duration=hover_dur if is_terminal else None,
                 gimbal_pitch=pitch,
             )
         )

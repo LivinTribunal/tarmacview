@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router";
 import type { MissionDetailResponse, InspectionResponse } from "@/types/mission";
 import type {
   MeasurementListItem,
   MeasurementResults,
+  MissionResults,
 } from "@/types/measurement";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
 import MissionResultsPage from "./MissionResultsPage";
@@ -13,6 +14,7 @@ import MissionResultsPage from "./MissionResultsPage";
 vi.mock("@/api/measurements", () => ({
   listAirportMeasurements: vi.fn(),
   getMeasurementResults: vi.fn(),
+  getMissionResults: vi.fn(),
   downloadMeasurementReport: vi.fn(),
 }));
 vi.mock("@/api/inspectionTemplates", () => ({
@@ -29,6 +31,7 @@ vi.mock("./ResultsPage", () => ({
 import {
   listAirportMeasurements,
   getMeasurementResults,
+  getMissionResults,
 } from "@/api/measurements";
 import { listInspectionTemplates } from "@/api/inspectionTemplates";
 
@@ -126,6 +129,30 @@ const resultsPayload: MeasurementResults = {
   video_urls: {},
 };
 
+const overviewPayload: MissionResults = {
+  mission_id: "mission-a",
+  mission_name: "Alpha",
+  header: {
+    airport_icao: "LZIB",
+    airport_name: "Bratislava",
+    mission_name: "Alpha",
+    measurement_date: null,
+    drone_model: null,
+    optical_sensor: null,
+    reference_system: null,
+    certificate_number: null,
+  },
+  weather: {
+    temperature_c: null,
+    wind: null,
+    visibility: null,
+    conditions: null,
+  },
+  runways: [],
+  evaluation: [],
+  recommendations: null,
+};
+
 const setSaveContext = vi.fn();
 const setComputeContext = vi.fn();
 
@@ -152,9 +179,11 @@ function OutletHarness() {
   );
 }
 
-function renderPage() {
+function renderPage(search = "") {
   return render(
-    <MemoryRouter initialEntries={["/operator-center/missions/mission-a/results"]}>
+    <MemoryRouter
+      initialEntries={[`/operator-center/missions/mission-a/results${search}`]}
+    >
       <Routes>
         <Route element={<OutletHarness />}>
           <Route
@@ -182,63 +211,53 @@ describe("MissionResultsPage", () => {
       meta: { total: 0, limit: 50, offset: 0 },
     });
     vi.mocked(getMeasurementResults).mockResolvedValue(resultsPayload);
+    vi.mocked(getMissionResults).mockResolvedValue(overviewPayload);
   });
 
-  it("auto-selects the first DONE inspection and renders its results", async () => {
+  it("lands on the mission overview by default, not a single inspection", async () => {
     vi.mocked(listAirportMeasurements).mockResolvedValue([
       row({ id: "m1", inspection_id: "i1", status: "DONE" }),
       row({ id: "m2", inspection_id: "i2", status: "PROCESSING" }),
     ]);
     renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("mission-results-overview")).toBeInTheDocument(),
+    );
+    expect(getMissionResults).toHaveBeenCalledWith("mission-a");
+    // no drill-down fetch on load - overview is the default view
+    expect(getMeasurementResults).not.toHaveBeenCalled();
+    // pdf download is disabled outside a drill-down
+    expect(lastComputeCtx()?.canCompute).toBe(false);
+  });
+
+  it("opens the drill-down from a ?inspection=<DONE> deep-link", async () => {
+    vi.mocked(listAirportMeasurements).mockResolvedValue([
+      row({ id: "m1", inspection_id: "i1", status: "DONE" }),
+    ]);
+    renderPage("?inspection=i1");
 
     await waitFor(() =>
       expect(screen.getByTestId("results-page-stub")).toBeInTheDocument(),
     );
     expect(getMeasurementResults).toHaveBeenCalledWith("m1");
-    expect(screen.getByTestId("mission-results-page")).toBeInTheDocument();
+    // pdf download is enabled in the drill-down
+    expect(lastComputeCtx()?.canCompute).toBe(true);
   });
 
-  it("shows the latest run when an inspection has multiple measurements", async () => {
-    // api returns newest-first, so the first match per inspection wins
-    vi.mocked(listAirportMeasurements).mockResolvedValue([
-      row({ id: "m1-new", inspection_id: "i1", status: "DONE" }),
-      row({ id: "m1-old", inspection_id: "i1", status: "DONE" }),
-    ]);
-    renderPage();
-
-    await waitFor(() =>
-      expect(getMeasurementResults).toHaveBeenCalledWith("m1-new"),
-    );
-  });
-
-  it("shows the no-data state and disables download when nothing is measured", async () => {
-    vi.mocked(listAirportMeasurements).mockResolvedValue([
-      row({ id: "m2", inspection_id: "i2", status: "PROCESSING" }),
-    ]);
-    renderPage();
-
-    await waitFor(() =>
-      expect(screen.getByTestId("results-no-data")).toBeInTheDocument(),
-    );
-    expect(lastComputeCtx()?.canCompute).toBe(false);
-  });
-
-  it("shows the pick-inspection prompt after deselecting, keeping download enabled", async () => {
+  it("returns to the overview from the drill-down back control", async () => {
     vi.mocked(listAirportMeasurements).mockResolvedValue([
       row({ id: "m1", inspection_id: "i1", status: "DONE" }),
     ]);
-    renderPage();
+    renderPage("?inspection=i1");
 
     await waitFor(() =>
       expect(screen.getByTestId("results-page-stub")).toBeInTheDocument(),
     );
-    // click the selected picker row in the portaled left panel to deselect
-    fireEvent.click(screen.getByTestId("results-inspection-row-i1"));
-
+    screen.getByTestId("back-to-overview").click();
     await waitFor(() =>
-      expect(screen.getByTestId("results-pick-inspection")).toBeInTheDocument(),
+      expect(screen.getByTestId("mission-results-overview")).toBeInTheDocument(),
     );
-    expect(lastComputeCtx()?.canCompute).toBe(true);
   });
 
   it("wires a disabled save pill and a file-icon download button", async () => {
@@ -248,7 +267,7 @@ describe("MissionResultsPage", () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByTestId("results-page-stub")).toBeInTheDocument(),
+      expect(screen.getByTestId("mission-results-overview")).toBeInTheDocument(),
     );
     const saveCalls = setSaveContext.mock.calls;
     const save = saveCalls[saveCalls.length - 1]?.[0];

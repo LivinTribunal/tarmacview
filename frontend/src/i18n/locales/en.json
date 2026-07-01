@@ -2212,8 +2212,67 @@
     "status": "Status: {{status}}",
     "loadError": "Could not load measurement results.",
     "notReady": "This measurement has not finished processing yet. Results will appear here once the run is done.",
-    "noMeasurements": "No measurements yet for this mission. Start one from Validation & Export.",
-    "pickInspection": "Select a measured inspection to view its results.",
+    "overview": {
+      "title": "Mission overview",
+      "backToOverview": "← Back to overview",
+      "runway": "Runway {{id}}",
+      "runwayUnassigned": "Unassigned devices",
+      "notMeasured": "N/A",
+      "noRecommendations": "No recommendations recorded.",
+      "header": {
+        "airport": "Airport",
+        "mission": "Mission",
+        "date": "Date",
+        "drone": "Drone",
+        "opticalSensor": "Optical sensor",
+        "referenceSystem": "Reference system",
+        "certificateNumber": "Certificate no."
+      },
+      "weather": {
+        "title": "Weather",
+        "temperature": "Temperature",
+        "wind": "Wind",
+        "visibility": "Visibility",
+        "conditions": "Conditions"
+      },
+      "device": {
+        "glideSlope": "Glide/descent angle",
+        "light": "Light",
+        "configured": "Configured ± tol",
+        "measured": "Measured",
+        "result": "Result"
+      },
+      "rows": {
+        "chromaticity": "Chromaticity",
+        "luminous_intensity": "Luminous intensity",
+        "coverage": "Coverage",
+        "attenuation": "Attenuation",
+        "meht": "MEHT",
+        "obstacle_plane_clearance": "Obstacle-plane clearance",
+        "ils_alignment": "ILS alignment",
+        "als_hi_mi": "ALS HI/MI",
+        "threshold": "Threshold",
+        "edge": "Edge",
+        "end": "End",
+        "tdz": "TDZ",
+        "centerline": "Centre line"
+      },
+      "evaluation": {
+        "title": "Overall evaluation",
+        "device": "Device",
+        "result": "Result",
+        "restrictions": "Restrictions",
+        "recommendations": "Recommendations",
+        "empty": "No devices to evaluate.",
+        "PASS": "PASS",
+        "FAIL": "FAIL",
+        "PENDING": "PENDING",
+        "NOT_MEASURED": "N/A"
+      },
+      "recommendations": {
+        "title": "Recommendations"
+      }
+    },
     "inspectionInfo": "Inspection Info",
     "picker": {
       "notMeasured": "Not measured"

@@ -117,6 +117,86 @@ export interface DronePathPoint {
   elevation: number | null;
 }
 
+// mission-scale protocol aggregation - mirror app/schemas/mission_results.py
+export type DeviceEvaluation = "PASS" | "FAIL" | "PENDING" | "NOT_MEASURED";
+
+export interface MissionResultsHeader {
+  airport_icao: string;
+  airport_name: string;
+  mission_name: string;
+  measurement_date: string | null;
+  drone_model: string | null;
+  optical_sensor: string | null;
+  reference_system: string | null;
+  certificate_number: string | null;
+}
+
+export interface MissionWeatherPlaceholder {
+  temperature_c: number | null;
+  wind: string | null;
+  visibility: string | null;
+  conditions: string | null;
+}
+
+export interface MissionLightResult {
+  lha_id: string | null;
+  unit_designator: string | null;
+  light_name: string;
+  setting_angle: number | null;
+  tolerance: number | null;
+  measured_transition_angle: number | null;
+  transition_angle_min: number | null;
+  transition_angle_middle: number | null;
+  transition_angle_max: number | null;
+  passed: boolean | null;
+  not_measured: boolean;
+}
+
+export interface MissionGlideSlopeResult {
+  measured_glide_slope_angle: number | null;
+  configured_glide_slope_angle: number | null;
+  glide_slope_angle_tolerance: number | null;
+  within_tolerance: boolean | null;
+}
+
+export interface DeviceResults {
+  agl_id: string | null;
+  device_type: string;
+  device_label: string;
+  inspection_id: string | null;
+  inspection_method: InspectionMethod | null;
+  measurement_id: string | null;
+  status: string;
+  evaluation: DeviceEvaluation;
+  glide_slope: MissionGlideSlopeResult | null;
+  lights: MissionLightResult[];
+  placeholder_rows: string[];
+}
+
+export interface RunwayResults {
+  surface_id: string | null;
+  runway_identifier: string | null;
+  runway_heading: number | null;
+  devices: DeviceResults[];
+}
+
+export interface DeviceEvaluationRow {
+  device_label: string;
+  result: DeviceEvaluation;
+  restrictions: string | null;
+  recommendations: string | null;
+}
+
+export interface MissionResults {
+  mission_id: string;
+  mission_name: string;
+  header: MissionResultsHeader;
+  weather: MissionWeatherPlaceholder;
+  runways: RunwayResults[];
+  evaluation: DeviceEvaluationRow[];
+  recommendations: string | null;
+}
+
 export interface MeasurementResults {
   id: string;
   inspection_id: string;

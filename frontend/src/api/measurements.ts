@@ -5,6 +5,7 @@ import type {
   MeasurementPreview,
   MeasurementResults,
   MeasurementStatusResponse,
+  MissionResults,
 } from "@/types/measurement";
 import client from "./client";
 import { parseContentDispositionFilename } from "./missions";
@@ -70,6 +71,14 @@ export async function getMeasurementResults(
   measurementId: string,
 ): Promise<MeasurementResults> {
   const res = await client.get(`/measurements/${measurementId}/data`);
+  return res.data;
+}
+
+/** mission-level protocol aggregation - per runway/AGL/LHA overview. */
+export async function getMissionResults(
+  missionId: string,
+): Promise<MissionResults> {
+  const res = await client.get(`/missions/${missionId}/results`);
   return res.data;
 }
 

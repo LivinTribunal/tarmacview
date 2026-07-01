@@ -34,6 +34,7 @@ interface ResultsLeftPanelProps {
   measurementByInspection: Map<string, MeasurementListItem>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onReview: (inspectionId: string) => void;
   // selected inspection's loaded results + run row, null until one is picked
   results: MeasurementResults | null;
   currentRow: MeasurementListItem | null;
@@ -46,6 +47,7 @@ export default function ResultsLeftPanel({
   measurementByInspection,
   selectedId,
   onSelect,
+  onReview,
   results,
   currentRow,
 }: ResultsLeftPanelProps) {
@@ -60,6 +62,7 @@ export default function ResultsLeftPanel({
           measurementByInspection={measurementByInspection}
           selectedId={selectedId}
           onSelect={onSelect}
+          onReview={onReview}
         />
       </div>
 

@@ -11,7 +11,7 @@ import { apiErrorMessage } from "@/utils/apiError";
 import type { LightBox, MeasurementStatus } from "@/types/measurement";
 
 interface MeasurementFlowDialogProps {
-  /** the run to review - opened only for AWAITING_CONFIRM rows from the list. */
+  /** the run to review - opened only for AWAITING_CONFIRM rows from the results tab. */
   measurementId: string;
   inspectionLabel: string;
   onClose: () => void;
@@ -84,7 +84,7 @@ export default function MeasurementFlowDialog({
     })();
   }, [status, measurementId, previewLoaded, t]);
 
-  // confirm the boxes and start processing; the list + progress toast take over
+  // confirm the boxes and start processing; the results tab refetches on close
   async function handleConfirm() {
     setConfirming(true);
     setUiError(null);
@@ -109,7 +109,7 @@ export default function MeasurementFlowDialog({
   }
 
   // the dialog only opens for AWAITING_CONFIRM rows and never polls, so the run
-  // never reaches DONE here - confirm hands off to the list + progress toast.
+  // never reaches DONE here - confirm hands off to the results tab's refetch.
   const showAwaitingConfirm = status === "AWAITING_CONFIRM" && !uiError;
   const showError = (status === "ERROR" || uiError !== null) && !showAwaitingConfirm;
   const showLoading = !showAwaitingConfirm && !showError;

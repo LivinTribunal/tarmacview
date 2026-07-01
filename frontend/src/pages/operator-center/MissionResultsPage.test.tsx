@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router";
 import type { MissionDetailResponse, InspectionResponse } from "@/types/mission";
 import type {
@@ -16,6 +16,9 @@ vi.mock("@/api/measurements", () => ({
   getMeasurementResults: vi.fn(),
   getMissionResults: vi.fn(),
   downloadMeasurementReport: vi.fn(),
+  getMeasurementStatus: vi.fn(),
+  getMeasurementPreview: vi.fn(),
+  confirmMeasurementLights: vi.fn(),
 }));
 vi.mock("@/api/inspectionTemplates", () => ({
   listInspectionTemplates: vi.fn(),
@@ -32,6 +35,8 @@ import {
   listAirportMeasurements,
   getMeasurementResults,
   getMissionResults,
+  getMeasurementStatus,
+  getMeasurementPreview,
 } from "@/api/measurements";
 import { listInspectionTemplates } from "@/api/inspectionTemplates";
 
@@ -245,6 +250,19 @@ describe("MissionResultsPage", () => {
     expect(lastComputeCtx()?.canCompute).toBe(true);
   });
 
+  it("drills into the latest run when an inspection has multiple measurements", async () => {
+    // api returns newest-first, so the first match per inspection wins
+    vi.mocked(listAirportMeasurements).mockResolvedValue([
+      row({ id: "m1-new", inspection_id: "i1", status: "DONE" }),
+      row({ id: "m1-old", inspection_id: "i1", status: "DONE" }),
+    ]);
+    renderPage("?inspection=i1");
+
+    await waitFor(() =>
+      expect(getMeasurementResults).toHaveBeenCalledWith("m1-new"),
+    );
+  });
+
   it("returns to the overview from the drill-down back control", async () => {
     vi.mocked(listAirportMeasurements).mockResolvedValue([
       row({ id: "m1", inspection_id: "i1", status: "DONE" }),
@@ -277,5 +295,32 @@ describe("MissionResultsPage", () => {
     const compute = lastComputeCtx();
     expect(compute?.icon).toBe("file");
     expect(compute?.label).toBe("results.downloadPdf");
+  });
+
+  it("opens MeasurementFlowDialog when an AWAITING_CONFIRM inspection is reviewed", async () => {
+    vi.mocked(listAirportMeasurements).mockResolvedValue([
+      row({ id: "m9", inspection_id: "i1", status: "AWAITING_CONFIRM" }),
+    ]);
+    vi.mocked(getMeasurementStatus).mockResolvedValue({
+      id: "m9",
+      status: "AWAITING_CONFIRM",
+      error_message: null,
+    });
+    vi.mocked(getMeasurementPreview).mockResolvedValue({
+      id: "m9",
+      status: "AWAITING_CONFIRM",
+      first_frame_url: "http://x/f.jpg",
+      boxes: [{ light_name: "PAPI_A", x: 50, y: 50, size: 8 }],
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("results-inspection-row-i1")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("results-inspection-row-i1"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("measurement-flow-dialog")).toBeInTheDocument(),
+    );
   });
 });

@@ -40,6 +40,7 @@ function makeAgl(overrides: Partial<AGLResponse> = {}): AGLResponse {
     glide_slope_angle: 3.0,
     glide_slope_angle_tolerance: 0.1,
     distance_from_threshold: null,
+    meht_height_m: null,
     offset_from_centerline: null,
     lhas: [makeLha(1, "A"), makeLha(2, "B"), makeLha(3, "C"), makeLha(4, "D")],
     ...overrides,
@@ -66,12 +67,16 @@ const surface: SurfaceResponse = {
   agls: [],
 };
 
-function renderAgl(agl: AGLResponse, onLhasGenerated?: () => Promise<void> | void) {
+function renderAgl(
+  agl: AGLResponse,
+  onLhasGenerated?: () => Promise<void> | void,
+  onUpdate: (data: Record<string, unknown>) => void = () => {},
+) {
   const feature: MapFeature = { type: "agl", data: agl };
   return render(
     <EditableFeatureInfo
       feature={feature}
-      onUpdate={() => {}}
+      onUpdate={onUpdate}
       onClose={() => {}}
       airportId="apt-1"
       surfaces={[{ ...surface, agls: [agl] }]}
@@ -128,5 +133,38 @@ describe("AglFields glide slope tolerance", () => {
   it("hides the glide-slope tolerance input for a non-PAPI agl", () => {
     const { container } = renderAgl(makeAgl({ agl_type: "RUNWAY_EDGE_LIGHTS" }));
     expect(container.querySelector("#feat-glide-tolerance")).toBeNull();
+  });
+});
+
+describe("AglFields surveyed MEHT height", () => {
+  it("renders the MEHT-height input for a PAPI agl with its surveyed value", () => {
+    const { container } = renderAgl(makeAgl({ meht_height_m: 16.4 }));
+    const input = container.querySelector("#feat-meht-height") as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(input?.value).toBe("16.4");
+  });
+
+  it("hides the MEHT-height input for a non-PAPI agl", () => {
+    const { container } = renderAgl(makeAgl({ agl_type: "RUNWAY_EDGE_LIGHTS" }));
+    expect(container.querySelector("#feat-meht-height")).toBeNull();
+  });
+
+  it("emits a meht_height_m update on change", () => {
+    const onUpdate = vi.fn();
+    const { container } = renderAgl(makeAgl(), undefined, onUpdate);
+    const input = container.querySelector("#feat-meht-height") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "18.2" } });
+    expect(onUpdate).toHaveBeenCalledWith({ meht_height_m: 18.2 });
+  });
+
+  it("nulls out meht_height_m when switching to RUNWAY_EDGE_LIGHTS", () => {
+    const onUpdate = vi.fn();
+    renderAgl(makeAgl({ meht_height_m: 16.0 }), undefined, onUpdate);
+    fireEvent.change(screen.getByTestId("feat-agl-type-select"), {
+      target: { value: "RUNWAY_EDGE_LIGHTS" },
+    });
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ agl_type: "RUNWAY_EDGE_LIGHTS", meht_height_m: null }),
+    );
   });
 });

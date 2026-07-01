@@ -46,6 +46,7 @@ function makeSurfaceWithAgl(lhas: LHAResponse[]): SurfaceResponse {
     glide_slope_angle: null,
     glide_slope_angle_tolerance: null,
     distance_from_threshold: null,
+    meht_height_m: null,
     offset_from_centerline: null,
     lhas,
   };
@@ -345,6 +346,7 @@ function makePapiSurface(lhas: LHAResponse[]): SurfaceResponse {
     glide_slope_angle: 3,
     glide_slope_angle_tolerance: null,
     distance_from_threshold: 300,
+    meht_height_m: null,
     offset_from_centerline: 15,
     lhas,
   };

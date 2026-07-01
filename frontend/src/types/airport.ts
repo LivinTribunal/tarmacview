@@ -97,6 +97,7 @@ export interface AGLResponse {
   glide_slope_angle: number | null;
   glide_slope_angle_tolerance: number | null;
   distance_from_threshold: number | null;
+  meht_height_m: number | null;
   offset_from_centerline: number | null;
   lhas: LHAResponse[];
 }
@@ -252,6 +253,7 @@ export interface AGLCreate {
   glide_slope_angle?: number | null;
   glide_slope_angle_tolerance?: number | null;
   distance_from_threshold?: number | null;
+  meht_height_m?: number | null;
   offset_from_centerline?: number | null;
 }
 
@@ -263,6 +265,7 @@ export interface AGLUpdate {
   glide_slope_angle?: number | null;
   glide_slope_angle_tolerance?: number | null;
   distance_from_threshold?: number | null;
+  meht_height_m?: number | null;
   offset_from_centerline?: number | null;
   preserve_altitude?: boolean;
 }

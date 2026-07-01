@@ -115,12 +115,15 @@ export default function AglFields({
             const next = e.target.value;
             if (
               next === "RUNWAY_EDGE_LIGHTS" &&
-              (data.glide_slope_angle != null || data.glide_slope_angle_tolerance != null)
+              (data.glide_slope_angle != null ||
+                data.glide_slope_angle_tolerance != null ||
+                data.meht_height_m != null)
             ) {
               onUpdate({
                 agl_type: next,
                 glide_slope_angle: null,
                 glide_slope_angle_tolerance: null,
+                meht_height_m: null,
               });
             } else {
               handleChange("agl_type", next);
@@ -183,6 +186,17 @@ export default function AglFields({
           step="0.1"
           value={val("distance_from_threshold")}
           onChange={(e) => handleChange("distance_from_threshold", e.target.value === "" ? null : parseFloat(e.target.value))}
+        />
+      )}
+      {val("agl_type") === "PAPI" && (
+        <Input
+          id="feat-meht-height"
+          label={t("coordinator.detail.aglMehtHeight")}
+          hint={t("coordinator.detail.aglMehtHeightHelp")}
+          type="number"
+          step="0.1"
+          value={val("meht_height_m")}
+          onChange={(e) => handleChange("meht_height_m", e.target.value === "" ? null : parseFloat(e.target.value))}
         />
       )}
       <PointCoordEditor

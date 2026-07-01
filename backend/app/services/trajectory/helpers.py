@@ -22,6 +22,7 @@ from .types import (
     DEFAULT_VERTICAL_PROFILE_START,
     MIN_ARC_RADIUS,
     Degrees,
+    Meters,
     Point3D,
     ResolvedConfig,
     WaypointData,
@@ -249,6 +250,15 @@ def get_glide_slope_angle(template) -> Degrees:
             return angle
 
     return DEFAULT_GLIDE_SLOPE_DEG
+
+
+def resolve_meht_height(agl, glide_slope: Degrees) -> Meters | None:
+    """surveyed meht_height_m when set, else derived distance_from_threshold * tan(glide_slope)."""
+    if getattr(agl, "meht_height_m", None) is not None:
+        return agl.meht_height_m
+    if agl.distance_from_threshold is None:
+        return None
+    return agl.distance_from_threshold * math.tan(math.radians(glide_slope))
 
 
 def get_runway_heading(template, surfaces) -> Degrees:
@@ -680,16 +690,20 @@ def _apply_papi_glide_slope_terrain(
 def _apply_camera_actions(waypoints: list[WaypointData]):
     """set lead-in and lead-out waypoints to NONE camera action.
 
-    preserves RECORDING_START/RECORDING_STOP on video capture hover waypoints.
+    preserves RECORDING_START/RECORDING_STOP on video capture hover waypoints,
+    and preserves a HOVER endpoint's capture (the approach-descent terminal MEHT
+    hover carries an intentional PHOTO_CAPTURE/RECORDING).
     """
     if len(waypoints) >= 2:
-        if waypoints[0].camera_action not in (
-            CameraAction.RECORDING_START,
-            CameraAction.RECORDING_STOP,
+        if (
+            waypoints[0].camera_action
+            not in (CameraAction.RECORDING_START, CameraAction.RECORDING_STOP)
+            and waypoints[0].waypoint_type != WaypointType.HOVER
         ):
             waypoints[0].camera_action = CameraAction.NONE
-        if waypoints[-1].camera_action not in (
-            CameraAction.RECORDING_START,
-            CameraAction.RECORDING_STOP,
+        if (
+            waypoints[-1].camera_action
+            not in (CameraAction.RECORDING_START, CameraAction.RECORDING_STOP)
+            and waypoints[-1].waypoint_type != WaypointType.HOVER
         ):
             waypoints[-1].camera_action = CameraAction.NONE

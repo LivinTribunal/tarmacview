@@ -14,6 +14,8 @@ interface InspectionPickerProps {
   measurementByInspection: Map<string, MeasurementListItem>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  // open the manual box-review dialog for an AWAITING_CONFIRM run
+  onReview: (inspectionId: string) => void;
 }
 
 /** read-only single-select inspection list with a per-row measurement result tag. */
@@ -23,6 +25,7 @@ export default function InspectionPicker({
   measurementByInspection,
   selectedId,
   onSelect,
+  onReview,
 }: InspectionPickerProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
@@ -73,26 +76,27 @@ export default function InspectionPicker({
             const template = templates.get(insp.template_id);
             const meas = measurementByInspection.get(insp.id);
             const selectable = meas?.status === "DONE";
+            const reviewable = meas?.status === "AWAITING_CONFIRM";
+            const interactive = selectable || reviewable;
             const isSelected = selectedId === insp.id;
+            const activate = reviewable
+              ? () => onReview(insp.id)
+              : () => onSelect(isSelected ? null : insp.id);
 
             return (
               <div
                 key={insp.id}
                 role="button"
-                tabIndex={selectable ? 0 : -1}
-                aria-disabled={!selectable}
-                onClick={
-                  selectable
-                    ? () => onSelect(isSelected ? null : insp.id)
-                    : undefined
-                }
+                tabIndex={interactive ? 0 : -1}
+                aria-disabled={!interactive}
+                onClick={interactive ? activate : undefined}
                 onKeyDown={
-                  selectable
+                  interactive
                     ? (e) => {
                         if (e.target !== e.currentTarget) return;
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          onSelect(isSelected ? null : insp.id);
+                          activate();
                         }
                       }
                     : undefined
@@ -101,7 +105,7 @@ export default function InspectionPicker({
                   isSelected
                     ? "border-tv-accent bg-tv-surface"
                     : "border-transparent hover:bg-tv-surface-hover"
-                } ${selectable ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
+                } ${interactive ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
                 data-testid={`results-inspection-row-${insp.id}`}
               >
                 <span className="flex items-center justify-center h-5 w-5 rounded-full bg-tv-accent/20 text-tv-accent text-xs font-semibold flex-shrink-0">
@@ -125,6 +129,13 @@ export default function InspectionPicker({
                     <MeasurementStatusChip status="DONE" size="sm" />
                     <span className="text-xs text-tv-text-secondary">
                       {meas.pass_count}/{meas.pass_count + meas.fail_count}
+                    </span>
+                  </span>
+                ) : reviewable ? (
+                  <span className="flex items-center gap-1 flex-shrink-0">
+                    <MeasurementStatusChip status="AWAITING_CONFIRM" size="sm" />
+                    <span className="text-xs font-medium text-tv-warning">
+                      {t("results.picker.review")}
                     </span>
                   </span>
                 ) : meas ? (

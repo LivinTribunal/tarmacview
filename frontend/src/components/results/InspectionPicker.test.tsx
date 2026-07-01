@@ -100,6 +100,7 @@ describe("InspectionPicker", () => {
         measurementByInspection={new Map([["i1", listRow({})]])}
         selectedId={null}
         onSelect={vi.fn()}
+        onReview={vi.fn()}
       />,
     );
     expect(screen.getByTestId("results-inspection-row-i1")).toBeInTheDocument();
@@ -115,6 +116,7 @@ describe("InspectionPicker", () => {
         measurementByInspection={new Map([["i1", listRow({})]])}
         selectedId={null}
         onSelect={onSelect}
+        onReview={vi.fn()}
       />,
     );
     const row = screen.getByTestId("results-inspection-row-i1");
@@ -132,12 +134,58 @@ describe("InspectionPicker", () => {
         measurementByInspection={new Map([["i1", listRow({})]])}
         selectedId={null}
         onSelect={onSelect}
+        onReview={vi.fn()}
       />,
     );
     const row = screen.getByTestId("results-inspection-row-i2");
     expect(row).toHaveAttribute("aria-disabled", "true");
     expect(within(row).getByText("Not measured")).toBeInTheDocument();
     fireEvent.click(row);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("makes an AWAITING_CONFIRM row reviewable and fires onReview, not onSelect", () => {
+    const onSelect = vi.fn();
+    const onReview = vi.fn();
+    render(
+      <InspectionPicker
+        inspections={inspections}
+        templates={templates}
+        measurementByInspection={
+          new Map([["i1", listRow({ status: "AWAITING_CONFIRM" })]])
+        }
+        selectedId={null}
+        onSelect={onSelect}
+        onReview={onReview}
+      />,
+    );
+    const row = screen.getByTestId("results-inspection-row-i1");
+    expect(row).toHaveAttribute("aria-disabled", "false");
+    expect(within(row).getByText("Review")).toBeInTheDocument();
+    fireEvent.click(row);
+    expect(onReview).toHaveBeenCalledWith("i1");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("keeps a PROCESSING row disabled", () => {
+    const onSelect = vi.fn();
+    const onReview = vi.fn();
+    render(
+      <InspectionPicker
+        inspections={inspections}
+        templates={templates}
+        measurementByInspection={
+          new Map([["i1", listRow({ status: "PROCESSING" })]])
+        }
+        selectedId={null}
+        onSelect={onSelect}
+        onReview={onReview}
+      />,
+    );
+    const row = screen.getByTestId("results-inspection-row-i1");
+    expect(row).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(row);
+    expect(onReview).not.toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
   });
 });

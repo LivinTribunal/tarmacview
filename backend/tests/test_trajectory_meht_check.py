@@ -8,11 +8,13 @@ from uuid import uuid4
 import pytest
 
 from app.core.enums import CameraAction, InspectionMethod, WaypointType
+from app.services.trajectory.helpers import _apply_camera_actions, resolve_meht_height
 from app.services.trajectory.methods.meht_check import calculate_meht_check_path
 from app.services.trajectory.types import (
     DEFAULT_MEHT_HOVER_DURATION,
     Point3D,
     ResolvedConfig,
+    WaypointData,
 )
 from app.utils.geo import bearing_between
 from tests.method_dispatch import dispatch_trajectory, make_context
@@ -25,6 +27,7 @@ class FakeInspection:
     id: object = None
     method: InspectionMethod = InspectionMethod.MEHT_CHECK
     config: object = None
+    sequence_order: int = 1
 
     def __post_init__(self):
         """set default id."""
@@ -178,6 +181,7 @@ class FakeAgl:
 
     surface_id: object = None
     distance_from_threshold: float | None = 300.0
+    meht_height_m: float | None = None
 
     def __post_init__(self):
         """set default surface_id."""
@@ -204,14 +208,15 @@ class FakeTemplate:
     """minimal template stub for prepare tests."""
 
     targets: list = field(default_factory=list)
+    name: str = "MEHT Check"
 
 
 class TestPrepareMehtCheck:
-    """tests for _prepare_meht_check horizontal position offset."""
+    """tests for _prepare_meht_check over-threshold positioning."""
 
     @patch("app.services.trajectory.methods._prepare.get_threshold_position")
-    def test_meht_point_offset_from_threshold(self, mock_threshold):
-        """meht point lat/lon must differ from threshold when dist > 0."""
+    def test_meht_point_over_threshold(self, mock_threshold):
+        """meht point sits directly over the threshold lat/lon (on centerline)."""
         from app.services.trajectory.methods import _prepare_meht_check
 
         threshold = Point3D(lon=14.26, lat=50.1, alt=380.0)
@@ -237,11 +242,12 @@ class TestPrepareMehtCheck:
 
         pos = result.target_lha_pos
         assert pos is not None
-        assert pos.lon != threshold.lon or pos.lat != threshold.lat
+        assert pos.lon == threshold.lon
+        assert pos.lat == threshold.lat
 
     @patch("app.services.trajectory.methods._prepare.get_threshold_position")
     def test_meht_point_altitude_correct(self, mock_threshold):
-        """altitude = threshold alt + meht height + altitude offset."""
+        """altitude = threshold alt + derived meht height + altitude offset."""
         from app.services.trajectory.methods import _prepare_meht_check
 
         threshold = Point3D(lon=14.26, lat=50.1, alt=380.0)
@@ -270,24 +276,24 @@ class TestPrepareMehtCheck:
         assert abs(result.target_lha_pos.alt - expected_alt) < 0.01
 
     @patch("app.services.trajectory.methods._prepare.get_threshold_position")
-    def test_meht_offset_direction_reciprocal(self, mock_threshold):
-        """offset should be along reciprocal heading (approach direction)."""
+    def test_surveyed_height_overrides_derived(self, mock_threshold):
+        """a surveyed meht_height_m sets the hover altitude, ignoring distance*tan."""
         from app.services.trajectory.methods import _prepare_meht_check
 
         threshold = Point3D(lon=14.26, lat=50.1, alt=380.0)
         mock_threshold.return_value = threshold
 
         surface_id = uuid4()
-        agl = FakeAgl(surface_id=surface_id, distance_from_threshold=300.0)
+        agl = FakeAgl(surface_id=surface_id, distance_from_threshold=300.0, meht_height_m=18.0)
         template = FakeTemplate(targets=[agl])
 
-        # rwy heading north (0) - approach from south (180) - lat should decrease
+        config = ResolvedConfig(altitude_offset=2.0)
         result = _prepare_meht_check(
             make_context(
                 FakeInspection(),
-                ResolvedConfig(),
+                config,
                 center=Point3D(lon=14.26, lat=50.1, alt=380.0),
-                runway_heading=0.0,
+                runway_heading=90.0,
                 glide_slope=3.0,
                 default_speed=5.0,
                 template=template,
@@ -295,8 +301,86 @@ class TestPrepareMehtCheck:
             )
         )
 
-        pos = result.target_lha_pos
-        assert pos.lat < threshold.lat
+        # surveyed 18 m wins over the derived 300*tan(3) ~= 15.7 m
+        assert result.target_lha_pos.alt == pytest.approx(380.0 + 18.0 + 2.0)
+
+    @patch("app.services.trajectory.methods._prepare.get_threshold_position")
+    def test_missing_height_raises(self, mock_threshold):
+        """no surveyed height and no distance raises a clear validation error."""
+        from app.core.exceptions import TrajectoryGenerationError
+        from app.services.trajectory.methods import _prepare_meht_check
+
+        mock_threshold.return_value = Point3D(lon=14.26, lat=50.1, alt=380.0)
+
+        surface_id = uuid4()
+        agl = FakeAgl(surface_id=surface_id, distance_from_threshold=None, meht_height_m=None)
+        template = FakeTemplate(targets=[agl])
+
+        with pytest.raises(TrajectoryGenerationError, match="meht_height_m"):
+            _prepare_meht_check(
+                make_context(
+                    FakeInspection(),
+                    ResolvedConfig(),
+                    center=Point3D(lon=14.26, lat=50.1, alt=380.0),
+                    runway_heading=90.0,
+                    glide_slope=3.0,
+                    default_speed=5.0,
+                    template=template,
+                    surfaces=[FakeSurface(id=surface_id)],
+                )
+            )
+
+
+class TestResolveMehtHeight:
+    """tests for the shared surveyed-else-derived meht-height resolver."""
+
+    def test_surveyed_value_returned_verbatim(self):
+        """meht_height_m wins over the derived formula when set."""
+        agl = FakeAgl(distance_from_threshold=300.0, meht_height_m=18.0)
+        assert resolve_meht_height(agl, 3.0) == 18.0
+
+    def test_derived_when_only_distance_set(self):
+        """falls back to distance * tan(glide_slope) when meht_height_m is null."""
+        agl = FakeAgl(distance_from_threshold=300.0, meht_height_m=None)
+        expected = 300.0 * math.tan(math.radians(3.0))
+        assert resolve_meht_height(agl, 3.0) == pytest.approx(expected)
+
+    def test_none_when_neither_set(self):
+        """returns None when neither surveyed height nor distance is available."""
+        agl = FakeAgl(distance_from_threshold=None, meht_height_m=None)
+        assert resolve_meht_height(agl, 3.0) is None
+
+
+class TestApplyCameraActionsHoverGuard:
+    """the terminal HOVER capture survives _apply_camera_actions."""
+
+    def _wp(self, wtype, action):
+        """build a minimal waypoint of the given type and camera action."""
+        return WaypointData(
+            lon=14.26,
+            lat=50.1,
+            alt=395.0,
+            heading=0.0,
+            speed=5.0,
+            waypoint_type=wtype,
+            camera_action=action,
+            camera_target=None,
+            inspection_id=uuid4(),
+            hover_duration=None,
+            gimbal_pitch=0.0,
+        )
+
+    def test_terminal_hover_capture_preserved(self):
+        """a MEASUREMENT, MEASUREMENT, HOVER(PHOTO_CAPTURE) list keeps the hover capture."""
+        wps = [
+            self._wp(WaypointType.MEASUREMENT, CameraAction.PHOTO_CAPTURE),
+            self._wp(WaypointType.MEASUREMENT, CameraAction.PHOTO_CAPTURE),
+            self._wp(WaypointType.HOVER, CameraAction.PHOTO_CAPTURE),
+        ]
+        _apply_camera_actions(wps)
+        # the lead-in measurement is blanked, the terminal hover keeps its capture
+        assert wps[0].camera_action == CameraAction.NONE
+        assert wps[-1].camera_action == CameraAction.PHOTO_CAPTURE
 
 
 # update_agl autocompute branch

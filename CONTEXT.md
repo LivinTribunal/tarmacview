@@ -35,8 +35,8 @@ The full data model — all 19 tables, columns, types, and enums — lives in `d
 ## Altitude & geometry primitives
 
 - **AGL (Above Ground Level)** — altitude relative to the terrain surface beneath the drone, distinct from MSL. Bug #232 fixed a regression where takeoff/landing waypoints made the displayed AGL range go negative.
-- **MSL (Above Mean Sea Level)** — absolute altitude, used by GPS and barometric sensors.
-- **LHA (Lighting Hot Area)** — region of intense lighting that anchors an inspection. `AGL.calculate_lha_center_point()` returns the centroid of LHA positions.
+- **MSL (Mean Sea Level)** — the vertical datum. Absolute altitudes measured from it are **AMSL (Above Mean Sea Level)** — used by GPS and barometric sensors.
+- **LHA (Light Housing Assembly)** — an individual light unit within an AGL system (a PAPI has four), anchoring an inspection. `AGL.calculate_lha_center_point()` returns the centroid of LHA positions.
 - **AltitudeRange** — value object: `(min, max)` with `min ≤ max`, `contains()` method.
 - **Coordinate** — immutable value object `(lat, lon, alt)` with range validation, `to_wkt()` serializer. SRID 4326.
 - **Speed** — non-negative float (m/s). Must be compatible with the drone's frame rate via `Inspection.is_speed_compatible_with_frame_rate(drone, speed)`.

@@ -77,6 +77,7 @@ class AGLCreate(BaseModel):
     glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
     distance_from_threshold: float | None = None
+    meht_height_m: float | None = None
     offset_from_centerline: float | None = None
 
 
@@ -90,6 +91,7 @@ class AGLUpdate(BaseModel):
     glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
     distance_from_threshold: float | None = None
+    meht_height_m: float | None = None
     offset_from_centerline: float | None = None
     # transport-only flag - skip ground-altitude renormalization on this update
     preserve_altitude: bool = False
@@ -107,6 +109,7 @@ class AGLResponse(BaseModel):
     glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = None
     distance_from_threshold: float | None = None
+    meht_height_m: float | None = None
     offset_from_centerline: float | None = None
     lhas: list[LHAResponse] = []
 

@@ -1503,6 +1503,8 @@
       "aglGlideToleranceHelp": "Povolená odchýlka nameranej zostupovej dráhy od uhla zostupovej dráhy tohto PAPI, kontrolovaná v čase výsledkov. Iba PAPI – neovplyvňuje generovanie trajektórie.",
       "aglDistance": "Vzdialenosť od prahu (m)",
       "aglDistanceHelp": "Vzdialenosť od prahu dráhy k pozícii AGL pozdĺž osi. Používa sa na vykreslenie približovacieho lúča.",
+      "aglMehtHeight": "Zameraná výška MEHT (m)",
+      "aglMehtHeightHelp": "Publikovaná minimálna výška očí nad prahom pre toto PAPI. Ak je zadaná, kontrola MEHT a približovací zostup letia v tejto výške; inak sa odvodí zo vzdialenosti od prahu a uhla zostupovej dráhy. Iba PAPI.",
       "lhaUnitDesignator": "Jednotka",
       "lhaUnitDesignatorHelp": "Identifikátor pre túto LHA. PAPI používa A–D (najbližšie k dráhe = D); postranné svetlá používajú poradové čísla. Zmena tejto hodnoty na PAPI prečísluje aj súrodencov.",
       "lhaSettingAngle": "Nastavený uhol",
@@ -2279,7 +2281,8 @@
     },
     "inspectionInfo": "Informácie o inšpekcii",
     "picker": {
-      "notMeasured": "Nezmerané"
+      "notMeasured": "Nezmerané",
+      "review": "Skontrolovať"
     },
     "downloadPdf": "Stiahnuť PDF report",
     "generatingPdf": "Generuje sa…",

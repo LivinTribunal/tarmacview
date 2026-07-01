@@ -27,10 +27,10 @@ def _vertical_profile_handler(ctx: MethodContext, prep: MethodPrep) -> list[Wayp
 
 def _approach_descent_handler(ctx: MethodContext, prep: MethodPrep) -> list[WaypointData]:
     """handler for APPROACH_DESCENT method."""
-    if prep.touchpoint is None:
-        raise ValueError("approach-descent requires a runway touchpoint")
+    if prep.meht_point is None:
+        raise ValueError("approach-descent requires a MEHT point")
     return calculate_approach_descent_path(
-        prep.touchpoint,
+        prep.meht_point,
         ctx.center,
         ctx.runway_heading,
         ctx.glide_slope,

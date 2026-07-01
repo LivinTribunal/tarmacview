@@ -3,7 +3,7 @@
 import math
 
 from app.core.exceptions import TrajectoryGenerationError
-from app.utils.geo import distance_between, linestring_length, point_at_distance
+from app.utils.geo import distance_between, linestring_length
 
 from ..helpers import (
     determine_end_position,
@@ -12,7 +12,7 @@ from ..helpers import (
     find_lha_in_surfaces,
     get_runway_centerline_midpoint,
     get_threshold_position,
-    get_touchpoint_position,
+    resolve_meht_height,
     resolve_scan_surface,
 )
 from ..types import (
@@ -85,12 +85,23 @@ def _prepare_vertical_profile(ctx: MethodContext) -> MethodPrep:
 
 def _prepare_approach_descent(ctx: MethodContext) -> MethodPrep:
     """pre-computation for approach descent."""
-    touchpoint = get_touchpoint_position(ctx.template, ctx.surfaces)
-    if touchpoint is None:
+    threshold = get_threshold_position(ctx.template, ctx.surfaces)
+    if threshold is None:
         raise TrajectoryGenerationError(
-            f"{_label(ctx)}: approach-descent requires a runway touchpoint "
-            "- set the touchpoint on the runway surface"
+            f"{_label(ctx)}: approach-descent requires a runway threshold position"
         )
+    meht_height = None
+    for agl in ctx.template.targets:
+        meht_height = resolve_meht_height(agl, ctx.glide_slope)
+        if meht_height is not None:
+            break
+    if meht_height is None:
+        raise TrajectoryGenerationError(
+            f"{_label(ctx)}: approach-descent requires meht_height_m or distance_from_threshold"
+        )
+    # glide path is anchored on the meht point over the threshold; altitude_offset
+    # is re-added by the handler + terrain rebuild, so it stays out of the anchor.
+    meht_point = Point3D(lon=threshold.lon, lat=threshold.lat, alt=threshold.alt + meht_height)
     descent_distance = (
         ctx.config.descent_start_distance
         if ctx.config.descent_start_distance is not None
@@ -100,7 +111,7 @@ def _prepare_approach_descent(ctx: MethodContext) -> MethodPrep:
         path_distance=descent_distance,
         default_speed=ctx.default_speed,
         density_for_speed=ctx.config.measurement_density,
-        touchpoint=touchpoint,
+        meht_point=meht_point,
     )
 
 
@@ -216,29 +227,22 @@ def _prepare_meht_check(ctx: MethodContext) -> MethodPrep:
             f"{_label(ctx)}: MEHT check requires runway threshold position"
         )
 
-    # glide slope is already resolved by the orchestrator
-    meht_glide_slope = ctx.glide_slope
-    dist_from_threshold = None
+    meht_height = None
     for agl in ctx.template.targets:
-        if agl.distance_from_threshold is not None:
-            dist_from_threshold = agl.distance_from_threshold
+        meht_height = resolve_meht_height(agl, ctx.glide_slope)
+        if meht_height is not None:
             break
-
-    if dist_from_threshold is None:
+    if meht_height is None:
         raise TrajectoryGenerationError(
-            f"{_label(ctx)}: MEHT check requires distance_from_threshold on AGL"
+            f"{_label(ctx)}: MEHT check requires meht_height_m or distance_from_threshold on AGL"
         )
 
-    meht_height = dist_from_threshold * math.tan(math.radians(meht_glide_slope))
-
-    # offset from threshold along reciprocal heading (pilot eye position on glide path)
-    approach_bearing = (ctx.runway_heading + 180) % 360
-    lon, lat = point_at_distance(
-        threshold.lon, threshold.lat, approach_bearing, dist_from_threshold
-    )
+    # hover sits directly over the threshold on the centerline at the meht altitude.
+    # this is the actual flown position, so altitude_offset is baked in here (meht
+    # check runs no terrain rebuild).
     meht_point = Point3D(
-        lon=lon,
-        lat=lat,
+        lon=threshold.lon,
+        lat=threshold.lat,
         alt=threshold.alt + meht_height + ctx.config.altitude_offset,
     )
 

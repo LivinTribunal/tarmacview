@@ -9,6 +9,7 @@ function summary(over: Partial<LightSummary>): LightSummary {
     setting_angle: 3.0,
     tolerance: 0.5,
     measured_transition_angle: 3.0,
+    measured_transition_angle_touchpoint: null,
     passed: true,
     ...over,
   };

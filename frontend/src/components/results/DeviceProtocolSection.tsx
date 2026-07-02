@@ -132,6 +132,25 @@ export default function DeviceProtocolSection({
         </div>
       )}
 
+      {device.ils_harmonization && (
+        <div
+          className="flex items-center justify-between text-sm mb-3 pb-3 border-b border-tv-border"
+          data-testid="ils-harmonization-row"
+        >
+          <span className="text-tv-text-secondary">
+            {t("results.overview.device.ilsAlignment")}
+          </span>
+          <span className="text-tv-text-primary">
+            {fmt(device.ils_harmonization.measured_glide_slope_angle_touchpoint)}
+            {" / "}
+            {nominal(
+              device.ils_harmonization.configured_glide_slope_angle,
+              device.ils_harmonization.ils_harmonization_tolerance,
+            )}
+          </span>
+        </div>
+      )}
+
       {device.lights.length > 0 && (
         <table className="w-full text-sm mb-3">
           <thead>

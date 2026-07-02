@@ -117,12 +117,14 @@ export default function AglFields({
               next === "RUNWAY_EDGE_LIGHTS" &&
               (data.glide_slope_angle != null ||
                 data.glide_slope_angle_tolerance != null ||
+                data.ils_harmonization_tolerance != null ||
                 data.meht_height_m != null)
             ) {
               onUpdate({
                 agl_type: next,
                 glide_slope_angle: null,
                 glide_slope_angle_tolerance: null,
+                ils_harmonization_tolerance: null,
                 meht_height_m: null,
               });
             } else {
@@ -175,6 +177,22 @@ export default function AglFields({
           step="0.1"
           value={val("glide_slope_angle_tolerance")}
           onChange={(e) => handleChange("glide_slope_angle_tolerance", e.target.value === "" ? null : parseFloat(e.target.value))}
+        />
+      )}
+      {val("agl_type") === "PAPI" && (
+        <Input
+          id="feat-ils-tolerance"
+          label={t("coordinator.detail.aglIlsTolerance")}
+          hint={t("coordinator.detail.aglIlsToleranceHelp")}
+          type="number"
+          step="0.01"
+          value={val("ils_harmonization_tolerance")}
+          onChange={(e) =>
+            handleChange(
+              "ils_harmonization_tolerance",
+              e.target.value === "" ? null : parseFloat(e.target.value),
+            )
+          }
         />
       )}
       {val("agl_type") === "PAPI" && (

@@ -14,7 +14,11 @@ from app.services.video_processing.config import settings
 from ..gps import GPSExtractor
 from ..processor import VideoProcessor
 from ..tracking import PAPILightTracker
-from ..utils import extract_color_from_brightest_pixels, measure_light_dimensions
+from ..utils import (
+    calculate_angle,
+    extract_color_from_brightest_pixels,
+    measure_light_dimensions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -405,6 +409,15 @@ class MeasurementCollector:
                 )
                 frame_data[f"{light_key}_transition_angle_max"] = angles.get("transition_angle_max")
                 frame_data[f"{light_key}_transition_angle"] = angles.get("transition_angle_middle")
+                frame_data[f"{light_key}_transition_angle_min_touchpoint"] = angles.get(
+                    "transition_angle_min_touchpoint"
+                )
+                frame_data[f"{light_key}_transition_angle_middle_touchpoint"] = angles.get(
+                    "transition_angle_middle_touchpoint"
+                )
+                frame_data[f"{light_key}_transition_angle_max_touchpoint"] = angles.get(
+                    "transition_angle_max_touchpoint"
+                )
 
         logger.info("=" * 80)
         logger.info(f"PASS 1 COMPLETE: {len(measurements_data)} frames with transition angles")
@@ -447,10 +460,16 @@ class MeasurementCollector:
         """
         light_key = light_name.lower()
 
+        # touchpoint-referenced angles are computed only when a TOUCH_POINT datum is present
+        touch_point = reference_points.get("TOUCH_POINT") if reference_points else None
+
         # Extract green channel data for all frames
         green_values = []
         frame_angles = []
         frame_indices = []
+        # touchpoint-referenced elevation angle per accepted frame, in lockstep with the
+        # three lists above (None per frame when no touchpoint datum is available)
+        frame_touch_angles = []
 
         for idx, frame_data in enumerate(measurements_data):
             rgb_key = f"{light_key}_rgb"
@@ -480,6 +499,21 @@ class MeasurementCollector:
             green_values.append(g)
             frame_angles.append(angle)
             frame_indices.append(idx)
+
+            # re-project the same crossing frame from the runway touchpoint
+            if touch_point is not None:
+                frame_touch_angles.append(
+                    calculate_angle(
+                        {
+                            "latitude": frame_data.get("drone_latitude"),
+                            "longitude": frame_data.get("drone_longitude"),
+                            "elevation_wgs84": frame_data.get("drone_elevation_wgs84"),
+                        },
+                        touch_point,
+                    )
+                )
+            else:
+                frame_touch_angles.append(None)
 
         # Apply trimmed mean filter to smooth the green signal and reject outliers
         # Window of 20 frames before and after, removing top/bottom 10% before averaging
@@ -547,27 +581,32 @@ class MeasurementCollector:
         # Step 2: Search BACKWARDS from middle to find LAST frame matching ~20% threshold
         # This is the transition START (low green = red, before transition)
         transition_start_angle = None
+        transition_start_idx = None
         for i in range(middle_frame_idx, -1, -1):  # Search backwards from middle to start
             if (
                 green_values[i] <= transition_threshold_20
             ):  # Lower green = more red = before transition
                 transition_start_angle = frame_angles[i]
+                transition_start_idx = i
                 break
 
         # Step 3: Search FORWARDS from middle to find FIRST frame matching ~80% threshold
         # This is the transition END (high green = white, after transition)
         transition_end_angle = None
+        transition_end_idx = None
         for i in range(middle_frame_idx, len(green_values)):  # Search forwards from middle to end
             if (
                 green_values[i] >= transition_threshold_80
             ):  # Higher green = more white = after transition
                 transition_end_angle = frame_angles[i]
+                transition_end_idx = i
                 break
 
         # Handle edge cases where thresholds are not crossed
         if transition_start_angle is None:
             # Use the first frame as fallback
             transition_start_angle = frame_angles[0]
+            transition_start_idx = 0
             logger.warning(
                 f"{light_name}: Could not find transition start, using first frame angle"
             )
@@ -575,6 +614,7 @@ class MeasurementCollector:
         if transition_end_angle is None:
             # Use the last frame as fallback
             transition_end_angle = frame_angles[-1]
+            transition_end_idx = -1
             logger.warning(f"{light_name}: Could not find transition end, using last frame angle")
 
         # Determine min/max based on which angle is smaller
@@ -615,9 +655,25 @@ class MeasurementCollector:
             f" transition({int(transition_pct * 100)}%)={transition_angle_middle:.3f}°"
         )
 
-        return {
+        result = {
             "transition_angle_min": round(transition_angle_min, 3),
             "transition_angle_max": round(transition_angle_max, 3),
             "transition_angle_middle": round(transition_angle_middle, 3),
             "transition_frames_count": transition_frames_count,
         }
+
+        # touchpoint-referenced transition angles at the same crossing frames - present only
+        # when a TOUCH_POINT datum was supplied and both crossings re-projected cleanly
+        if touch_point is not None:
+            tp_start = frame_touch_angles[transition_start_idx]
+            tp_end = frame_touch_angles[transition_end_idx]
+            if tp_start is not None and tp_end is not None:
+                tp_min = min(tp_start, tp_end)
+                tp_max = max(tp_start, tp_end)
+                result["transition_angle_min_touchpoint"] = round(tp_min, 3)
+                result["transition_angle_max_touchpoint"] = round(tp_max, 3)
+                result["transition_angle_middle_touchpoint"] = round(
+                    tp_min + transition_pct * (tp_max - tp_min), 3
+                )
+
+        return result

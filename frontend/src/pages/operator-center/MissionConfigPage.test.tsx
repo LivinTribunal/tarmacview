@@ -210,6 +210,7 @@ describe("InspectionConfigForm LHA toggle", () => {
     side: null,
     glide_slope_angle: null,
     glide_slope_angle_tolerance: null,
+    ils_harmonization_tolerance: null,
     distance_from_threshold: null,
     meht_height_m: null,
     offset_from_centerline: null,

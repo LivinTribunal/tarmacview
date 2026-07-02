@@ -25,8 +25,12 @@ interface MetricRow {
 /** glide-path angle summary - to-PAPI derived from PAPI_B/PAPI_C, to-touch-point gated. */
 export default function GlidePathSummaryTable({
   lights,
+  nominalGlideSlope = null,
+  harmonizationTolerance = null,
 }: {
   lights: LightSeries[];
+  nominalGlideSlope?: number | null;
+  harmonizationTolerance?: number | null;
 }) {
   const { t } = useTranslation();
   const papiB = lights.find((l) => l.light_name === "PAPI_B");
@@ -36,6 +40,12 @@ export default function GlidePathSummaryTable({
   const gp = mid(
     papiB?.transition_angle_max ?? null,
     papiC?.transition_angle_min ?? null,
+  );
+
+  // touch-point glidepath from the touchpoint-referenced transition angles
+  const gpTp = mid(
+    papiB?.transition_angle_max_touchpoint ?? null,
+    papiC?.transition_angle_min_touchpoint ?? null,
   );
 
   if (gp === null) {
@@ -65,13 +75,12 @@ export default function GlidePathSummaryTable({
       tolerance,
       verdict: transitionVerdict(gp, nominal, tolerance),
     },
-    // touch-point datum is not in the results contract yet - render as gated
     {
       label: t("results.glidePath.toTouchPoint"),
-      value: null,
-      nominal: null,
-      tolerance: null,
-      verdict: "unknown",
+      value: gpTp,
+      nominal: nominalGlideSlope,
+      tolerance: harmonizationTolerance,
+      verdict: transitionVerdict(gpTp, nominalGlideSlope, harmonizationTolerance),
     },
   ];
 

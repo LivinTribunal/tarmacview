@@ -42,6 +42,9 @@ function series(over: Partial<LightSeries>): LightSeries {
     transition_angle_min: 2.8,
     transition_angle_middle: 3.0,
     transition_angle_max: 3.2,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: true,
     points: [
       point({ frame_number: 0, timestamp: 0, angle: 2.5 }),

@@ -96,6 +96,7 @@ export interface AGLResponse {
   side: PAPISide | null;
   glide_slope_angle: number | null;
   glide_slope_angle_tolerance: number | null;
+  ils_harmonization_tolerance: number | null;
   distance_from_threshold: number | null;
   meht_height_m: number | null;
   offset_from_centerline: number | null;
@@ -252,6 +253,7 @@ export interface AGLCreate {
   side?: PAPISide | null;
   glide_slope_angle?: number | null;
   glide_slope_angle_tolerance?: number | null;
+  ils_harmonization_tolerance?: number | null;
   distance_from_threshold?: number | null;
   meht_height_m?: number | null;
   offset_from_centerline?: number | null;
@@ -264,6 +266,7 @@ export interface AGLUpdate {
   side?: PAPISide | null;
   glide_slope_angle?: number | null;
   glide_slope_angle_tolerance?: number | null;
+  ils_harmonization_tolerance?: number | null;
   distance_from_threshold?: number | null;
   meht_height_m?: number | null;
   offset_from_centerline?: number | null;

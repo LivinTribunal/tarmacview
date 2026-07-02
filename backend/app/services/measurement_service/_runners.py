@@ -197,6 +197,21 @@ def _measured_transition_angles(measurements_data: list[dict]) -> dict[str, floa
     return measured
 
 
+def _measured_transition_angles_touchpoint(
+    measurements_data: list[dict],
+) -> dict[str, float | None]:
+    """last non-null per-light touchpoint-referenced transition middle angle from pass-1 data."""
+    measured: dict[str, float | None] = {}
+    for name in PAPI_LIGHT_NAMES:
+        key = f"{name.lower()}_transition_angle_middle_touchpoint"
+        value: float | None = None
+        for frame in measurements_data:
+            if frame.get(key) is not None:
+                value = float(frame[key])
+        measured[name] = value
+    return measured
+
+
 def run_processing(db: Session, measurement_id: UUID) -> Measurement:
     """worker step: run the full engine and write results to object storage.
 
@@ -234,6 +249,9 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
             for b in (measurement.light_boxes or [])
         }
         ref_payload = measurement.reference_point_payload()
+        touchpoint = measurement.touchpoint_payload()
+        if touchpoint is not None:
+            ref_payload["TOUCH_POINT"] = touchpoint
 
         with tempfile.TemporaryDirectory() as workdir:
             video_path = os.path.join(workdir, "input_0.mp4")
@@ -278,7 +296,10 @@ def run_processing(db: Session, measurement_id: UUID) -> Measurement:
 
         measurement.object_key = object_key
         measurement.annotated_video_keys = video_keys
-        measurement.with_summaries_from(_measured_transition_angles(measurements_data))
+        measurement.with_summaries_from(
+            _measured_transition_angles(measurements_data),
+            _measured_transition_angles_touchpoint(measurements_data),
+        )
         measurement.transition_to(MeasurementStatus.DONE)
         db.commit()
         return measurement

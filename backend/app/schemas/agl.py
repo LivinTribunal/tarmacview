@@ -76,6 +76,7 @@ class AGLCreate(BaseModel):
     side: PAPISideStr | None = None
     glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
+    ils_harmonization_tolerance: float | None = Field(default=None, gt=0)
     distance_from_threshold: float | None = None
     meht_height_m: float | None = None
     offset_from_centerline: float | None = None
@@ -90,6 +91,7 @@ class AGLUpdate(BaseModel):
     side: PAPISideStr | None = None
     glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = Field(default=None, gt=0)
+    ils_harmonization_tolerance: float | None = Field(default=None, gt=0)
     distance_from_threshold: float | None = None
     meht_height_m: float | None = None
     offset_from_centerline: float | None = None
@@ -108,6 +110,7 @@ class AGLResponse(BaseModel):
     side: PAPISideStr | None = None
     glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = None
+    ils_harmonization_tolerance: float | None = None
     distance_from_threshold: float | None = None
     meht_height_m: float | None = None
     offset_from_centerline: float | None = None

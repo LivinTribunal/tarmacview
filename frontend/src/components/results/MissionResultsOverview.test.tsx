@@ -14,6 +14,7 @@ function device(over: Partial<DeviceResults> = {}): DeviceResults {
     status: "DONE",
     evaluation: "PASS",
     glide_slope: null,
+    ils_harmonization: null,
     lights: [],
     placeholder_rows: [],
     ...over,

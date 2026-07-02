@@ -99,6 +99,15 @@ def _light_series(name: str, frames: list[dict], summary) -> LightSeries:
         transition_angle_min=sample.get(f"{key}_transition_angle_min") if sample else None,
         transition_angle_middle=sample.get(f"{key}_transition_angle_middle") if sample else None,
         transition_angle_max=sample.get(f"{key}_transition_angle_max") if sample else None,
+        transition_angle_min_touchpoint=(
+            sample.get(f"{key}_transition_angle_min_touchpoint") if sample else None
+        ),
+        transition_angle_middle_touchpoint=(
+            sample.get(f"{key}_transition_angle_middle_touchpoint") if sample else None
+        ),
+        transition_angle_max_touchpoint=(
+            sample.get(f"{key}_transition_angle_max_touchpoint") if sample else None
+        ),
         passed=summary.get("passed") if summary else None,
         points=points,
     )
@@ -111,6 +120,18 @@ def _measured_glide_slope(lights: list[LightSeries]) -> float | None:
     c = by_name.get("PAPI_C")
     b_max = b.transition_angle_max if b else None
     c_min = c.transition_angle_min if c else None
+    if b_max is None or c_min is None:
+        return None
+    return (b_max + c_min) / 2
+
+
+def _measured_glide_slope_touchpoint(lights: list[LightSeries]) -> float | None:
+    """mid touchpoint glidepath from PAPI_B max + PAPI_C min; None when either is missing."""
+    by_name = {light.light_name: light for light in lights}
+    b = by_name.get("PAPI_B")
+    c = by_name.get("PAPI_C")
+    b_max = b.transition_angle_max_touchpoint if b else None
+    c_min = c.transition_angle_min_touchpoint if c else None
     if b_max is None or c_min is None:
         return None
     return (b_max + c_min) / 2
@@ -162,6 +183,7 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
         runway_heading=measurement.runway_heading,
         configured_glide_slope_angle=measurement.glide_slope_angle,
         glide_slope_angle_tolerance=measurement.glide_slope_angle_tolerance,
+        ils_harmonization_tolerance=measurement.ils_harmonization_tolerance,
         reference_points=_reference_point_responses(measurement),
         summaries=_summary_responses(measurement),
     )
@@ -178,6 +200,11 @@ def build_results_data(db: Session, measurement_id: UUID) -> MeasurementResultsR
     measured = _measured_glide_slope(response.lights)
     response.measured_glide_slope_angle = measured
     response.glide_slope_within_tolerance = measurement.glide_slope_within_tolerance(measured)
+    measured_tp = _measured_glide_slope_touchpoint(response.lights)
+    response.measured_glide_slope_angle_touchpoint = measured_tp
+    response.ils_harmonization_within_tolerance = measurement.ils_harmonization_within_tolerance(
+        measured_tp
+    )
     response.drone_path = _drone_path(frames)
     response.video_urls = {
         name: object_storage.presigned_get(key)

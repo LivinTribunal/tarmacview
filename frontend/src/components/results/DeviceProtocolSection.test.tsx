@@ -14,9 +14,13 @@ function light(over: Partial<MissionLightResult> = {}): MissionLightResult {
     setting_angle: 3.0,
     tolerance: 0.5,
     measured_transition_angle: 3.1,
+    measured_transition_angle_touchpoint: null,
     transition_angle_min: 2.9,
     transition_angle_middle: 3.1,
     transition_angle_max: 3.3,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: true,
     not_measured: false,
     ...over,
@@ -39,6 +43,7 @@ function device(over: Partial<DeviceResults> = {}): DeviceResults {
       glide_slope_angle_tolerance: 0.1,
       within_tolerance: true,
     },
+    ils_harmonization: null,
     lights: [light()],
     placeholder_rows: ["chromaticity", "meht"],
     ...over,
@@ -89,6 +94,34 @@ describe("DeviceProtocolSection", () => {
     const rows = screen.getByTestId("placeholder-rows");
     expect(rows.querySelectorAll("li")).toHaveLength(2);
     expect(rows.className).not.toContain("tv-status-cancelled");
+  });
+
+  it("renders the ils-harmonization row when present, not among placeholders", () => {
+    render(
+      <DeviceProtocolSection
+        device={device({
+          ils_harmonization: {
+            measured_glide_slope_angle_touchpoint: 3.01,
+            configured_glide_slope_angle: 3.0,
+            ils_harmonization_tolerance: 0.05,
+            within_tolerance: true,
+            evaluation: "PASS",
+          },
+        })}
+        onDrillDown={vi.fn()}
+      />,
+    );
+    const row = screen.getByTestId("ils-harmonization-row");
+    // measured / nominal ± tolerance ride in one split span
+    expect(row.textContent).toContain("3.01°");
+    expect(row.textContent).toContain("3.00° ± 0.05°");
+    // ils_alignment is no longer a greyed placeholder row
+    expect(screen.queryByText("results.overview.rows.ils_alignment")).not.toBeInTheDocument();
+  });
+
+  it("omits the ils-harmonization row when absent", () => {
+    render(<DeviceProtocolSection device={device()} onDrillDown={vi.fn()} />);
+    expect(screen.queryByTestId("ils-harmonization-row")).not.toBeInTheDocument();
   });
 
   it("drills down from a DONE device header", () => {

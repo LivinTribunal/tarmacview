@@ -184,6 +184,91 @@ def test_glide_slope_within_tolerance_unscoreable():
     )
 
 
+# touchpoint payload + ILS-harmonization verdict
+
+
+def test_touchpoint_payload_needs_full_triple():
+    """touchpoint_payload is None unless lat/lon/alt are all set."""
+    assert _measurement().touchpoint_payload() is None
+    assert (
+        _measurement(touchpoint_latitude=50.1, touchpoint_longitude=14.2).touchpoint_payload()
+        is None
+    )
+    payload = _measurement(
+        touchpoint_latitude=50.1,
+        touchpoint_longitude=14.2,
+        touchpoint_altitude=380.0,
+        glide_slope_angle=3.0,
+    ).touchpoint_payload()
+    assert payload == {
+        "latitude": 50.1,
+        "longitude": 14.2,
+        "elevation_wgs84": 380.0,
+        "nominal_angle": 3.0,
+    }
+
+
+def test_ils_harmonization_within_tolerance_pass_fail_band_edges():
+    """the touchpoint glidepath passes inside the band (edges inclusive), fails just over."""
+    m = _measurement(glide_slope_angle=3.0, ils_harmonization_tolerance=0.05)
+    assert m.ils_harmonization_within_tolerance(3.0) is True
+    assert m.ils_harmonization_within_tolerance(3.05) is True  # exactly +tolerance
+    assert m.ils_harmonization_within_tolerance(2.95) is True  # exactly -tolerance
+    assert m.ils_harmonization_within_tolerance(3.06) is False  # just over
+
+
+def test_ils_harmonization_within_tolerance_unscoreable():
+    """a missing published angle, tolerance, or measurement is None (never FAIL)."""
+    assert (
+        _measurement(
+            glide_slope_angle=None, ils_harmonization_tolerance=0.05
+        ).ils_harmonization_within_tolerance(3.0)
+        is None
+    )
+    assert (
+        _measurement(
+            glide_slope_angle=3.0, ils_harmonization_tolerance=None
+        ).ils_harmonization_within_tolerance(3.0)
+        is None
+    )
+    assert (
+        _measurement(
+            glide_slope_angle=3.0, ils_harmonization_tolerance=0.05
+        ).ils_harmonization_within_tolerance(None)
+        is None
+    )
+
+
+def test_score_light_carries_touchpoint_without_touching_passed():
+    """the touchpoint angle rides along; passed stays driven by setting-angle math only."""
+    scored = Measurement.score_light("PAPI_A", 3.0, 0.5, 3.2, 2.9)
+    assert scored["measured_transition_angle_touchpoint"] == 2.9
+    assert scored["passed"] is True
+    # an out-of-band touchpoint angle never flips passed
+    still_ok = Measurement.score_light("PAPI_A", 3.0, 0.5, 3.2, 99.0)
+    assert still_ok["passed"] is True
+    # default is None when no touchpoint angle is supplied
+    assert (
+        Measurement.score_light("PAPI_A", 3.0, 0.5, 3.2)["measured_transition_angle_touchpoint"]
+        is None
+    )
+
+
+def test_with_summaries_from_writes_touchpoint_angle():
+    """the parallel touchpoint dict is written per light alongside the light-referenced angle."""
+    m = _measurement(
+        reference_points=[
+            {"light_name": "PAPI_A", "setting_angle": 3.0, "tolerance": 0.5},
+            {"light_name": "PAPI_B", "setting_angle": 3.0, "tolerance": 0.5},
+        ]
+    )
+    m.with_summaries_from({"PAPI_A": 3.1, "PAPI_B": 3.2}, {"PAPI_A": 2.9})
+    by_name = {s["light_name"]: s for s in m.summaries}
+    assert by_name["PAPI_A"]["measured_transition_angle_touchpoint"] == 2.9
+    # a light absent from the touchpoint dict degrades to None, never a crash
+    assert by_name["PAPI_B"]["measured_transition_angle_touchpoint"] is None
+
+
 def test_confirm_boxes_replaces_boxes():
     """confirm_boxes stores the operator-adjusted set."""
     m = _measurement()

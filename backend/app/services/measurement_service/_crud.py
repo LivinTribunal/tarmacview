@@ -1,11 +1,15 @@
 """measurement crud + reference snapshot - the route-facing entrypoints (flush only)."""
 
 import logging
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.constants import DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+from app.core.constants import (
+    DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG,
+    DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG,
+)
 from app.core.enums import MeasurementStatus
 from app.core.exceptions import DomainError, NotFoundError
 from app.core.geometry import point_lonlatalt
@@ -37,44 +41,71 @@ def _light_name_for(designator: str | None, index: int) -> str:
     return f"PAPI_{index + 1}"
 
 
-def _snapshot_reference_points(
-    db: Session, inspection: Inspection
-) -> tuple[list[dict], float | None, float | None, float | None]:
+@dataclass
+class _ReferenceSnapshot:
+    """the create-time reference set snapshotted off the inspection's target LHAs."""
+
+    points: list[dict] = field(default_factory=list)
+    runway_heading: float | None = None
+    glide_slope_angle: float | None = None
+    glide_slope_angle_tolerance: float | None = None
+    touchpoint_latitude: float | None = None
+    touchpoint_longitude: float | None = None
+    touchpoint_altitude: float | None = None
+    ils_harmonization_tolerance: float | None = None
+
+
+def _snapshot_reference_points(db: Session, inspection: Inspection) -> _ReferenceSnapshot:
     """snapshot the inspection's target LHAs into reference points + runway heading.
 
     the snapshot is the engine's free reference set - lha position, setting angle and
     tolerance captured at run time, plus the parent runway heading for the horizontal
-    angle calc and the configured AGL glide slope + its tolerance for the glidepath
-    verdict. an inspection with no resolvable LHAs yields an empty set.
+    angle calc, the configured AGL glide slope + its tolerance for the glidepath verdict,
+    and the runway touchpoint + ILS-harmonization tolerance for the ILS check. an
+    inspection with no resolvable LHAs yields an empty snapshot.
     """
+    snap = _ReferenceSnapshot()
     lha_ids = inspection.lha_ids or []
     if not lha_ids:
-        return [], None, None, None
+        return snap
 
     lhas = db.query(LHA).filter(LHA.id.in_(lha_ids)).all()
     lhas.sort(key=lambda lha: lha.sequence_number)
 
-    runway_heading: float | None = None
-    glide_slope_angle: float | None = None
-    glide_slope_angle_tolerance: float | None = None
-    points: list[dict] = []
     for index, lha in enumerate(lhas):
         try:
             lon, lat, alt = point_lonlatalt(lha.position)
         except ValueError:
             logger.warning("lha %s has no usable position - skipped in snapshot", lha.id)
             continue
-        if runway_heading is None and lha.agl and lha.agl.surface:
-            runway_heading = lha.agl.surface.heading
-        if glide_slope_angle is None and lha.agl and lha.agl.glide_slope_angle is not None:
-            glide_slope_angle = lha.agl.glide_slope_angle
+        if snap.runway_heading is None and lha.agl and lha.agl.surface:
+            snap.runway_heading = lha.agl.surface.heading
+        if snap.glide_slope_angle is None and lha.agl and lha.agl.glide_slope_angle is not None:
+            snap.glide_slope_angle = lha.agl.glide_slope_angle
         if (
-            glide_slope_angle_tolerance is None
+            snap.glide_slope_angle_tolerance is None
             and lha.agl
             and lha.agl.glide_slope_angle_tolerance is not None
         ):
-            glide_slope_angle_tolerance = lha.agl.glide_slope_angle_tolerance
-        points.append(
+            snap.glide_slope_angle_tolerance = lha.agl.glide_slope_angle_tolerance
+        # touchpoint is all-or-nothing off the same runway surface as the heading
+        if snap.touchpoint_latitude is None and lha.agl and lha.agl.surface:
+            s = lha.agl.surface
+            if (
+                s.touchpoint_latitude is not None
+                and s.touchpoint_longitude is not None
+                and s.touchpoint_altitude is not None
+            ):
+                snap.touchpoint_latitude = s.touchpoint_latitude
+                snap.touchpoint_longitude = s.touchpoint_longitude
+                snap.touchpoint_altitude = s.touchpoint_altitude
+        if (
+            snap.ils_harmonization_tolerance is None
+            and lha.agl
+            and lha.agl.ils_harmonization_tolerance is not None
+        ):
+            snap.ils_harmonization_tolerance = lha.agl.ils_harmonization_tolerance
+        snap.points.append(
             {
                 "light_name": _light_name_for(lha.unit_designator, index),
                 "latitude": lat,
@@ -86,7 +117,7 @@ def _snapshot_reference_points(
                 "tolerance": lha.tolerance,
             }
         )
-    return points, runway_heading, glide_slope_angle, glide_slope_angle_tolerance
+    return snap
 
 
 def _inspection_media_keys(db: Session, inspection_id: UUID) -> list[str]:
@@ -117,17 +148,24 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
     if not media_keys:
         raise DomainError("inspection has no uploaded media to measure", status_code=422)
 
-    reference_points, runway_heading, glide_slope_angle, agl_tolerance = _snapshot_reference_points(
-        db, inspection
-    )
+    snap = _snapshot_reference_points(db, inspection)
 
-    # tolerance falls back to the default so an unset AGL still yields a verdict band,
-    # but only when there is a configured glide slope to band around - no angle, no tolerance.
-    if glide_slope_angle is None:
+    # both tolerances fall back to their default so an unset AGL still yields a verdict
+    # band, but only when there is a configured glide slope to band around - no angle,
+    # no tolerance.
+    if snap.glide_slope_angle is None:
         glide_slope_angle_tolerance = None
+        ils_harmonization_tolerance = None
     else:
         glide_slope_angle_tolerance = (
-            agl_tolerance if agl_tolerance is not None else DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+            snap.glide_slope_angle_tolerance
+            if snap.glide_slope_angle_tolerance is not None
+            else DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+        )
+        ils_harmonization_tolerance = (
+            snap.ils_harmonization_tolerance
+            if snap.ils_harmonization_tolerance is not None
+            else DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG
         )
 
     # measurement kickoff flips the parent mission VALIDATED/EXPORTED -> MEASURED
@@ -138,10 +176,14 @@ def create_measurement(db: Session, inspection_id: UUID) -> Measurement:
     measurement = Measurement(
         inspection_id=inspection_id,
         status=MeasurementStatus.QUEUED.value,
-        runway_heading=runway_heading,
-        glide_slope_angle=glide_slope_angle,
+        runway_heading=snap.runway_heading,
+        glide_slope_angle=snap.glide_slope_angle,
         glide_slope_angle_tolerance=glide_slope_angle_tolerance,
-        reference_points=reference_points,
+        touchpoint_latitude=snap.touchpoint_latitude,
+        touchpoint_longitude=snap.touchpoint_longitude,
+        touchpoint_altitude=snap.touchpoint_altitude,
+        ils_harmonization_tolerance=ils_harmonization_tolerance,
+        reference_points=snap.points,
         media_object_keys=media_keys,
     )
     db.add(measurement)

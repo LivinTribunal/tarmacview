@@ -36,6 +36,9 @@ const baseResults: MeasurementResults = {
   configured_glide_slope_angle: null,
   glide_slope_angle_tolerance: null,
   glide_slope_within_tolerance: null,
+  measured_glide_slope_angle_touchpoint: null,
+  ils_harmonization_tolerance: null,
+  ils_harmonization_within_tolerance: null,
   reference_points: [],
   summaries: [
     {
@@ -43,6 +46,7 @@ const baseResults: MeasurementResults = {
       setting_angle: 3.0,
       tolerance: 0.5,
       measured_transition_angle: 3.1,
+      measured_transition_angle_touchpoint: null,
       passed: true,
     },
   ],

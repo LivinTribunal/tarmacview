@@ -11,6 +11,9 @@ function light(over: Partial<LightSeries>): LightSeries {
     transition_angle_min: 2.8,
     transition_angle_middle: 3.0,
     transition_angle_max: 3.2,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: true,
     points: [],
     ...over,
@@ -56,6 +59,21 @@ describe("TransitionDifferenceTable", () => {
     const pairwise = screen.getByTestId("transition-pairwise");
     expect(pairwise.querySelectorAll("tbody tr")).toHaveLength(2);
     expect(screen.getByText("-0.50°")).toBeInTheDocument(); // 3.0 - 3.5
+  });
+
+  it("renders the vs-touch-point column value and dashes a null", () => {
+    render(
+      <TransitionDifferenceTable
+        lights={[
+          light({ light_name: "PAPI_A", transition_angle_middle_touchpoint: 2.95 }),
+          light({ light_name: "PAPI_B", transition_angle_middle_touchpoint: null }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("results.transitionDiff.vsTouchPoint")).toBeInTheDocument();
+    expect(screen.getByText("2.95°")).toBeInTheDocument();
+    // the null touchpoint value renders as a dash
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows the empty state with no lights", () => {

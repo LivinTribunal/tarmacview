@@ -40,6 +40,8 @@ class LightSummaryResponse(BaseModel):
     setting_angle: float | None = None
     tolerance: float | None = None
     measured_transition_angle: float | None = None
+    # same transition angle seen from the runway touchpoint (non-scoring)
+    measured_transition_angle_touchpoint: float | None = None
     passed: bool | None = None
 
 
@@ -147,6 +149,10 @@ class LightSeries(BaseModel):
     transition_angle_min: float | None = None
     transition_angle_middle: float | None = None
     transition_angle_max: float | None = None
+    # touchpoint-referenced transition angles (same crossing frames, touchpoint datum)
+    transition_angle_min_touchpoint: float | None = None
+    transition_angle_middle_touchpoint: float | None = None
+    transition_angle_max_touchpoint: float | None = None
     passed: bool | None = None
     points: list[LightSeriesPoint] = []
 
@@ -185,6 +191,12 @@ class MeasurementResultsResponse(BaseModel):
     configured_glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = None
     glide_slope_within_tolerance: bool | None = None
+    # ILS-harmonization verdict block - the touchpoint-referenced on-slope glidepath vs
+    # the published angle +/- ils tolerance. within is None (never False) when the runway
+    # has no snapshotted touchpoint or the run predates this check.
+    measured_glide_slope_angle_touchpoint: float | None = None
+    ils_harmonization_tolerance: float | None = None
+    ils_harmonization_within_tolerance: bool | None = None
     reference_points: list[ReferencePointResponse] = []
     summaries: list[LightSummaryResponse] = []
     lights: list[LightSeries] = []

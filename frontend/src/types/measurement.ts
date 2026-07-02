@@ -76,6 +76,8 @@ export interface LightSummary {
   setting_angle: number | null;
   tolerance: number | null;
   measured_transition_angle: number | null;
+  // same transition angle seen from the runway touchpoint (non-scoring)
+  measured_transition_angle_touchpoint: number | null;
   passed: boolean | null;
 }
 
@@ -105,6 +107,10 @@ export interface LightSeries {
   transition_angle_min: number | null;
   transition_angle_middle: number | null;
   transition_angle_max: number | null;
+  // touchpoint-referenced transition angles (same crossing frames, touchpoint datum)
+  transition_angle_min_touchpoint: number | null;
+  transition_angle_middle_touchpoint: number | null;
+  transition_angle_max_touchpoint: number | null;
   passed: boolean | null;
   points: LightSeriesPoint[];
 }
@@ -145,9 +151,13 @@ export interface MissionLightResult {
   setting_angle: number | null;
   tolerance: number | null;
   measured_transition_angle: number | null;
+  measured_transition_angle_touchpoint: number | null;
   transition_angle_min: number | null;
   transition_angle_middle: number | null;
   transition_angle_max: number | null;
+  transition_angle_min_touchpoint: number | null;
+  transition_angle_middle_touchpoint: number | null;
+  transition_angle_max_touchpoint: number | null;
   passed: boolean | null;
   not_measured: boolean;
 }
@@ -157,6 +167,14 @@ export interface MissionGlideSlopeResult {
   configured_glide_slope_angle: number | null;
   glide_slope_angle_tolerance: number | null;
   within_tolerance: boolean | null;
+}
+
+export interface MissionIlsHarmonizationResult {
+  measured_glide_slope_angle_touchpoint: number | null;
+  configured_glide_slope_angle: number | null;
+  ils_harmonization_tolerance: number | null;
+  within_tolerance: boolean | null;
+  evaluation: DeviceEvaluation;
 }
 
 export interface DeviceResults {
@@ -169,6 +187,7 @@ export interface DeviceResults {
   status: string;
   evaluation: DeviceEvaluation;
   glide_slope: MissionGlideSlopeResult | null;
+  ils_harmonization: MissionIlsHarmonizationResult | null;
   lights: MissionLightResult[];
   placeholder_rows: string[];
 }
@@ -213,6 +232,10 @@ export interface MeasurementResults {
   configured_glide_slope_angle: number | null;
   glide_slope_angle_tolerance: number | null;
   glide_slope_within_tolerance: boolean | null;
+  // ILS-harmonization verdict block (touchpoint-referenced glidepath vs published angle)
+  measured_glide_slope_angle_touchpoint: number | null;
+  ils_harmonization_tolerance: number | null;
+  ils_harmonization_within_tolerance: boolean | null;
   reference_points: ReferencePoint[];
   summaries: LightSummary[];
   lights: LightSeries[];

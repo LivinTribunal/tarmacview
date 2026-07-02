@@ -39,6 +39,7 @@ function makeAgl(overrides: Partial<AGLResponse> = {}): AGLResponse {
     side: "LEFT",
     glide_slope_angle: 3.0,
     glide_slope_angle_tolerance: 0.1,
+    ils_harmonization_tolerance: null,
     distance_from_threshold: null,
     meht_height_m: null,
     offset_from_centerline: null,
@@ -133,6 +134,42 @@ describe("AglFields glide slope tolerance", () => {
   it("hides the glide-slope tolerance input for a non-PAPI agl", () => {
     const { container } = renderAgl(makeAgl({ agl_type: "RUNWAY_EDGE_LIGHTS" }));
     expect(container.querySelector("#feat-glide-tolerance")).toBeNull();
+  });
+});
+
+describe("AglFields ILS harmonization tolerance", () => {
+  it("renders the ils-tolerance input for a PAPI agl with its value", () => {
+    const { container } = renderAgl(makeAgl({ ils_harmonization_tolerance: 0.05 }));
+    const input = container.querySelector("#feat-ils-tolerance") as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(input?.value).toBe("0.05");
+  });
+
+  it("hides the ils-tolerance input for a non-PAPI agl", () => {
+    const { container } = renderAgl(makeAgl({ agl_type: "RUNWAY_EDGE_LIGHTS" }));
+    expect(container.querySelector("#feat-ils-tolerance")).toBeNull();
+  });
+
+  it("emits an ils_harmonization_tolerance update on change", () => {
+    const onUpdate = vi.fn();
+    const { container } = renderAgl(makeAgl(), undefined, onUpdate);
+    const input = container.querySelector("#feat-ils-tolerance") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "0.03" } });
+    expect(onUpdate).toHaveBeenCalledWith({ ils_harmonization_tolerance: 0.03 });
+  });
+
+  it("nulls out ils_harmonization_tolerance when switching to RUNWAY_EDGE_LIGHTS", () => {
+    const onUpdate = vi.fn();
+    renderAgl(makeAgl({ ils_harmonization_tolerance: 0.05 }), undefined, onUpdate);
+    fireEvent.change(screen.getByTestId("feat-agl-type-select"), {
+      target: { value: "RUNWAY_EDGE_LIGHTS" },
+    });
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agl_type: "RUNWAY_EDGE_LIGHTS",
+        ils_harmonization_tolerance: null,
+      }),
+    );
   });
 });
 

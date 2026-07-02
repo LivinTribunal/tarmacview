@@ -50,6 +50,11 @@ DEFAULT_GLIDE_SLOPE_DEG: float = 3.0
 # leaves it unset. coordinator-edited like the AGL glide slope. NOT a trajectory input.
 DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG: float = 0.1
 
+# results-time band (deg) for the ILS-harmonization verdict: the touchpoint-referenced
+# on-slope glidepath vs the published glide_slope_angle. 0.1 deg total corridor = +/-0.05
+# each side (deliberately tighter than the +/-0.1 PAPI-referenced glide-slope tolerance).
+DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG: float = 0.05
+
 # default LHA setting-angle tolerance (deg) - applied at the orm column default
 # on LHA.tolerance, at the bulk-generate request schema default, and at the
 # bulk-generate service fallback when the inbound payload omits it. shared so

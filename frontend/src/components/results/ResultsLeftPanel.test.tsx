@@ -51,6 +51,9 @@ function light(over: Partial<LightSeries>): LightSeries {
     transition_angle_min: null,
     transition_angle_middle: null,
     transition_angle_max: null,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: null,
     points: [],
     ...over,
@@ -71,6 +74,9 @@ function results(over: Partial<MeasurementResults>): MeasurementResults {
     configured_glide_slope_angle: null,
     glide_slope_angle_tolerance: null,
     glide_slope_within_tolerance: null,
+    measured_glide_slope_angle_touchpoint: null,
+    ils_harmonization_tolerance: null,
+    ils_harmonization_within_tolerance: null,
     reference_points: [],
     summaries: [],
     lights: [],
@@ -142,6 +148,7 @@ describe("overallVerdict", () => {
           setting_angle: null,
           tolerance: null,
           measured_transition_angle: null,
+          measured_transition_angle_touchpoint: null,
           passed: null,
         },
       ]),
@@ -153,6 +160,7 @@ describe("overallVerdict", () => {
       setting_angle: 3,
       tolerance: 0.5,
       measured_transition_angle: 3.1,
+      measured_transition_angle_touchpoint: null,
     };
     expect(
       overallVerdict([
@@ -178,6 +186,7 @@ describe("ResultsLeftPanel", () => {
           setting_angle: 3.0,
           tolerance: 0.5,
           measured_transition_angle: 4.0,
+          measured_transition_angle_touchpoint: null,
           passed: false,
         },
       ],

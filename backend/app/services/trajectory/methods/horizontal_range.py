@@ -12,6 +12,7 @@ from ..types import (
     DEFAULT_SWEEP_ANGLE,
     MIN_ARC_RADIUS,
     Degrees,
+    Meters,
     MetersPerSecond,
     Point3D,
     ResolvedConfig,
@@ -26,12 +27,22 @@ def calculate_arc_path(
     config: ResolvedConfig,
     inspection_id: UUID | None,
     speed: MetersPerSecond,
+    height_override: Meters | None = None,
 ) -> list[WaypointData]:
-    """generate horizontal range arc path on the approach side of the PAPI."""
+    """generate horizontal range arc path on the approach side of the PAPI.
+
+    height_override sets an explicit arc height above the center (runway
+    horizontal range for REL); when None the height falls out of the
+    glide-slope angle as for the PAPI horizontal range.
+    """
     density = config.measurement_density
     radius = config.horizontal_distance or MIN_ARC_RADIUS
     half_sweep = DEFAULT_SWEEP_ANGLE if config.sweep_angle is None else config.sweep_angle
-    glide_height = radius * math.tan(math.radians(glide_slope_angle))
+    glide_height = (
+        height_override
+        if height_override is not None
+        else radius * math.tan(math.radians(glide_slope_angle))
+    )
     arc_alt = center.alt + glide_height + config.altitude_offset
 
     # arc centered on approach heading (facing PAPI front)

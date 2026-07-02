@@ -25,9 +25,14 @@ class TestMethodAglHelper:
         assert is_method_compatible_with_agl("APPROACH_DESCENT", "PAPI")
 
     def test_runway_compat(self):
-        """RUNWAY_EDGE_LIGHTS compatible with FLY_OVER, PARALLEL_SIDE_SWEEP."""
+        """RUNWAY_EDGE_LIGHTS compatible with the three runway-edge methods."""
         assert is_method_compatible_with_agl("FLY_OVER", "RUNWAY_EDGE_LIGHTS")
         assert is_method_compatible_with_agl("PARALLEL_SIDE_SWEEP", "RUNWAY_EDGE_LIGHTS")
+        assert is_method_compatible_with_agl("RUNWAY_HORIZONTAL_RANGE", "RUNWAY_EDGE_LIGHTS")
+
+    def test_runway_horizontal_range_rejects_papi(self):
+        """RUNWAY_HORIZONTAL_RANGE is REL-only - not compatible with PAPI."""
+        assert not is_method_compatible_with_agl("RUNWAY_HORIZONTAL_RANGE", "PAPI")
 
     def test_hover_point_lock_is_agl_agnostic(self):
         """HOVER_POINT_LOCK is not compatible with any specific AGL type."""

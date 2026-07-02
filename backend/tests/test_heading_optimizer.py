@@ -500,6 +500,71 @@ class TestBuildSegmentDispatch:
         assert seg.scan_distance > 0
         assert (seg.entry.lon, seg.entry.lat) != (seg.exit.lon, seg.exit.lat)
 
+    def test_runway_horizontal_range_flips_around_touchpoint(self):
+        """runway-HR routes to the touchpoint arc helper and participates in the solver."""
+        surface_id = uuid4()
+
+        @dataclass
+        class _Surf:
+            id: UUID
+            heading: float | None
+            touchpoint_latitude: float | None
+            touchpoint_longitude: float | None
+            touchpoint_altitude: float | None
+
+        surface = _Surf(
+            id=surface_id,
+            heading=90.0,
+            touchpoint_latitude=49.0,
+            touchpoint_longitude=18.0,
+            touchpoint_altitude=290.0,
+        )
+        agl = _FakeAGL(
+            id=uuid4(),
+            surface_id=surface_id,
+            lhas=_row(18.0, 49.0, 3),
+            agl_type="RUNWAY_EDGE_LIGHTS",
+        )
+        template = _FakeTemplate(targets=[agl])
+        cfg = _FakeConfig(horizontal_distance=350.0, sweep_angle=15.0)
+        insp = _FakeInspection(
+            id=uuid4(),
+            template=template,
+            method=InspectionMethod.RUNWAY_HORIZONTAL_RANGE.value,
+            sequence_order=1,
+            config=cfg,
+        )
+        seg = _build_segment(insp, surfaces=[surface], is_auto=True, current_reversed=False)
+        assert seg is not None
+        assert seg.direction_flips_geometry is True
+        assert seg.scan_distance > 0
+        assert (seg.entry.lon, seg.entry.lat) != (seg.exit.lon, seg.exit.lat)
+
+        # the segment participates in the auto solver (not pinned/skipped)
+        sol = solve_headings([insp], surfaces=[surface], auto_ids={insp.id})
+        assert sol.auto_inspection_count == 1
+
+    def test_runway_horizontal_range_without_touchpoint_is_skipped(self):
+        """runway-HR with no surveyed touchpoint yields no segment."""
+        surface_id = uuid4()
+        agl = _FakeAGL(
+            id=uuid4(),
+            surface_id=surface_id,
+            lhas=_row(18.0, 49.0, 3),
+            agl_type="RUNWAY_EDGE_LIGHTS",
+        )
+        template = _FakeTemplate(targets=[agl])
+        cfg = _FakeConfig()
+        insp = _FakeInspection(
+            id=uuid4(),
+            template=template,
+            method=InspectionMethod.RUNWAY_HORIZONTAL_RANGE.value,
+            sequence_order=1,
+            config=cfg,
+        )
+        # no surface with touchpoint provided -> None
+        assert _build_segment(insp, surfaces=[], is_auto=True, current_reversed=False) is None
+
     def test_surface_scan_without_surface_is_skipped(self):
         """a surface-scan with no resolvable surface yields no segment."""
         template = _FakeTemplate(targets=[])

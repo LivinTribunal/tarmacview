@@ -49,6 +49,7 @@ InspectionMethodStr = Literal[
     "HOVER_POINT_LOCK",
     "MEHT_CHECK",
     "SURFACE_SCAN",
+    "RUNWAY_HORIZONTAL_RANGE",
 ]
 # mission-wide direction default - AUTO = solver picks, NATURAL/REVERSED = pin all inspections.
 MissionDirectionStr = Literal["AUTO", "NATURAL", "REVERSED"]

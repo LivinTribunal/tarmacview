@@ -31,10 +31,11 @@ from .helpers import (
     get_lha_positions_from_surfaces,
     get_ordered_lha_positions,
     get_runway_heading,
+    get_touchpoint_position,
     resolve_scan_surface,
 )
 from .methods.surface_scan import _resolve_axis, _resolve_length_interval
-from .types import Point3D
+from .types import DEFAULT_SWEEP_ANGLE, MIN_ARC_RADIUS, Point3D
 
 # solver safety cap - brute force is fine for k <= MAX_AUTO_INSPECTIONS (2^10 = 1024)
 MAX_AUTO_INSPECTIONS: int = 10
@@ -236,6 +237,38 @@ def _segment_for_surface_scan(
     )
 
 
+def _segment_for_runway_horizontal_range(
+    inspection: Inspection,
+    template,
+    config,
+    surfaces: list[AirfieldSurface],
+    is_auto: bool,
+    current_reversed: bool,
+) -> _Segment | None:
+    """runway horizontal range: arc endpoints swept around the touchpoint."""
+    center = get_touchpoint_position(template, surfaces)
+    if center is None:
+        return None
+    approach = (get_runway_heading(template, surfaces) + 180.0) % 360.0
+    radius = config.horizontal_distance or MIN_ARC_RADIUS
+    half_sweep = DEFAULT_SWEEP_ANGLE if config.sweep_angle is None else config.sweep_angle
+    s_lon, s_lat = point_at_distance(center.lon, center.lat, approach - half_sweep, radius)
+    e_lon, e_lat = point_at_distance(center.lon, center.lat, approach + half_sweep, radius)
+    entry = Point3D(lon=s_lon, lat=s_lat, alt=center.alt)
+    exit_ = Point3D(lon=e_lon, lat=e_lat, alt=center.alt)
+    return _Segment(
+        inspection_id=inspection.id,
+        sequence_order=inspection.sequence_order,
+        entry=entry,
+        exit=exit_,
+        scan_heading=bearing_between(entry.lon, entry.lat, exit_.lon, exit_.lat),
+        scan_distance=distance_between(entry.lon, entry.lat, exit_.lon, exit_.lat),
+        direction_flips_geometry=True,
+        is_auto=is_auto,
+        current_reversed=current_reversed,
+    )
+
+
 def _build_segment(
     inspection: Inspection,
     surfaces: list[AirfieldSurface],
@@ -266,6 +299,11 @@ def _build_segment(
 
     if method == InspectionMethod.SURFACE_SCAN:
         return _segment_for_surface_scan(inspection, config, surfaces, is_auto, current_reversed)
+
+    if method == InspectionMethod.RUNWAY_HORIZONTAL_RANGE:
+        return _segment_for_runway_horizontal_range(
+            inspection, template, config, surfaces, is_auto, current_reversed
+        )
 
     if method in (InspectionMethod.FLY_OVER, InspectionMethod.PARALLEL_SIDE_SWEEP):
         return _segment_for_row_methods(inspection, template, lha_ids, is_auto, current_reversed)

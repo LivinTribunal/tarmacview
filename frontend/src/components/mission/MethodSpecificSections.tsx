@@ -17,6 +17,7 @@ import ParallelSideSweepFields from "@/components/mission/ParallelSideSweepField
 import HoverPointLockFields from "@/components/mission/HoverPointLockFields";
 import MehtCheckFields from "@/components/mission/MehtCheckFields";
 import SurfaceScanFields from "@/components/mission/SurfaceScanFields";
+import HeightAboveLightsField from "@/components/mission/HeightAboveLightsField";
 import VerticalProfileGeometry from "@/components/mission/VerticalProfileGeometry";
 import HorizontalRangeGeometry from "@/components/mission/HorizontalRangeGeometry";
 import { isZoomOverOptical } from "@/utils/cameraAutoCalc";
@@ -157,6 +158,14 @@ export default function MethodSpecificSections({
         );
       case "MEHT_CHECK":
         return <MehtCheckFields computedMehtHeight={computedMehtHeight} />;
+      case "RUNWAY_HORIZONTAL_RANGE":
+        return (
+          <HeightAboveLightsField
+            heightAboveLights={heightAboveLights}
+            onNumberChange={onNumberChange}
+            hintTestId="hint-inspection-runway-hr-height-above-lights"
+          />
+        );
       case "SURFACE_SCAN":
         return (
           <SurfaceScanFields
@@ -195,7 +204,8 @@ export default function MethodSpecificSections({
 
         {/* geometry overrides - only methods that consume them */}
         {(inspection.method === "VERTICAL_PROFILE" ||
-          inspection.method === "HORIZONTAL_RANGE") && (
+          inspection.method === "HORIZONTAL_RANGE" ||
+          inspection.method === "RUNWAY_HORIZONTAL_RANGE") && (
           <FormSection title={t("mission.config.sections.geometry")} testId="section-geometry">
           <div
             className="grid grid-cols-2 gap-3"
@@ -227,7 +237,8 @@ export default function MethodSpecificSections({
                 data-testid="inspection-horizontal-distance"
               />
             </div>
-            {inspection.method === "HORIZONTAL_RANGE" && (
+            {(inspection.method === "HORIZONTAL_RANGE" ||
+              inspection.method === "RUNWAY_HORIZONTAL_RANGE") && (
               <HorizontalRangeGeometry
                 sweepAngle={sweepAngle}
                 angleOffsetAbove={angleOffsetAbove}
@@ -238,6 +249,11 @@ export default function MethodSpecificSections({
                 configOverride={configOverride}
                 onChange={onChange}
                 onNumberChange={onNumberChange}
+                variant={
+                  inspection.method === "RUNWAY_HORIZONTAL_RANGE"
+                    ? "runway"
+                    : "papi"
+                }
               />
             )}
             {inspection.method === "VERTICAL_PROFILE" && (
@@ -262,7 +278,8 @@ export default function MethodSpecificSections({
         {/* buffer distance override - inlined into the top grid for hover point lock,
             and into the geometry grid for horizontal range */}
         {inspection.method !== "HOVER_POINT_LOCK" &&
-          inspection.method !== "HORIZONTAL_RANGE" && (
+          inspection.method !== "HORIZONTAL_RANGE" &&
+          inspection.method !== "RUNWAY_HORIZONTAL_RANGE" && (
         <div>
           <label
             htmlFor={bufferDistanceId}

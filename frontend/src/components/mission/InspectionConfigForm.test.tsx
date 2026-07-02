@@ -47,7 +47,12 @@ const runwayTemplate = {
   id: "t-1",
   name: "Runway Inspection",
   description: null,
-  methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP", "HOVER_POINT_LOCK"],
+  methods: [
+    "FLY_OVER",
+    "PARALLEL_SIDE_SWEEP",
+    "HOVER_POINT_LOCK",
+    "RUNWAY_HORIZONTAL_RANGE",
+  ],
   target_agl_ids: ["agl-runway"],
   angular_tolerances: null,
   created_by: null,
@@ -186,6 +191,31 @@ describe("InspectionConfigForm method variants", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("hover-point-lock-fields"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("runway-horizontal-range: renders height + geometry, hides PAPI-only controls", () => {
+    renderForm({
+      inspection: baseInspection({ method: "RUNWAY_HORIZONTAL_RANGE" }),
+      template: runwayTemplate as never,
+    });
+    // height + sweep + horizontal distance render
+    expect(
+      screen.getByTestId("inspection-height-above-lights"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("inspection-sweep-angle")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("inspection-horizontal-distance"),
+    ).toBeInTheDocument();
+    // PAPI-only controls are hidden in the runway variant
+    expect(
+      screen.queryByTestId("inspection-angle-offset"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("inspection-lha-setting-angle-override"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("papi-center-height-section"),
     ).not.toBeInTheDocument();
   });
 

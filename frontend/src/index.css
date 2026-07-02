@@ -66,6 +66,8 @@
   --tv-method-meht-check-text: #0e9a9a;
   --tv-method-surface-scan-bg: rgba(120, 113, 108, 0.15);
   --tv-method-surface-scan-text: #78716c;
+  --tv-method-runway-horizontal-range-bg: rgba(139, 92, 246, 0.15);
+  --tv-method-runway-horizontal-range-text: #7c3aed;
 
   /* safety zone colors */
   --tv-zone-ctr-fill: rgba(69, 149, 229, 0.2);
@@ -142,6 +144,8 @@
   --tv-method-meht-check-text: #2dd4bf;
   --tv-method-surface-scan-bg: rgba(168, 162, 158, 0.2);
   --tv-method-surface-scan-text: #d6d3d1;
+  --tv-method-runway-horizontal-range-bg: rgba(139, 92, 246, 0.2);
+  --tv-method-runway-horizontal-range-text: #a78bfa;
 
   /* map panel - dark */
   --tv-map-bg: #0a0a0a;

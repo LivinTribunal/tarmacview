@@ -80,14 +80,16 @@ def _is_vp_video_measurement(wp, inspection_camera: dict) -> bool:
 
 
 def _is_hr_video_measurement(wp, inspection_camera: dict) -> bool:
-    """true when wp is a MEASUREMENT inside a HORIZONTAL_RANGE + VIDEO_CAPTURE pass.
+    """true when wp is a MEASUREMENT inside a (RUNWAY_)HORIZONTAL_RANGE + VIDEO_CAPTURE pass.
 
-    HR video flies an arc around the LHA at constant altitude. snapping the
-    body and gimbal at every arc waypoint halts the drone 10x through a single
-    pass and breaks continuous video. instead the drone smooth-turns through
-    the arc with the gimbal anchored once at the first measurement; firmware
-    body-follow + per-placemark heading keeps the camera framed on the LHA
-    across the rest of the arc.
+    HR video flies an arc around the LHA / touchpoint at constant altitude.
+    snapping the body and gimbal at every arc waypoint halts the drone 10x
+    through a single pass and breaks continuous video. instead the drone
+    smooth-turns through the arc with the gimbal anchored once at the first
+    measurement; firmware body-follow + per-placemark heading keeps the camera
+    framed on the target across the rest of the arc. RUNWAY_HORIZONTAL_RANGE
+    (REL arc around the touchpoint) shares the same constant-altitude geometry,
+    so it rides the same anchor-only smooth-turn plan.
 
     capture_mode=None is treated as VIDEO_CAPTURE to match the trajectory
     default and mirror _is_vp_video_measurement; production missions almost
@@ -103,7 +105,10 @@ def _is_hr_video_measurement(wp, inspection_camera: dict) -> bool:
     if not cam:
         return False
     capture_mode = cam.get("capture_mode") or "VIDEO_CAPTURE"
-    return cam.get("method") == "HORIZONTAL_RANGE" and capture_mode == "VIDEO_CAPTURE"
+    return (
+        cam.get("method") in ("HORIZONTAL_RANGE", "RUNWAY_HORIZONTAL_RANGE")
+        and capture_mode == "VIDEO_CAPTURE"
+    )
 
 
 def _video_smooth_emit_plan(waypoints, inspection_camera: dict) -> dict:

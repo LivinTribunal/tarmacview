@@ -29,9 +29,16 @@ describe("isMethodCompatibleWithAgl", () => {
     expect(isMethodCompatibleWithAgl("HOVER_POINT_LOCK", "PAPI")).toBe(false);
   });
 
-  it("RUNWAY_EDGE_LIGHTS accepts FLY_OVER / PARALLEL_SIDE_SWEEP", () => {
+  it("RUNWAY_EDGE_LIGHTS accepts FLY_OVER / PARALLEL_SIDE_SWEEP / RUNWAY_HORIZONTAL_RANGE", () => {
     expect(isMethodCompatibleWithAgl("FLY_OVER", "RUNWAY_EDGE_LIGHTS")).toBe(true);
     expect(isMethodCompatibleWithAgl("PARALLEL_SIDE_SWEEP", "RUNWAY_EDGE_LIGHTS")).toBe(true);
+    expect(
+      isMethodCompatibleWithAgl("RUNWAY_HORIZONTAL_RANGE", "RUNWAY_EDGE_LIGHTS"),
+    ).toBe(true);
+  });
+
+  it("RUNWAY_HORIZONTAL_RANGE rejects PAPI", () => {
+    expect(isMethodCompatibleWithAgl("RUNWAY_HORIZONTAL_RANGE", "PAPI")).toBe(false);
   });
 
   it("RUNWAY_EDGE_LIGHTS rejects VERTICAL_PROFILE, HORIZONTAL_RANGE, HOVER_POINT_LOCK, and MEHT_CHECK", () => {
@@ -45,7 +52,8 @@ describe("isMethodCompatibleWithAgl", () => {
 describe("methodsForAgl / aglTypesForMethod", () => {
   it("methodsForAgl returns expected method count per type", () => {
     expect(methodsForAgl("PAPI")).toHaveLength(4);
-    expect(methodsForAgl("RUNWAY_EDGE_LIGHTS")).toHaveLength(2);
+    expect(methodsForAgl("RUNWAY_EDGE_LIGHTS")).toHaveLength(3);
+    expect(methodsForAgl("RUNWAY_EDGE_LIGHTS")).toContain("RUNWAY_HORIZONTAL_RANGE");
   });
 
   it("aglTypesForMethod matches matrix entries", () => {
@@ -158,10 +166,16 @@ describe("METHOD_CAPABILITIES", () => {
     expect(surfaceMethods).toEqual(["SURFACE_SCAN"]);
   });
 
-  it("usesDirection matches the four orientation methods", () => {
+  it("usesDirection matches the orientation methods", () => {
     const oriented = ALL_INSPECTION_METHODS.filter((m) => methodCaps(m).usesDirection);
     expect(oriented.sort()).toEqual(
-      ["FLY_OVER", "HORIZONTAL_RANGE", "PARALLEL_SIDE_SWEEP", "SURFACE_SCAN"].sort(),
+      [
+        "FLY_OVER",
+        "HORIZONTAL_RANGE",
+        "PARALLEL_SIDE_SWEEP",
+        "SURFACE_SCAN",
+        "RUNWAY_HORIZONTAL_RANGE",
+      ].sort(),
     );
   });
 });

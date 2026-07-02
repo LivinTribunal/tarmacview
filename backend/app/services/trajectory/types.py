@@ -33,6 +33,8 @@ Seconds = float
 # trajectory defaults
 MIN_ARC_RADIUS: Meters = 350.0
 DEFAULT_SWEEP_ANGLE: Degrees = 15.0  # degrees each side of centerline (ZEPHYR manual)
+# runway-horizontal-range default (REL arc height above the touchpoint)
+DEFAULT_RUNWAY_HORIZONTAL_RANGE_HEIGHT: Meters = 15.0
 DEFAULT_HORIZONTAL_DISTANCE: Meters = 400.0
 # legacy CUSTOM-mode fallbacks when angle_start / angle_end are not set.
 DEFAULT_VERTICAL_PROFILE_START: Degrees = 1.9

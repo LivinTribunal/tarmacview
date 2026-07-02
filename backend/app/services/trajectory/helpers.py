@@ -310,6 +310,15 @@ def get_touchpoint_position(template, surfaces) -> Point3D | None:
     return None
 
 
+def get_runway_identifier(template, surfaces) -> str | None:
+    """return the identifier of the runway surface linked to the template's first AGL."""
+    for agl in template.targets:
+        for surface in surfaces:
+            if surface.id == agl.surface_id:
+                return surface.identifier
+    return None
+
+
 def resolve_scan_surface(surfaces, scan_surface_id):
     """locate the AirfieldSurface targeted by a surface scan, or None.
 

@@ -4,6 +4,10 @@ the light-referenced min/max/middle math must stay byte-identical when no TOUCH_
 supplied; the touchpoint keys appear only when a TOUCH_POINT datum is present.
 """
 
+import pytest
+
+pytest.importorskip("cv2")
+
 from app.services.video_processing.generation.measurement_collector import MeasurementCollector
 from app.services.video_processing.utils import calculate_angle
 

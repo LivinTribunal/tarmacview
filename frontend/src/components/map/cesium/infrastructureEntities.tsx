@@ -16,6 +16,7 @@ import type { AirportDetailResponse } from "@/types/airport";
 import type { MapLayerConfig } from "@/types/map";
 import { polygonToCartesian3, lineStringToCartesian3, bufferPolygon } from "./cesiumUtils";
 import { formatAglDisplayName } from "@/utils/agl";
+import { datumHeightLabel } from "@/utils/altitudeLabel";
 import {
   RUNWAY_FILL,
   RUNWAY_OUTLINE,
@@ -332,7 +333,7 @@ export function buildObstacleEntities(
         name={obstacle.name || t("map.obstacle")}
         position={Cartesian3.fromDegrees(cx, cy, height)}
         label={{
-          text: `${obstacle.name || t("map.obstacle")} (${height}m)`,
+          text: `${obstacle.name || t("map.obstacle")} (${datumHeightLabel(height, t, "AGL", 0)})`,
           font: "12px sans-serif",
           fillColor: Color.WHITE,
           outlineColor: Color.BLACK,

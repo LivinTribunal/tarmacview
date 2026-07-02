@@ -10,6 +10,7 @@ import { isAxiosError } from "@/api/client";
 import useAirportLookup, { ICAO_REGEX } from "@/hooks/useAirportLookup";
 import { DEFAULT_RADIUS } from "@/constants/infrastructureDefaults";
 import { LAT_BOUNDS, LON_BOUNDS } from "@/constants/geo";
+import { datumHeightLabel } from "@/utils/altitudeLabel";
 
 interface CreateAirportDialogProps {
   isOpen: boolean;
@@ -257,7 +258,7 @@ export default function CreateAirportDialog({
                     onToggleItem={lookup.toggleObstacle}
                     renderItem={(o) => (
                       <>
-                        {o.type} {o.name} ({o.height.toFixed(0)}m)
+                        {o.type} {o.name} ({datumHeightLabel(o.height, t, "AGL", 0)})
                       </>
                     )}
                   />

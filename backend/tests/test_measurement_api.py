@@ -6,7 +6,10 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.core.constants import DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+from app.core.constants import (
+    DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG,
+    DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG,
+)
 from app.core.enums import MeasurementStatus
 from app.models.audit_log import AuditLog
 from app.models.measurement import Measurement
@@ -499,3 +502,118 @@ def test_create_measurement_no_tolerance_band_without_glide_slope(client, db_eng
     )
     assert angle is None
     assert tolerance is None
+
+
+_TOUCHPOINT = {
+    "touchpoint_latitude": 50.101,
+    "touchpoint_longitude": 14.241,
+    "touchpoint_altitude": 300.0,
+}
+
+
+def _snapshot_ils(client, db_engine, template_id, *, surface_override, agl_override):
+    """run a measurement for a fresh PAPI inspection; return (row, apt, surface, agl) ids.
+
+    the surface can carry a touchpoint and the AGL an ils tolerance so the snapshot resolves
+    both the touchpoint triple and the harmonization tolerance at create time.
+    """
+    apt = client.post(
+        "/api/v1/airports", json={**AIRPORT_PAYLOAD, "icao_code": _unique_icao()}
+    ).json()
+    surface = client.post(
+        f"/api/v1/airports/{apt['id']}/surfaces",
+        json={**TRAJECTORY_SURFACE_PAYLOAD, **surface_override},
+    ).json()
+    agl = client.post(
+        f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls",
+        json={**TRAJECTORY_AGL_PAYLOAD, **agl_override},
+    ).json()
+    lha_ids = [
+        client.post(
+            f"/api/v1/airports/{apt['id']}/surfaces/{surface['id']}/agls/{agl['id']}/lhas",
+            json=make_lha_payload(i),
+        ).json()["id"]
+        for i in (1, 2)
+    ]
+    mission = client.post(
+        "/api/v1/missions", json={"name": "IlsSnap", "airport_id": apt["id"]}
+    ).json()
+    insp = client.post(
+        f"/api/v1/missions/{mission['id']}/inspections",
+        json={
+            "template_id": template_id,
+            "method": "HORIZONTAL_RANGE",
+            "config": {"lha_ids": lha_ids},
+        },
+    ).json()
+    client.post(
+        "/api/v1/drone-media/complete-upload",
+        json={
+            "mission_id": mission["id"],
+            "inspection_id": insp["id"],
+            "object_key": "drone-media/manual/ils.mp4",
+            "filename": "ils.mp4",
+            "size_bytes": 2048,
+        },
+    )
+    mid = client.post(f"/api/v1/inspections/{insp['id']}/measurement").json()["id"]
+    s = sessionmaker(bind=db_engine)()
+    try:
+        row = s.query(Measurement).filter(Measurement.id == UUID(mid)).first()
+        s.expunge(row)
+    finally:
+        s.close()
+    return row, apt["id"], surface["id"], agl["id"]
+
+
+def test_create_measurement_snapshots_touchpoint_and_ils_tolerance(client, db_engine, template_id):
+    """the run snapshots the surface touchpoint triple + the AGL's ils tolerance."""
+    row, *_ = _snapshot_ils(
+        client,
+        db_engine,
+        template_id,
+        surface_override=_TOUCHPOINT,
+        agl_override={"ils_harmonization_tolerance": 0.03},
+    )
+    assert row.touchpoint_latitude == pytest.approx(50.101)
+    assert row.touchpoint_longitude == pytest.approx(14.241)
+    assert row.touchpoint_altitude == pytest.approx(300.0)
+    assert row.ils_harmonization_tolerance == pytest.approx(0.03)
+
+
+def test_create_measurement_ils_tolerance_falls_back_to_default(client, db_engine, template_id):
+    """an AGL with no ils tolerance set falls back to the default harmonization band."""
+    row, *_ = _snapshot_ils(
+        client, db_engine, template_id, surface_override=_TOUCHPOINT, agl_override={}
+    )
+    assert row.ils_harmonization_tolerance == DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG
+
+
+def test_create_measurement_no_touchpoint_leaves_snapshot_null(client, db_engine, template_id):
+    """a surface without a touchpoint leaves the run's touchpoint columns null (degrades later)."""
+    row, *_ = _snapshot_ils(client, db_engine, template_id, surface_override={}, agl_override={})
+    assert row.touchpoint_latitude is None
+    assert row.touchpoint_longitude is None
+    assert row.touchpoint_altitude is None
+
+
+def test_snapshot_reproducible_after_later_agl_edit(client, db_engine, template_id):
+    """editing the AGL tolerance after create does not rewrite the run's snapshot."""
+    row, apt_id, surface_id, agl_id = _snapshot_ils(
+        client,
+        db_engine,
+        template_id,
+        surface_override=_TOUCHPOINT,
+        agl_override={"ils_harmonization_tolerance": 0.03},
+    )
+    # a later coordinator edit of the AGL tolerance
+    client.put(
+        f"/api/v1/airports/{apt_id}/surfaces/{surface_id}/agls/{agl_id}",
+        json={"ils_harmonization_tolerance": 0.09},
+    )
+    s = sessionmaker(bind=db_engine)()
+    try:
+        refetched = s.query(Measurement).filter(Measurement.id == row.id).first()
+        assert refetched.ils_harmonization_tolerance == pytest.approx(0.03)
+    finally:
+        s.close()

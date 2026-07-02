@@ -51,7 +51,11 @@ export default function ResultsPage({ results }: ResultsPageProps) {
               <TransitionDifferenceTable lights={results.lights} />
             </Card>
             <Card>
-              <GlidePathSummaryTable lights={results.lights} />
+              <GlidePathSummaryTable
+                lights={results.lights}
+                nominalGlideSlope={results.configured_glide_slope_angle}
+                harmonizationTolerance={results.ils_harmonization_tolerance}
+              />
             </Card>
             <Card>
               <ChromaticityComparisonTable lights={results.lights} />

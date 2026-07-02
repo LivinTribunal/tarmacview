@@ -30,6 +30,9 @@ function series(name: string, points: LightSeriesPoint[]): LightSeries {
     transition_angle_min: null,
     transition_angle_middle: null,
     transition_angle_max: null,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: null,
     points,
   };

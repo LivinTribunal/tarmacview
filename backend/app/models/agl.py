@@ -17,6 +17,7 @@ from sqlalchemy.orm import relationship
 
 from app.core.constants import (
     DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG,
+    DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG,
     DEFAULT_LHA_TOLERANCE_DEG,
 )
 from app.core.database import Base
@@ -42,6 +43,12 @@ class AGL(Base):
     # coordinator-edited alongside glide_slope_angle. NOT a trajectory input.
     glide_slope_angle_tolerance = Column(
         Float, nullable=True, default=DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE_DEG
+    )
+    # results-time verdict band (deg) for the ILS-harmonization check (touchpoint-referenced
+    # glidepath vs published glide_slope_angle). snapshotted onto the measurement at create
+    # time; coordinator-edited beside glide_slope_angle_tolerance. NOT a trajectory input.
+    ils_harmonization_tolerance = Column(
+        Float, nullable=True, default=DEFAULT_ILS_HARMONIZATION_TOLERANCE_DEG
     )
     distance_from_threshold = Column(Float)
     # surveyed/published minimum eye height over threshold (m); null -> derived

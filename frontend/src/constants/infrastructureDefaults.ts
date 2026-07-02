@@ -5,6 +5,7 @@
 export const DEFAULT_BUFFER_DISTANCE = "5";
 export const DEFAULT_GLIDE_SLOPE_ANGLE = "3.0";
 export const DEFAULT_GLIDE_SLOPE_ANGLE_TOLERANCE = "0.1";
+export const DEFAULT_ILS_HARMONIZATION_TOLERANCE = "0.05";
 export const DEFAULT_LHA_SETTING_ANGLE = "3.0";
 export const DEFAULT_LHA_TOLERANCE = "0.1";
 export const DEFAULT_RADIUS = "3";

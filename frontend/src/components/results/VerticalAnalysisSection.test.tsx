@@ -40,6 +40,9 @@ function series(name: string): LightSeries {
     transition_angle_min: 2.8,
     transition_angle_middle: 3.0,
     transition_angle_max: 3.2,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: true,
     points: [point({ timestamp: 0 }), point({ timestamp: 0.1, intensity: 0.7 })],
   };

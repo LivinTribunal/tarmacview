@@ -47,9 +47,13 @@ class MissionLightResult(BaseModel):
     setting_angle: float | None = None
     tolerance: float | None = None
     measured_transition_angle: float | None = None
+    measured_transition_angle_touchpoint: float | None = None
     transition_angle_min: float | None = None
     transition_angle_middle: float | None = None
     transition_angle_max: float | None = None
+    transition_angle_min_touchpoint: float | None = None
+    transition_angle_middle_touchpoint: float | None = None
+    transition_angle_max_touchpoint: float | None = None
     passed: bool | None = None
     not_measured: bool = False
 
@@ -61,6 +65,16 @@ class MissionGlideSlopeResult(BaseModel):
     configured_glide_slope_angle: float | None = None
     glide_slope_angle_tolerance: float | None = None
     within_tolerance: bool | None = None
+
+
+class MissionIlsHarmonizationResult(BaseModel):
+    """touchpoint-referenced on-slope glidepath vs the published angle +/- ils tolerance."""
+
+    measured_glide_slope_angle_touchpoint: float | None = None
+    configured_glide_slope_angle: float | None = None
+    ils_harmonization_tolerance: float | None = None
+    within_tolerance: bool | None = None
+    evaluation: DeviceEvaluationStr = "NOT_MEASURED"
 
 
 class DeviceResults(BaseModel):
@@ -75,6 +89,7 @@ class DeviceResults(BaseModel):
     status: str  # MeasurementStatus value or "NOT_MEASURED"
     evaluation: DeviceEvaluationStr
     glide_slope: MissionGlideSlopeResult | None = None
+    ils_harmonization: MissionIlsHarmonizationResult | None = None
     lights: list[MissionLightResult] = []
     placeholder_rows: list[str] = []  # catalog keys the FE renders as greyed N/A rows
 

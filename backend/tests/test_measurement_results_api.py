@@ -270,6 +270,78 @@ def test_data_done_glidepath_out_of_tolerance(client, db_engine, inspection_id, 
     assert body["glide_slope_within_tolerance"] is False
 
 
+# ILS-harmonization exposure + degradation
+
+
+def _ils_blob(b_max_tp: float, c_min_tp: float) -> bytes:
+    """one-frame blob carrying PAPI_B/C light + touchpoint transition angles."""
+    frame = {"frame_number": 0, "timestamp": 0.0}
+    for letter, mid in zip("bc", (3.0, 2.9)):
+        frame[f"papi_{letter}_status"] = "white"
+        frame[f"papi_{letter}_transition_angle_min"] = mid
+        frame[f"papi_{letter}_transition_angle_middle"] = mid
+        frame[f"papi_{letter}_transition_angle_max"] = mid
+    frame["papi_b_transition_angle_max_touchpoint"] = b_max_tp
+    frame["papi_c_transition_angle_min_touchpoint"] = c_min_tp
+    return gzip.compress(json.dumps([frame]).encode("utf-8"))
+
+
+def _snapshot_ils(db_engine, measurement_id: str, *, angle: float, tolerance: float) -> None:
+    """force the snapshotted glide slope + ils tolerance on a run."""
+    s = sessionmaker(bind=db_engine)()
+    try:
+        m = s.query(Measurement).filter(Measurement.id == UUID(measurement_id)).first()
+        m.glide_slope_angle = angle
+        m.ils_harmonization_tolerance = tolerance
+        s.commit()
+    finally:
+        s.close()
+
+
+def test_data_exposes_ils_tolerance_pre_done(client, db_engine, inspection_id):
+    """the snapshotted ils tolerance surfaces pre-DONE; the verdict stays null."""
+    mid = _create(client, inspection_id)
+    _snapshot_ils(db_engine, mid, angle=3.0, tolerance=0.05)
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["ils_harmonization_tolerance"] == pytest.approx(0.05)
+    assert body["measured_glide_slope_angle_touchpoint"] is None
+    assert body["ils_harmonization_within_tolerance"] is None
+
+
+def test_data_done_exposes_ils_harmonization(client, db_engine, inspection_id, monkeypatch):
+    """a DONE run measures mid(PAPI_B/C touchpoint) and verdicts it against the ils snapshot."""
+    mid = _create(client, inspection_id)
+    _snapshot_ils(db_engine, mid, angle=3.0, tolerance=0.05)
+    _drive_to_done(db_engine, mid)
+    monkeypatch.setattr(
+        measurement_service.object_storage, "get_object", lambda key: _ils_blob(3.02, 2.99)
+    )
+    monkeypatch.setattr(
+        measurement_service.object_storage, "presigned_get", lambda key: f"https://signed/{key}"
+    )
+
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["measured_glide_slope_angle_touchpoint"] == pytest.approx(3.005)
+    assert body["ils_harmonization_tolerance"] == pytest.approx(0.05)
+    assert body["ils_harmonization_within_tolerance"] is True
+    # the per-light series carries the touchpoint transition angles
+    papi_b = next(light for light in body["lights"] if light["light_name"] == "PAPI_B")
+    assert papi_b["transition_angle_max_touchpoint"] == pytest.approx(3.02)
+
+
+def test_data_done_ils_degrades_without_touchpoint(client, db_engine, inspection_id, _stub_storage):
+    """no touchpoint snapshot / keys -> touchpoint fields null, verdict None (never False)."""
+    mid = _create(client, inspection_id)
+    _snapshot_ils(db_engine, mid, angle=3.0, tolerance=0.05)
+    _drive_to_done(db_engine, mid)
+    # _stub_storage serves _BLOB, which has no touchpoint keys
+    body = client.get(f"/api/v1/measurements/{mid}/data").json()
+    assert body["measured_glide_slope_angle_touchpoint"] is None
+    assert body["ils_harmonization_within_tolerance"] is None
+    papi_a = next(light for light in body["lights"] if light["light_name"] == "PAPI_A")
+    assert papi_a["transition_angle_middle_touchpoint"] is None
+
+
 def test_pdf_report_unknown_measurement_is_404(client):
     """pdf for an unknown measurement 404."""
     assert client.get(f"/api/v1/measurements/{uuid4()}/pdf-report").status_code == 404

@@ -21,6 +21,7 @@ from app.schemas.mission_results import (
     DeviceEvaluationStr,
     DeviceResults,
     MissionGlideSlopeResult,
+    MissionIlsHarmonizationResult,
     MissionLightResult,
     MissionResultsHeader,
     MissionResultsResponse,
@@ -39,7 +40,6 @@ PAPI_PLACEHOLDER_ROWS = (
     "attenuation",
     "meht",
     "obstacle_plane_clearance",
-    "ils_alignment",
 )
 SERVICEABILITY_PLACEHOLDER_ROWS = ("als_hi_mi", "threshold", "edge", "end", "tdz", "centerline")
 PLACEHOLDER_DEVICE_TYPES = ("ALS", "RLS")
@@ -104,9 +104,21 @@ def _measured_lights(results) -> list[MissionLightResult]:
                 setting_angle=ref.setting_angle,
                 tolerance=ref.tolerance,
                 measured_transition_angle=summary.measured_transition_angle if summary else None,
+                measured_transition_angle_touchpoint=(
+                    summary.measured_transition_angle_touchpoint if summary else None
+                ),
                 transition_angle_min=series.transition_angle_min if series else None,
                 transition_angle_middle=series.transition_angle_middle if series else None,
                 transition_angle_max=series.transition_angle_max if series else None,
+                transition_angle_min_touchpoint=(
+                    series.transition_angle_min_touchpoint if series else None
+                ),
+                transition_angle_middle_touchpoint=(
+                    series.transition_angle_middle_touchpoint if series else None
+                ),
+                transition_angle_max_touchpoint=(
+                    series.transition_angle_max_touchpoint if series else None
+                ),
                 passed=summary.passed if summary else None,
             )
         )
@@ -154,6 +166,14 @@ def _device_for_inspection(
 
     results = build_results_data(db, measurement.id)
     lights = _measured_lights(results)
+    within_ils = results.ils_harmonization_within_tolerance
+    ils = MissionIlsHarmonizationResult(
+        measured_glide_slope_angle_touchpoint=results.measured_glide_slope_angle_touchpoint,
+        configured_glide_slope_angle=results.configured_glide_slope_angle,
+        ils_harmonization_tolerance=results.ils_harmonization_tolerance,
+        within_tolerance=within_ils,
+        evaluation=("PENDING" if within_ils is None else "PASS" if within_ils else "FAIL"),
+    )
     return DeviceResults(
         **base,
         measurement_id=measurement.id,
@@ -165,6 +185,7 @@ def _device_for_inspection(
             glide_slope_angle_tolerance=results.glide_slope_angle_tolerance,
             within_tolerance=results.glide_slope_within_tolerance,
         ),
+        ils_harmonization=ils,
         lights=lights,
     )
 

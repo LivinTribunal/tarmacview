@@ -55,6 +55,9 @@ export default function TransitionDifferenceTable({
               {t("results.transitionDiff.middle")}
             </th>
             <th className="py-2 pr-3 font-medium">
+              {t("results.transitionDiff.vsTouchPoint")}
+            </th>
+            <th className="py-2 pr-3 font-medium">
               {t("results.transitionDiff.end")}
             </th>
             <th className="py-2 pr-3 font-medium">
@@ -87,6 +90,9 @@ export default function TransitionDifferenceTable({
                 </td>
                 <td className="py-2 pr-3 text-tv-text-primary">
                   {fmtDeg(l.transition_angle_middle)}
+                </td>
+                <td className="py-2 pr-3 text-tv-text-primary">
+                  {fmtDeg(l.transition_angle_middle_touchpoint)}
                 </td>
                 <td className="py-2 pr-3 text-tv-text-primary">
                   {fmtDeg(l.transition_angle_max)}

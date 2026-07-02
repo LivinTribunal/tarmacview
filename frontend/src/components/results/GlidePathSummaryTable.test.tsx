@@ -11,6 +11,9 @@ function light(over: Partial<LightSeries>): LightSeries {
     transition_angle_min: 2.8,
     transition_angle_middle: 3.0,
     transition_angle_max: 3.2,
+    transition_angle_min_touchpoint: null,
+    transition_angle_middle_touchpoint: null,
+    transition_angle_max_touchpoint: null,
     passed: true,
     points: [],
     ...over,
@@ -43,6 +46,24 @@ describe("GlidePathSummaryTable", () => {
     );
     expect(screen.getByText("results.verdict.unknown")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("populates the touch-point row from the touchpoint angles + props", () => {
+    render(
+      <GlidePathSummaryTable
+        lights={[
+          light({ light_name: "PAPI_B", transition_angle_max_touchpoint: 3.02 }),
+          light({ light_name: "PAPI_C", transition_angle_min_touchpoint: 2.98 }),
+        ]}
+        nominalGlideSlope={3.0}
+        harmonizationTolerance={0.05}
+      />,
+    );
+    // touch-point glidepath mid = (3.02 + 2.98) / 2 = 3.00, within ±0.05 of 3.0 -> pass
+    expect(screen.getByText("results.glidePath.toTouchPoint")).toBeInTheDocument();
+    expect(screen.getAllByText("3.00°").length).toBeGreaterThanOrEqual(2);
+    // both the to-PAPI and to-touch-point rows verdict PASS
+    expect(screen.getAllByText("results.verdict.pass")).toHaveLength(2);
   });
 
   it("shows the empty state when PAPI_B or PAPI_C is missing", () => {

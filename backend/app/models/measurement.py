@@ -65,6 +65,13 @@ class Measurement(Base):
     glide_slope_angle = Column(Float, nullable=True)
     # snapshotted AGL glide_slope_angle_tolerance (deg) at create time.
     glide_slope_angle_tolerance = Column(Float, nullable=True)
+    # snapshotted runway touchpoint (the ILS/glide-path datum) at create time - all-or-nothing:
+    # nullable, and only a fully-set triple yields the TOUCH_POINT engine reference.
+    touchpoint_latitude = Column(Float, nullable=True)
+    touchpoint_longitude = Column(Float, nullable=True)
+    touchpoint_altitude = Column(Float, nullable=True)
+    # snapshotted AGL ils_harmonization_tolerance (deg) at create time.
+    ils_harmonization_tolerance = Column(Float, nullable=True)
     # snapshotted LHA ground truth - an audit record, not a live join
     reference_points = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     # operator-confirmed first-frame light boxes (percentage coords)
@@ -139,17 +146,57 @@ class Measurement(Base):
             return None
         return abs(measured_angle - self.glide_slope_angle) <= self.glide_slope_angle_tolerance
 
+    def touchpoint_payload(self) -> dict | None:
+        """touchpoint as the engine's TOUCH_POINT reference dict, or None when unset.
+
+        all-or-nothing: needs the full lat/lon/alt triple. nominal_angle carries the
+        published glide slope so the engine's touchpoint overlays can render.
+        """
+        if (
+            self.touchpoint_latitude is None
+            or self.touchpoint_longitude is None
+            or self.touchpoint_altitude is None
+        ):
+            return None
+        return {
+            "latitude": self.touchpoint_latitude,
+            "longitude": self.touchpoint_longitude,
+            "elevation_wgs84": self.touchpoint_altitude,
+            "nominal_angle": self.glide_slope_angle,
+        }
+
+    def ils_harmonization_within_tolerance(
+        self, measured_touchpoint_angle: float | None
+    ) -> bool | None:
+        """touchpoint-referenced on-slope glidepath within tolerance of the published angle.
+
+        None (unscoreable) when the published angle, harmonization tolerance, or measurement
+        is missing - so a runway without a touchpoint degrades to PENDING, never FAIL.
+        """
+        if (
+            self.glide_slope_angle is None
+            or self.ils_harmonization_tolerance is None
+            or measured_touchpoint_angle is None
+        ):
+            return None
+        return (
+            abs(measured_touchpoint_angle - self.glide_slope_angle)
+            <= self.ils_harmonization_tolerance
+        )
+
     @staticmethod
     def score_light(
         light_name: str,
         setting_angle: float | None,
         tolerance: float | None,
         measured_transition_angle: float | None,
+        measured_transition_angle_touchpoint: float | None = None,
     ) -> dict:
         """roll a measured transition angle up to PASS/FAIL vs setting +/- tolerance.
 
         passed is None (unknown) when the ground truth or the measurement is missing -
-        an absent setting angle is not a failure, it's an unscoreable light.
+        an absent setting angle is not a failure, it's an unscoreable light. the
+        touchpoint-referenced angle rides along non-scoring (never touches passed).
         """
         passed: bool | None = None
         if (
@@ -163,11 +210,17 @@ class Measurement(Base):
             "setting_angle": setting_angle,
             "tolerance": tolerance,
             "measured_transition_angle": measured_transition_angle,
+            "measured_transition_angle_touchpoint": measured_transition_angle_touchpoint,
             "passed": passed,
         }
 
-    def with_summaries_from(self, measured: dict[str, float | None]) -> None:
+    def with_summaries_from(
+        self,
+        measured: dict[str, float | None],
+        measured_touchpoint: dict[str, float | None] | None = None,
+    ) -> None:
         """rebuild per-light summaries from measured transition angles by light name."""
+        measured_touchpoint = measured_touchpoint or {}
         by_name = {rp["light_name"]: rp for rp in (self.reference_points or [])}
         summaries: list[dict] = []
         for name in PAPI_LIGHT_NAMES:
@@ -176,7 +229,11 @@ class Measurement(Base):
                 continue
             summaries.append(
                 self.score_light(
-                    name, rp.get("setting_angle"), rp.get("tolerance"), measured.get(name)
+                    name,
+                    rp.get("setting_angle"),
+                    rp.get("tolerance"),
+                    measured.get(name),
+                    measured_touchpoint.get(name),
                 )
             )
         self.summaries = summaries

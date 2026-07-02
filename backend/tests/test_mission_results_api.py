@@ -245,6 +245,86 @@ def test_mission_results_header_and_placeholders(client, mission_ctx):
     assert body["recommendations"] is None
 
 
+# ILS-harmonization roll-up
+
+
+def _blob_with_touchpoint(b_max_tp: float, c_min_tp: float) -> bytes:
+    """the shared blob plus PAPI_B/C touchpoint transition angles so the ils mid resolves."""
+    frame = {"frame_number": 0, "timestamp": 0.0}
+    for letter, mid in zip("abcd", (3.0, 3.05, 2.95, 2.9)):
+        frame[f"papi_{letter}_status"] = "white"
+        frame[f"papi_{letter}_transition_angle_min"] = mid
+        frame[f"papi_{letter}_transition_angle_middle"] = mid
+        frame[f"papi_{letter}_transition_angle_max"] = mid
+    # touchpoint-referenced edges: B white edge (max) + C red edge (min) drive the ils mid
+    frame["papi_b_transition_angle_max_touchpoint"] = b_max_tp
+    frame["papi_c_transition_angle_min_touchpoint"] = c_min_tp
+    return gzip.compress(json.dumps([frame]).encode("utf-8"))
+
+
+def _stub_blob(monkeypatch, raw: bytes) -> None:
+    """serve a specific gzipped blob for every run in this test."""
+    monkeypatch.setattr(measurement_service.object_storage, "get_object", lambda key: raw)
+    monkeypatch.setattr(
+        measurement_service.object_storage, "presigned_get", lambda key: f"https://signed/{key}"
+    )
+
+
+def test_mission_results_ils_alignment_not_a_placeholder_row(client, mission_ctx):
+    """ils_alignment is promoted out of PAPI_PLACEHOLDER_ROWS - it no longer greys out."""
+    body = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/results").json()
+    device = body["runways"][0]["devices"][0]
+    assert "ils_alignment" not in device["placeholder_rows"]
+
+
+def test_mission_results_ils_harmonization_pass(client, db_engine, mission_ctx, monkeypatch):
+    """a touchpoint glidepath inside the snapshotted band verdicts the ils block PASS."""
+    _stub_blob(monkeypatch, _blob_with_touchpoint(3.02, 2.99))  # mid = 3.005, within 0.05 of 3.0
+    mid = _create_run(client, mission_ctx["inspection_id"])
+    _drive_to_done(db_engine, mid)
+
+    body = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/results").json()
+    device = body["runways"][0]["devices"][0]
+    ils = device["ils_harmonization"]
+    assert ils["configured_glide_slope_angle"] == pytest.approx(3.0)
+    assert ils["ils_harmonization_tolerance"] == pytest.approx(0.05)
+    assert ils["measured_glide_slope_angle_touchpoint"] == pytest.approx(3.005)
+    assert ils["within_tolerance"] is True
+    assert ils["evaluation"] == "PASS"
+
+
+def test_mission_results_ils_harmonization_pending_without_touchpoint(
+    client, db_engine, mission_ctx, _stub_storage
+):
+    """no touchpoint angles in the blob -> ils verdict None/PENDING, never FAIL."""
+    mid = _create_run(client, mission_ctx["inspection_id"])
+    _drive_to_done(db_engine, mid)
+
+    body = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/results").json()
+    ils = body["runways"][0]["devices"][0]["ils_harmonization"]
+    assert ils["measured_glide_slope_angle_touchpoint"] is None
+    assert ils["within_tolerance"] is None
+    assert ils["evaluation"] == "PENDING"
+
+
+def test_mission_results_ils_verdict_does_not_feed_light_based_evaluation(
+    client, db_engine, mission_ctx, monkeypatch
+):
+    """a failing ils harmonization leaves the light-based device + mission evaluation untouched."""
+    # touchpoint glidepath far from 3.0 -> ils FAIL, but the per-light summaries all PASS
+    _stub_blob(monkeypatch, _blob_with_touchpoint(3.6, 3.4))  # mid = 3.5, well outside 0.05
+    mid = _create_run(client, mission_ctx["inspection_id"])
+    _drive_to_done(db_engine, mid)
+
+    body = client.get(f"/api/v1/missions/{mission_ctx['mission_id']}/results").json()
+    device = body["runways"][0]["devices"][0]
+    assert device["ils_harmonization"]["evaluation"] == "FAIL"
+    # the light-based device verdict and the mission-level row stay PASS
+    assert device["evaluation"] == "PASS"
+    row = next(r for r in body["evaluation"] if r["device_label"] == device["device_label"])
+    assert row["result"] == "PASS"
+
+
 def test_mission_results_forbidden_for_other_airport(client, mission_ctx):
     """an operator without access to the mission's airport is refused."""
     denied = SimpleNamespace(

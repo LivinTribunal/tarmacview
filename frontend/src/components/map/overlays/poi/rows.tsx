@@ -98,7 +98,7 @@ export function CoordRows({
               text={altText}
               className="font-medium"
             >
-              {altText}{t("common.units.m")}
+              {altText}{t("common.units.m")} {t("common.datum.msl")}
             </CopyableValue>
           )}
         </div>

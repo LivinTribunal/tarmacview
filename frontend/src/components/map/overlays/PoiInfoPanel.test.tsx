@@ -228,7 +228,8 @@ describe("PoiInfoPanel - waypoint MSL/AGL", () => {
 
     const altRow = screen.getByText("map.coordinates.alt").closest("div")!;
     expect(altRow).toHaveTextContent("123.40");
-    expect(altRow).not.toHaveTextContent("common.datum.msl");
+    // datum-labeled even without a ground reference - never a bare `m`
+    expect(altRow).toHaveTextContent("common.datum.msl");
     expect(altRow).not.toHaveTextContent("common.datum.agl");
   });
 });

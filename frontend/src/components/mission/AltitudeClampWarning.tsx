@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
+import { datumHeightLabel } from "@/utils/altitudeLabel";
 import type { AltitudeClamp } from "@/types/export";
 
 interface AltitudeClampWarningProps {
@@ -70,10 +71,10 @@ export default function AltitudeClampWarning({
               >
                 <td className="pr-2 py-1 text-tv-text-primary">#{c.waypoint_index}</td>
                 <td className="pr-2 py-1 text-tv-text-primary">
-                  {c.intended_alt.toFixed(2)} m
+                  {datumHeightLabel(c.intended_alt, t, "MSL")}
                 </td>
                 <td className="pr-2 py-1 text-tv-text-primary">
-                  {c.clamped_alt.toFixed(2)} m
+                  {datumHeightLabel(c.clamped_alt, t, "MSL")}
                 </td>
               </tr>
             ))}

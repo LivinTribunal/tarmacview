@@ -17,7 +17,7 @@ vi.mock("@/components/map/AirportMap", () => ({
 vi.mock("@/components/coordinator/InfrastructureListPanel", () => ({
   default: () => <div data-testid="infrastructure-list-panel" />,
 }));
-vi.mock("@/components/coordinator/CoordinatorAGLPanel", () => ({
+vi.mock("@/components/map/overlays/AGLPanel", () => ({
   default: () => <div data-testid="coordinator-agl-panel" />,
 }));
 vi.mock("@/components/coordinator/AirportInfoPanel", () => ({

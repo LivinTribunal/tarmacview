@@ -70,8 +70,13 @@ class SafetyZoneResponse(BaseModel):
     name: str
     type: SafetyZoneTypeStr
     geometry: PolygonZ
+    # floor/ceiling stay MSL; the *_agl counterparts are derived on the airport
+    # read by sampling ground at the zone centroid (transient attrs, null on the
+    # list endpoints that don't enrich)
     altitude_floor: float | None = None
     altitude_ceiling: float | None = None
+    altitude_floor_agl: float | None = None
+    altitude_ceiling_agl: float | None = None
     is_active: bool
 
     model_config = {"from_attributes": True}

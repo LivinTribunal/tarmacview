@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatNumber } from "@/utils/format";
 import type { SafetyZoneResponse } from "@/types/airport";
 import type { MapFeature, MapLayerConfig } from "@/types/map";
-import { NEUTRAL, ZONE_COLORS, ZONE_FALLBACK_COLOR } from "@/constants/palette";
+import { NEUTRAL } from "@/constants/palette";
 import CollapsiblePanelHeader from "@/components/common/CollapsiblePanelHeader";
+import { SafetyZoneListRow } from "./featureListRows";
 
 interface SafetyZonesPanelProps {
   safetyZones: SafetyZoneResponse[];
@@ -122,44 +122,7 @@ export default function SafetyZonesPanel({
                 } ${idx < count - 1 ? "border-b border-tv-border" : ""}`}
                 data-testid={`zone-item-${zone.id}`}
               >
-                {/* colored dot */}
-                <span
-                  className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: ZONE_COLORS[zone.type] ?? ZONE_FALLBACK_COLOR }}
-                />
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-tv-text-primary truncate">
-                      {zone.name}
-                    </span>
-                    <span
-                      className="rounded-full px-1.5 py-0.5 text-[10px] font-medium border"
-                      style={{
-                        borderColor: ZONE_COLORS[zone.type] ?? ZONE_FALLBACK_COLOR,
-                        color: ZONE_COLORS[zone.type] ?? ZONE_FALLBACK_COLOR,
-                      }}
-                    >
-                      {t(`airport.zoneType.${zone.type}`)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {zone.altitude_floor != null && zone.altitude_ceiling != null && (
-                      <span className="text-[10px] text-tv-text-secondary">
-                        {formatNumber(zone.altitude_floor, 2)}m — {formatNumber(zone.altitude_ceiling, 2)}m
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1 text-[10px]">
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: zone.is_active ? "var(--tv-success)" : ZONE_FALLBACK_COLOR }}
-                      />
-                      <span className="text-tv-text-muted">
-                        {zone.is_active ? t("airport.active") : t("airport.inactive")}
-                      </span>
-                    </span>
-                  </div>
-                </div>
+                <SafetyZoneListRow zone={zone} t={t} />
               </button>
             ))
           )}

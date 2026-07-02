@@ -7,6 +7,7 @@ import { extractPhotoMetadata } from "@/api/airports";
 import { isAxiosError } from "@/api/client";
 import type { PhotoMetadataItem } from "@/types/airport";
 import { orderPolygonRing, pointsToPolygon } from "@/utils/orderPolygonRing";
+import { datumHeightLabel } from "@/utils/altitudeLabel";
 
 // the subset of creation entity types a handoff can pre-select.
 export type ExtractorEntityHint = "agl" | "lha" | "obstacle" | "runway";
@@ -302,7 +303,7 @@ export default function ImageMetadataExtractorModal({
                   {c ? (
                     <>
                       <p className="text-[10px] text-tv-text-muted">
-                        {t("map.coordinates.lat")}: {c[1].toFixed(6)} · {t("map.coordinates.lon")}: {c[0].toFixed(6)} · {c[2].toFixed(1)} m
+                        {t("map.coordinates.lat")}: {c[1].toFixed(6)} · {t("map.coordinates.lon")}: {c[0].toFixed(6)} · {datumHeightLabel(c[2], t, "MSL", 1)}
                       </p>
                       {selectedTarget?.entityType === "lha" && (
                         <div className="mt-1 flex gap-2">

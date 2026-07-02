@@ -3,6 +3,7 @@ import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
 import type { SurfaceResponse } from "@/types/airport";
 import type { PointZ } from "@/types/common";
+import { labelKeyOf, lhaFields } from "@/config/featureFields";
 import PointCoordEditor from "./PointCoordEditor";
 
 interface LhaFieldsProps {
@@ -48,7 +49,7 @@ export default function LhaFields({
           <div>
             <Input
               id="feat-sequence-number"
-              label={t("airport.lha.sequenceNumber")}
+              label={t(labelKeyOf(lhaFields, "sequence_number"))}
               hint={t("airport.lha.sequenceNumberHelp")}
               type="number"
               min={1}
@@ -84,7 +85,7 @@ export default function LhaFields({
       })()}
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.lhaUnitDesignator")}</span>
+          <span>{t(labelKeyOf(lhaFields, "unit_designator"))}</span>
           <InfoHint
             text={t("coordinator.detail.lhaUnitDesignatorHelp")}
             label={t("coordinator.detail.lhaUnitDesignator")}
@@ -138,7 +139,7 @@ export default function LhaFields({
       </div>
       <Input
         id="feat-angle"
-        label={t("coordinator.detail.lhaSettingAngle")}
+        label={t(labelKeyOf(lhaFields, "setting_angle"))}
         hint={t("coordinator.detail.lhaSettingAngleHelp")}
         type="number"
         step="0.1"
@@ -147,7 +148,7 @@ export default function LhaFields({
       />
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.lhaLampType")}</span>
+          <span>{t(labelKeyOf(lhaFields, "lamp_type"))}</span>
           <InfoHint
             text={t("coordinator.detail.lhaLampTypeHelp")}
             label={t("coordinator.detail.lhaLampType")}
@@ -165,7 +166,7 @@ export default function LhaFields({
       </div>
       <Input
         id="feat-tolerance"
-        label={t("coordinator.detail.lhaTolerance")}
+        label={t(labelKeyOf(lhaFields, "tolerance"))}
         hint={t("coordinator.detail.lhaToleranceHelp")}
         type="number"
         step="0.1"
@@ -180,7 +181,7 @@ export default function LhaFields({
           <div className="flex flex-col gap-1.5">
             <Input
               id="feat-lens-msl"
-              label={t("coordinator.detail.lhaLensMsl")}
+              label={t(labelKeyOf(lhaFields, "lens_height_msl_m"))}
               hint={t("coordinator.detail.lhaLensMslHelp")}
               type="number"
               step="0.01"
@@ -190,7 +191,7 @@ export default function LhaFields({
             />
             <Input
               id="feat-lens-agl"
-              label={t("coordinator.detail.lhaLensAgl")}
+              label={t(labelKeyOf(lhaFields, "lens_height_agl_m"))}
               hint={t("coordinator.detail.lhaLensAglHelp")}
               type="number"
               step="0.01"

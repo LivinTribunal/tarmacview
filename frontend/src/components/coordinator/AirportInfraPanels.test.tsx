@@ -11,7 +11,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock("@/components/coordinator/CoordinatorAGLPanel", () => ({
+vi.mock("@/components/map/overlays/AGLPanel", () => ({
   default: () => <div data-testid="coordinator-agl-panel" />,
 }));
 

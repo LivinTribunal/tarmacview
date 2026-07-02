@@ -3,7 +3,7 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from app.core.constants import DEFAULT_BUFFER_DISTANCE_M
 from app.schemas.common import ListMeta
@@ -43,12 +43,28 @@ class ObstacleResponse(BaseModel):
     id: UUID
     airport_id: UUID
     name: str
+    # vertical extent above ground (AGL)
     height: float
     boundary: PolygonZ
     buffer_distance: float
     type: ObstacleTypeStr
 
     model_config = {"from_attributes": True}
+
+    @computed_field
+    @property
+    def base_altitude_msl(self) -> float | None:
+        """min z of the boundary outer ring - ground the obstacle sits on (MSL)."""
+        ring = self.boundary.coordinates[0] if self.boundary.coordinates else []
+        zs = [c[2] for c in ring if len(c) >= 3]
+        return min(zs) if zs else None
+
+    @computed_field
+    @property
+    def top_altitude_msl(self) -> float | None:
+        """base plus the AGL height - obstacle top (MSL)."""
+        base = self.base_altitude_msl
+        return None if base is None else base + self.height
 
 
 # recalculate dimensions responses

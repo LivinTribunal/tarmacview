@@ -235,19 +235,25 @@ describe("AirportPage", () => {
   it("shows dimensions for surfaces", async () => {
     renderAirportPage(mockAirport);
     await screen.findByText("RWY 06/24");
-    expect(screen.getByText("3500.00m × 45.00m")).toBeInTheDocument();
+    expect(
+      screen.getByText("3500.00common.units.m × 45.00common.units.m"),
+    ).toBeInTheDocument();
   });
 
   it("shows obstacle height", async () => {
     renderAirportPage(mockAirport);
     await screen.findByText("Control Tower");
-    expect(screen.getByText(/poiHeight.*45\.00m/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/featureFields\.height.*45\.00common\.units\.m common\.datum\.agl/),
+    ).toBeInTheDocument();
   });
 
   it("shows safety zone altitude range and active status", async () => {
     renderAirportPage(mockAirport);
     await screen.findByText("CTR Zone Alpha");
-    expect(screen.getByText("0.00m — 2500.00m")).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.00 → 2500\.00common\.units\.m common\.datum\.msl/),
+    ).toBeInTheDocument();
     expect(screen.getByText("airport.active")).toBeInTheDocument();
   });
 

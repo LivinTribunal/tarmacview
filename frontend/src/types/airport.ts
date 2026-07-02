@@ -68,12 +68,16 @@ export interface ObstacleResponse {
   id: string;
   airport_id: string;
   name: string;
+  // vertical extent above ground (AGL)
   height: number;
   boundary: PolygonZ;
   buffer_distance: number;
   type: ObstacleType;
   position?: PointZ;
   radius?: number;
+  // derived: min boundary z (base) and base + height (top), both MSL
+  base_altitude_msl?: number | null;
+  top_altitude_msl?: number | null;
 }
 
 export interface SafetyZoneResponse {
@@ -84,6 +88,9 @@ export interface SafetyZoneResponse {
   geometry: PolygonZ;
   altitude_floor: number | null;
   altitude_ceiling: number | null;
+  // derived: floor/ceiling minus ground sampled at the zone centroid
+  altitude_floor_agl?: number | null;
+  altitude_ceiling_agl?: number | null;
   is_active: boolean;
 }
 
@@ -99,6 +106,8 @@ export interface AGLResponse {
   distance_from_threshold: number | null;
   meht_height_m: number | null;
   offset_from_centerline: number | null;
+  // derived: threshold ground z + resolved MEHT height (MSL)
+  meht_altitude_msl?: number | null;
   lhas: LHAResponse[];
 }
 

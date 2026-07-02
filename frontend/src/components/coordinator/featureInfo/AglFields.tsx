@@ -5,6 +5,7 @@ import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
 import type { SurfaceResponse, AGLResponse } from "@/types/airport";
 import type { PointZ } from "@/types/common";
+import { aglFields, labelKeyOf } from "@/config/featureFields";
 import { reverseLHAs } from "@/api/airports";
 import QuickLhaSetup from "../QuickLhaSetup";
 import PointCoordEditor from "./PointCoordEditor";
@@ -71,7 +72,7 @@ export default function AglFields({
     <>
       <Input
         id="feat-name"
-        label={t("coordinator.detail.aglName")}
+        label={t("featureFields.name")}
         hint={t("coordinator.detail.aglNameHelp")}
         value={val("name")}
         onChange={(e) => handleChange("name", e.target.value)}
@@ -102,7 +103,7 @@ export default function AglFields({
       )}
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.aglType")}</span>
+          <span>{t(labelKeyOf(aglFields, "agl_type"))}</span>
           <InfoHint
             text={t("coordinator.detail.aglTypeHelp")}
             label={t("coordinator.detail.aglType")}
@@ -138,7 +139,7 @@ export default function AglFields({
       </div>
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.aglSide")}</span>
+          <span>{t(labelKeyOf(aglFields, "side"))}</span>
           <InfoHint
             text={t("coordinator.detail.aglSideHelp")}
             label={t("coordinator.detail.aglSide")}
@@ -158,7 +159,7 @@ export default function AglFields({
       {val("agl_type") === "PAPI" && (
         <Input
           id="feat-glide"
-          label={t("coordinator.detail.aglGlideAngle")}
+          label={t(labelKeyOf(aglFields, "glide_slope_angle"))}
           hint={t("coordinator.detail.aglGlideAngleHelp")}
           type="number"
           step="0.1"
@@ -169,7 +170,7 @@ export default function AglFields({
       {val("agl_type") === "PAPI" && (
         <Input
           id="feat-glide-tolerance"
-          label={t("coordinator.detail.aglGlideTolerance")}
+          label={t(labelKeyOf(aglFields, "glide_slope_angle_tolerance"))}
           hint={t("coordinator.detail.aglGlideToleranceHelp")}
           type="number"
           step="0.1"
@@ -180,7 +181,7 @@ export default function AglFields({
       {val("agl_type") === "PAPI" && (
         <Input
           id="feat-dist-threshold"
-          label={t("coordinator.detail.aglDistance")}
+          label={t(labelKeyOf(aglFields, "distance_from_threshold"))}
           hint={t("coordinator.detail.aglDistanceHelp")}
           type="number"
           step="0.1"
@@ -191,7 +192,7 @@ export default function AglFields({
       {val("agl_type") === "PAPI" && (
         <Input
           id="feat-meht-height"
-          label={t("coordinator.detail.aglMehtHeight")}
+          label={t(labelKeyOf(aglFields, "meht_height_m"))}
           hint={t("coordinator.detail.aglMehtHeightHelp")}
           type="number"
           step="0.1"

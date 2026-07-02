@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import MissionStatus, UserRole
 from app.core.exceptions import DomainError, NotFoundError
+from app.core.geometry import point_lonlatalt
 from app.models.agl import AGL
 from app.models.airport import AirfieldSurface, Airport
 from app.models.mission import DroneProfile, Mission
@@ -98,7 +99,43 @@ def get_airport(db: Session, airport_id: UUID) -> Airport:
     if not airport:
         raise NotFoundError("airport not found")
 
+    _enrich_derived_altitudes(db, airport)
+
     return airport
+
+
+def _point_z(wkt: str | None) -> float | None:
+    """return the z of a stored POINT Z wkt, or None on missing/unparseable."""
+    if not wkt:
+        return None
+    try:
+        return point_lonlatalt(wkt)[2]
+    except (ValueError, TypeError):
+        return None
+
+
+def _enrich_derived_altitudes(db: Session, airport: Airport) -> None:
+    """set transient MSL/AGL derived attrs on the loaded airport's children.
+
+    mutates only python attrs (never columns), so no flush / persistence impact.
+    defensive per-item so a bad geometry can never 500 the airport read.
+    """
+    from app.core.constants import DEFAULT_GLIDE_SLOPE_DEG
+    from app.services.airport.altitude import sample_zone_altitude_agl
+    from app.services.trajectory.helpers import resolve_meht_height
+
+    for surface in airport.surfaces:
+        threshold_z = _point_z(surface.threshold_position)
+        for agl in surface.agls:
+            agl.meht_altitude_msl = None
+            if threshold_z is None:
+                continue
+            glide = agl.glide_slope_angle or DEFAULT_GLIDE_SLOPE_DEG
+            meht = resolve_meht_height(agl, glide)
+            if meht is not None:
+                agl.meht_altitude_msl = threshold_z + meht
+
+    sample_zone_altitude_agl(airport, airport.safety_zones, db=db)
 
 
 def create_airport(db: Session, schema: AirportCreate, *, creator: User | None = None) -> Airport:

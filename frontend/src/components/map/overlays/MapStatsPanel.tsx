@@ -4,6 +4,7 @@ import { Route, Clock, MapPin, Battery, Layers, ArrowUpDown, Gauge } from "lucid
 import type { FlightPlanResponse } from "@/types/flightPlan";
 import { getValidationDisplay } from "@/utils/validationDisplay";
 import { formatDuration, formatNumber } from "@/utils/format";
+import { mslAglRangeLabel } from "@/utils/altitudeLabel";
 
 interface MapStatsPanelProps {
   flightPlan: FlightPlanResponse;
@@ -38,9 +39,13 @@ export default function MapStatsPanel({
   }
 
   const altitudeRange =
-    flightPlan.min_altitude_agl != null && flightPlan.max_altitude_agl != null
-      ? `${flightPlan.min_altitude_agl.toFixed(1)} \u2013 ${flightPlan.max_altitude_agl.toFixed(1)} ${t("common.units.m")} AGL`
-      : "\u2014";
+    mslAglRangeLabel(
+      flightPlan.min_altitude_msl,
+      flightPlan.max_altitude_msl,
+      flightPlan.min_altitude_agl,
+      flightPlan.max_altitude_agl,
+      t,
+    ) || "\u2014";
 
   const transitSpeed =
     flightPlan.transit_speed != null

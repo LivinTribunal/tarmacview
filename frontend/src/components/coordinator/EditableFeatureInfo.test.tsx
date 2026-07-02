@@ -83,7 +83,7 @@ describe("EditableFeatureInfo - pending patch overlay", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("5");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("5");
 
     // switch to lha-a which has a pending edit; the input should reflect the staged value
     rerender(
@@ -94,7 +94,7 @@ describe("EditableFeatureInfo - pending patch overlay", () => {
         pendingPatch={{ setting_angle: 4.2 }}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
   });
 
   it("falls back to the server value when no pending patch is present", () => {
@@ -108,7 +108,7 @@ describe("EditableFeatureInfo - pending patch overlay", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
 
     rerender(
       <EditableFeatureInfo
@@ -117,7 +117,7 @@ describe("EditableFeatureInfo - pending patch overlay", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("7");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("7");
   });
 
   it("displays the latest pendingPatch on every render and pushes onUpdate per keystroke", () => {
@@ -130,7 +130,7 @@ describe("EditableFeatureInfo - pending patch overlay", () => {
         onClose={vi.fn()}
       />,
     );
-    const input = screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement;
+    const input = screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "4.5" } });
     expect(onUpdate).toHaveBeenCalledWith({ setting_angle: 4.5 });
 
@@ -156,7 +156,7 @@ describe("EditableFeatureInfo - pending patch overlay", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
   });
 });
 
@@ -171,7 +171,7 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
         pendingPatch={{ setting_angle: 4.2 }}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
 
     // simulate undo: parent's pending change clears for this entity
     rerender(
@@ -181,7 +181,7 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
   });
 
   it("redo re-applies the staged value", () => {
@@ -193,7 +193,7 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("3");
 
     rerender(
       <EditableFeatureInfo
@@ -203,7 +203,7 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
         pendingPatch={{ setting_angle: 4.2 }}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
   });
 
   it("post-save (clearAll) keeps showing the value once it's reflected on the server record", () => {
@@ -216,7 +216,7 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
         pendingPatch={{ setting_angle: 4.2 }}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
 
     // server fetch returns the saved record; pending patch cleared
     rerender(
@@ -226,7 +226,7 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
         onClose={vi.fn()}
       />,
     );
-    expect((screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
+    expect((screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement).value).toBe("4.2");
   });
 
   it("typing flows child->parent->child without remounting the input", () => {
@@ -243,12 +243,12 @@ describe("EditableFeatureInfo - undo/redo while panel is open", () => {
       );
     }
     render(<Harness />);
-    const input = screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" }) as HTMLInputElement;
+    const input = screen.getByLabelText("featureFields.settingAngle", { selector: "input" }) as HTMLInputElement;
     const before = input;
     fireEvent.change(input, { target: { value: "4.5" } });
     expect(input.value).toBe("4.5");
     // the same input node is still in the DOM (no remount)
-    expect(screen.getByLabelText("coordinator.detail.lhaSettingAngle", { selector: "input" })).toBe(before);
+    expect(screen.getByLabelText("featureFields.settingAngle", { selector: "input" })).toBe(before);
   });
 });
 

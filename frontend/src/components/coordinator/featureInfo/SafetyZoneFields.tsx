@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
+import { labelKeyOf, safetyZoneFields } from "@/config/featureFields";
 
 interface SafetyZoneFieldsProps {
   data: Record<string, unknown>;
@@ -20,14 +21,14 @@ export default function SafetyZoneFields({
     <>
       <Input
         id="feat-name"
-        label={t("coordinator.detail.zoneName")}
+        label={t(labelKeyOf(safetyZoneFields, "name"))}
         hint={t("coordinator.detail.zoneNameHelp")}
         value={val("name")}
         onChange={(e) => handleChange("name", e.target.value)}
       />
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.zoneType")}</span>
+          <span>{t(labelKeyOf(safetyZoneFields, "type"))}</span>
           <InfoHint
             text={t("coordinator.detail.zoneTypeHelp")}
             label={t("coordinator.detail.zoneType")}
@@ -48,7 +49,7 @@ export default function SafetyZoneFields({
       <div className="grid grid-cols-2 gap-1.5">
         <Input
           id="feat-floor"
-          label={t("coordinator.detail.zoneFloor")}
+          label={t(labelKeyOf(safetyZoneFields, "altitude_floor"))}
           hint={t("coordinator.detail.zoneFloorHelp")}
           type="number"
           value={val("altitude_floor")}
@@ -56,7 +57,7 @@ export default function SafetyZoneFields({
         />
         <Input
           id="feat-ceiling"
-          label={t("coordinator.detail.zoneCeiling")}
+          label={t(labelKeyOf(safetyZoneFields, "altitude_ceiling"))}
           hint={t("coordinator.detail.zoneCeilingHelp")}
           type="number"
           value={val("altitude_ceiling")}
@@ -70,7 +71,7 @@ export default function SafetyZoneFields({
           onChange={(e) => handleChange("is_active", e.target.checked)}
           className="accent-tv-accent"
         />
-        <span>{t("coordinator.detail.zoneActive")}</span>
+        <span>{t(labelKeyOf(safetyZoneFields, "is_active"))}</span>
         <InfoHint
           text={t("coordinator.detail.zoneActiveHelp")}
           label={t("coordinator.detail.zoneActive")}

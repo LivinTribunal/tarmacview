@@ -71,15 +71,30 @@ describe("SafetyZoneInfoPanel - regular zone", () => {
     const { rerender } = render(
       <SafetyZoneInfoPanel zone={makeZone({ altitude_floor: null, altitude_ceiling: null })} />,
     );
-    expect(screen.queryByText("dashboard.poiFloor")).not.toBeInTheDocument();
-    expect(screen.queryByText("dashboard.poiCeiling")).not.toBeInTheDocument();
+    expect(screen.queryByText("featureFields.floor")).not.toBeInTheDocument();
+    expect(screen.queryByText("featureFields.ceiling")).not.toBeInTheDocument();
 
     rerender(
       <SafetyZoneInfoPanel
         zone={makeZone({ altitude_floor: 100, altitude_ceiling: 300 })}
       />,
     );
-    expect(screen.getByText("dashboard.poiFloor")).toBeInTheDocument();
-    expect(screen.getByText("dashboard.poiCeiling")).toBeInTheDocument();
+    expect(screen.getByText("featureFields.floor")).toBeInTheDocument();
+    expect(screen.getByText("featureFields.ceiling")).toBeInTheDocument();
+  });
+
+  it("renders derived floor / ceiling AGL rows when the airport supplies them", () => {
+    render(
+      <SafetyZoneInfoPanel
+        zone={makeZone({
+          altitude_floor: 250,
+          altitude_ceiling: 400,
+          altitude_floor_agl: 50,
+          altitude_ceiling_agl: 200,
+        })}
+      />,
+    );
+    expect(screen.getByText("featureFields.floorAgl")).toBeInTheDocument();
+    expect(screen.getByText("featureFields.ceilingAgl")).toBeInTheDocument();
   });
 });

@@ -113,7 +113,7 @@ export default function AirportInfoPanel({
           </div>
           <Input
             id="airport-elevation"
-            label={t("coordinator.detail.airportElevation")}
+            label={t("featureFields.elevation")}
             hint={t("coordinator.detail.airportElevationHelp")}
             type="number"
             value={String(form.elevation)}

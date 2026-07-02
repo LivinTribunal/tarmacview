@@ -7,17 +7,20 @@ import { useAirport } from "@/contexts/AirportContext";
 import {
   downloadMeasurementReport,
   getMeasurementResults,
+  getMissionResults,
   listAirportMeasurements,
 } from "@/api/measurements";
 import { listInspectionTemplates } from "@/api/inspectionTemplates";
 import type {
   MeasurementListItem,
   MeasurementResults,
+  MissionResults,
 } from "@/types/measurement";
 import type { InspectionTemplateResponse } from "@/types/inspectionTemplate";
 import type { MissionTabOutletContext } from "@/components/Layout/MissionTabNav";
 import Card from "@/components/common/Card";
 import ResultsLeftPanel from "@/components/results/ResultsLeftPanel";
+import MissionResultsOverview from "@/components/results/MissionResultsOverview";
 import MeasurementFlowDialog from "@/components/mission/MeasurementFlowDialog";
 import ResultsPage from "./ResultsPage";
 
@@ -43,6 +46,9 @@ export default function MissionResultsPage() {
   const [results, setResults] = useState<MeasurementResults | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsError, setResultsError] = useState(false);
+  const [overview, setOverview] = useState<MissionResults | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const didInitRef = useRef(false);
 
@@ -83,20 +89,8 @@ export default function MissionResultsPage() {
       : undefined) ||
     t("mission.config.inspections");
 
-  const firstMeasured = useMemo(
-    () =>
-      inspections.find(
-        (i) => measurementByInspection.get(i.id)?.status === "DONE",
-      ) ?? null,
-    [inspections, measurementByInspection],
-  );
-
-  const hasAnyMeasured = firstMeasured !== null;
-  const downloadTargetId =
-    currentRow?.id ??
-    (firstMeasured
-      ? (measurementByInspection.get(firstMeasured.id)?.id ?? null)
-      : null);
+  // pdf targets the drilled-down run only - mission-scale pdf is a non-goal
+  const downloadTargetId = currentRow?.id ?? null;
 
   // templates back the picker row names
   useEffect(() => {
@@ -116,7 +110,8 @@ export default function MissionResultsPage() {
     };
   }, [airportId]);
 
-  // airport-wide list scoped to this mission, then one-shot default selection
+  // airport-wide list scoped to this mission; default view is the overview,
+  // only a ?inspection=<DONE> deep-link opens the drill-down on first load
   useEffect(() => {
     if (!airportId || !id) return;
     let cancelled = false;
@@ -135,12 +130,7 @@ export default function MissionResultsPage() {
         const requested = searchParams.get("inspection");
         if (requested && byInsp.get(requested)?.status === "DONE") {
           setSelectedInspectionId(requested);
-          return;
         }
-        const firstDone = inspections.find(
-          (i) => byInsp.get(i.id)?.status === "DONE",
-        );
-        setSelectedInspectionId(firstDone?.id ?? null);
       })
       .catch(() => {
         if (!cancelled) setMeasurements([]);
@@ -148,7 +138,28 @@ export default function MissionResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [airportId, id, inspections, searchParams]);
+  }, [airportId, id, searchParams]);
+
+  // mission-scale protocol overview - the default landing view
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setOverviewLoading(true);
+    setOverviewError(false);
+    getMissionResults(id)
+      .then((data) => {
+        if (!cancelled) setOverview(data);
+      })
+      .catch(() => {
+        if (!cancelled) setOverviewError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setOverviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // load the selected inspection's results when its run is finished
   useEffect(() => {
@@ -193,7 +204,7 @@ export default function MissionResultsPage() {
     };
   }, [setSaveContext, mission]);
 
-  // re-fetch the mission's runs without re-running the one-shot default selection
+  // re-fetch the mission's runs without re-running the one-shot deep-link drill-in
   const refreshMeasurements = useCallback(() => {
     if (!airportId || !id) return;
     listAirportMeasurements(airportId)
@@ -290,44 +301,52 @@ export default function MissionResultsPage() {
         className="h-full overflow-y-auto"
         data-testid="mission-results-page"
       >
-        {!hasAnyMeasured ? (
-          <div
-            className="flex items-center justify-center h-64 text-sm text-tv-text-secondary text-center px-6"
-            data-testid="results-no-data"
-          >
-            {t("results.noMeasurements")}
-          </div>
-        ) : !selectedInspectionId ? (
-          <div
-            className="flex items-center justify-center h-64 text-sm text-tv-text-secondary text-center px-6"
-            data-testid="results-pick-inspection"
-          >
-            {t("results.pickInspection")}
-          </div>
-        ) : resultsLoading ? (
-          <div
-            className="flex items-center justify-center h-64 text-tv-text-muted"
-            data-testid="results-loading"
-          >
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        ) : resultsError || !results ? (
-          <div className="p-6 text-sm text-tv-error" data-testid="results-error">
-            {t("results.loadError")}
-          </div>
-        ) : !results.has_results ? (
-          <div className="p-4 md:p-6">
-            <Card>
-              <p
-                className="text-sm text-tv-text-secondary"
-                data-testid="results-pending"
-              >
-                {t("results.notReady")}
-              </p>
-            </Card>
-          </div>
+        {!selectedInspectionId ? (
+          <MissionResultsOverview
+            overview={overview}
+            loading={overviewLoading}
+            error={overviewError}
+            onDrillDown={setSelectedInspectionId}
+          />
         ) : (
-          <ResultsPage results={results} />
+          <div>
+            <button
+              type="button"
+              className="mx-4 mt-4 md:mx-6 text-sm text-tv-accent hover:underline"
+              onClick={() => setSelectedInspectionId(null)}
+              data-testid="back-to-overview"
+            >
+              {t("results.overview.backToOverview")}
+            </button>
+            {resultsLoading ? (
+              <div
+                className="flex items-center justify-center h-64 text-tv-text-muted"
+                data-testid="results-loading"
+              >
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : resultsError || !results ? (
+              <div
+                className="p-6 text-sm text-tv-error"
+                data-testid="results-error"
+              >
+                {t("results.loadError")}
+              </div>
+            ) : !results.has_results ? (
+              <div className="p-4 md:p-6">
+                <Card>
+                  <p
+                    className="text-sm text-tv-text-secondary"
+                    data-testid="results-pending"
+                  >
+                    {t("results.notReady")}
+                  </p>
+                </Card>
+              </div>
+            ) : (
+              <ResultsPage results={results} />
+            )}
+          </div>
         )}
       </div>
     </>

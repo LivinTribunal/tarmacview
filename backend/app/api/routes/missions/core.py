@@ -22,9 +22,11 @@ from app.schemas.mission import (
     MissionResponse,
     MissionUpdate,
 )
+from app.schemas.mission_results import MissionResultsResponse
 from app.schemas.wayline_dispatch import DispatchRequest, WaylineDispatchResponse
 from app.services import (
     drone_media_service,
+    measurement_service,
     mission_service,
     wayline_dispatch_service,
 )
@@ -60,6 +62,17 @@ def list_mission_drone_media(
     """mission media grouped by inspection plus the unassigned bucket."""
     check_mission_access(db, current_user, mission_id)
     return drone_media_service.list_mission_media_by_inspection(db, mission_id)
+
+
+@router.get("/{mission_id}/results", response_model=MissionResultsResponse)
+def get_mission_results(
+    mission_id: UUID,
+    current_user: OperatorUser,
+    db: Session = Depends(get_db),
+):
+    """mission-level protocol-style aggregation - per runway/AGL/LHA, read-only."""
+    check_mission_access(db, current_user, mission_id)
+    return measurement_service.build_mission_results(db, mission_id)
 
 
 @router.put("/{mission_id}", response_model=MissionResponse)

@@ -32,6 +32,7 @@ from app.services.measurement_service._mapping import (
     light_boxes_to_schema,
     to_response,
 )
+from app.services.measurement_service._mission_results import build_mission_results
 from app.services.measurement_service._results import (
     _chromaticity_from_rgb,
     _drone_path,
@@ -75,6 +76,7 @@ __all__ = [
     "to_response",
     # results
     "build_results_data",
+    "build_mission_results",
     # worker runners + seams
     "run_first_frame",
     "run_processing",

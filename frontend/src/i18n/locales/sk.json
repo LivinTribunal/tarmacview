@@ -2218,8 +2218,67 @@
     "status": "Stav: {{status}}",
     "loadError": "Výsledky merania sa nepodarilo načítať.",
     "notReady": "Toto meranie ešte nedokončilo spracovanie. Výsledky sa zobrazia po dokončení behu.",
-    "noMeasurements": "Pre túto misiu zatiaľ nie sú merania. Spustite ho cez Validácia a export.",
-    "pickInspection": "Vyberte zmeranú inšpekciu pre zobrazenie jej výsledkov.",
+    "overview": {
+      "title": "Prehľad misie",
+      "backToOverview": "← Späť na prehľad",
+      "runway": "Dráha {{id}}",
+      "runwayUnassigned": "Nepriradené zariadenia",
+      "notMeasured": "N/A",
+      "noRecommendations": "Žiadne odporúčania.",
+      "header": {
+        "airport": "Letisko",
+        "mission": "Misia",
+        "date": "Dátum",
+        "drone": "Dron",
+        "opticalSensor": "Optický senzor",
+        "referenceSystem": "Referenčný systém",
+        "certificateNumber": "Č. certifikátu"
+      },
+      "weather": {
+        "title": "Počasie",
+        "temperature": "Teplota",
+        "wind": "Vietor",
+        "visibility": "Viditeľnosť",
+        "conditions": "Podmienky"
+      },
+      "device": {
+        "glideSlope": "Zostupový uhol",
+        "light": "Svetlo",
+        "configured": "Nastavené ± tol",
+        "measured": "Namerané",
+        "result": "Výsledok"
+      },
+      "rows": {
+        "chromaticity": "Chromatickosť",
+        "luminous_intensity": "Svietivosť",
+        "coverage": "Pokrytie",
+        "attenuation": "Útlm",
+        "meht": "MEHT",
+        "obstacle_plane_clearance": "Odstup od roviny prekážok",
+        "ils_alignment": "Zarovnanie ILS",
+        "als_hi_mi": "ALS HI/MI",
+        "threshold": "Prah",
+        "edge": "Okraj",
+        "end": "Koniec",
+        "tdz": "TDZ",
+        "centerline": "Os dráhy"
+      },
+      "evaluation": {
+        "title": "Celkové hodnotenie",
+        "device": "Zariadenie",
+        "result": "Výsledok",
+        "restrictions": "Obmedzenia",
+        "recommendations": "Odporúčania",
+        "empty": "Žiadne zariadenia na hodnotenie.",
+        "PASS": "VYHOVUJE",
+        "FAIL": "NEVYHOVUJE",
+        "PENDING": "ČAKÁ",
+        "NOT_MEASURED": "N/A"
+      },
+      "recommendations": {
+        "title": "Odporúčania"
+      }
+    },
     "inspectionInfo": "Informácie o inšpekcii",
     "picker": {
       "notMeasured": "Nezmerané",

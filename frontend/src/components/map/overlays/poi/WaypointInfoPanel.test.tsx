@@ -192,8 +192,8 @@ describe("WaypointInfoPanel - alt row MSL/AGL split", () => {
     );
     const altRow = screen.getByText("map.coordinates.alt").closest("div")!;
     const [mslCopy, aglCopy] = within(altRow).getAllByTestId("copyable-value");
-    expect(mslCopy).toHaveTextContent("mission.config.altMsl");
-    expect(aglCopy).toHaveTextContent("mission.config.altAgl");
+    expect(mslCopy).toHaveTextContent("common.datum.msl");
+    expect(aglCopy).toHaveTextContent("common.datum.agl");
     fireEvent.click(mslCopy);
     expect(writeText).toHaveBeenLastCalledWith("123.40");
     fireEvent.click(aglCopy);

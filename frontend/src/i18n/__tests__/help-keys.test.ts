@@ -19,7 +19,7 @@ const COMPONENT_FILES = [
   "frontend/src/components/coordinator/EditableFeatureInfo.tsx",
   "frontend/src/components/coordinator/TerrainSettingsCard.tsx",
   "frontend/src/components/coordinator/CreateAirportDialog.tsx",
-  "frontend/src/components/coordinator/CoordinatorAGLPanel.tsx",
+  "frontend/src/components/map/overlays/AGLPanel.tsx",
   "frontend/src/components/coordinator/MapCoordinatePicker.tsx",
   "frontend/src/components/coordinator/AirportInfoPanel.tsx",
 ];

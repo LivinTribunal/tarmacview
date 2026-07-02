@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { formatNumber } from "@/utils/format";
+import { safetyZoneFields } from "@/config/featureFields";
 import type { SafetyZoneResponse } from "@/types/airport";
-import { InfoRow, PolygonCoordRows } from "./rows";
+import { FieldRows, InfoRow, PolygonCoordRows } from "./rows";
 import { computePolygonAreaPerimeter, formatArea, formatLength } from "./polygonMetrics";
 
 /** info rows for a safety zone, with an AIRPORT_BOUNDARY-specific layout. */
@@ -29,24 +29,7 @@ export default function SafetyZoneInfoPanel({ zone }: { zone: SafetyZoneResponse
 
   return (
     <>
-      <InfoRow label={t("dashboard.poiName")} value={zone.name} />
-      <InfoRow label={t("dashboard.poiType")} value={zone.type.replace(/_/g, " ")} />
-      <InfoRow
-        label={t("dashboard.poiActive")}
-        value={zone.is_active ? t("common.yes") : t("common.no")}
-      />
-      {zone.altitude_floor != null && (
-        <InfoRow
-          label={t("dashboard.poiFloor")}
-          value={`${formatNumber(zone.altitude_floor, 2)}${t("common.units.m")}`}
-        />
-      )}
-      {zone.altitude_ceiling != null && (
-        <InfoRow
-          label={t("dashboard.poiCeiling")}
-          value={`${formatNumber(zone.altitude_ceiling, 2)}${t("common.units.m")}`}
-        />
-      )}
+      <FieldRows defs={safetyZoneFields} entity={zone} />
       <PolygonCoordRows polygon={zone.geometry} label={t("dashboard.poiCoordinates")} />
     </>
   );

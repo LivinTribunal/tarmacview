@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
+import { labelKeyOf, obstacleFields } from "@/config/featureFields";
 import RecalculateBlock, { type RecalcPreview } from "./RecalculateBlock";
 
 interface ObstacleFieldsProps {
@@ -33,14 +34,14 @@ export default function ObstacleFields({
     <>
       <Input
         id="feat-name"
-        label={t("coordinator.detail.obstacleName")}
+        label={t(labelKeyOf(obstacleFields, "name"))}
         hint={t("coordinator.detail.obstacleNameHelp")}
         value={val("name")}
         onChange={(e) => handleChange("name", e.target.value)}
       />
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.obstacleType")}</span>
+          <span>{t(labelKeyOf(obstacleFields, "type"))}</span>
           <InfoHint
             text={t("coordinator.detail.obstacleTypeHelp")}
             label={t("coordinator.detail.obstacleType")}
@@ -62,7 +63,7 @@ export default function ObstacleFields({
       <div className="grid grid-cols-2 gap-1.5">
         <Input
           id="feat-height"
-          label={t("coordinator.detail.obstacleHeight")}
+          label={t(labelKeyOf(obstacleFields, "height"))}
           hint={t("coordinator.detail.obstacleHeightHelp")}
           type="number"
           value={val("height")}
@@ -70,7 +71,7 @@ export default function ObstacleFields({
         />
         <Input
           id="feat-buffer-distance"
-          label={t("coordinator.detail.bufferDistance")}
+          label={t(labelKeyOf(obstacleFields, "buffer_distance"))}
           hint={t("coordinator.detail.bufferDistanceHelp")}
           type="number"
           value={val("buffer_distance")}

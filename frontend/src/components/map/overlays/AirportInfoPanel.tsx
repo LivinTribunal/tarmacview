@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { formatNumber } from "@/utils/format";
 import { formatLat, formatLon } from "@/utils/coordinates";
+import { datumHeightLabel } from "@/utils/altitudeLabel";
 import CopyableValue from "@/components/common/CopyableValue";
 import type { PointZ } from "@/types/common";
 
@@ -81,7 +81,7 @@ export default function AirportInfoPanel({
             <span className="text-[10px] uppercase tracking-wider text-tv-text-muted">
               {t("map.airportInfo.elevation")}
             </span>
-            <p className="text-xs text-tv-text-primary">{formatNumber(airport.elevation, 1)} m</p>
+            <p className="text-xs text-tv-text-primary">{datumHeightLabel(airport.elevation, t, "MSL", 1)}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-1.5">

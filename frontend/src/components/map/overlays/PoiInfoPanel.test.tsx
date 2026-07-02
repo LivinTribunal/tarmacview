@@ -28,7 +28,7 @@ describe("PoiInfoPanel - LHA", () => {
     render(<PoiInfoPanel feature={feature} onClose={vi.fn()} />);
 
     // setupTests stubs useTranslation so t(key) === key; assert on key + value
-    expect(screen.getByText("airport.lha.sequenceNumber")).toBeInTheDocument();
+    expect(screen.getByText("featureFields.sequenceNumber")).toBeInTheDocument();
     expect(screen.getByText("#3")).toBeInTheDocument();
   });
 
@@ -51,10 +51,10 @@ describe("PoiInfoPanel - LHA", () => {
     };
     render(<PoiInfoPanel feature={feature} onClose={vi.fn()} />);
 
-    expect(screen.getByText("airport.lha.lensHeightAgl")).toBeInTheDocument();
-    expect(screen.getByText("airport.lha.lensHeightMsl")).toBeInTheDocument();
-    expect(screen.getByText("4.20 common.units.m")).toBeInTheDocument();
-    expect(screen.getByText("384.20 common.units.m")).toBeInTheDocument();
+    expect(screen.getByText("featureFields.lensHeightAgl")).toBeInTheDocument();
+    expect(screen.getByText("featureFields.lensHeightMsl")).toBeInTheDocument();
+    expect(screen.getByText("4.20common.units.m common.datum.agl")).toBeInTheDocument();
+    expect(screen.getByText("384.20common.units.m common.datum.msl")).toBeInTheDocument();
   });
 
   it("hides both lens-height rows when the LHA has null lens heights", () => {
@@ -62,10 +62,10 @@ describe("PoiInfoPanel - LHA", () => {
     render(<PoiInfoPanel feature={feature} onClose={vi.fn()} />);
 
     expect(
-      screen.queryByText("airport.lha.lensHeightAgl"),
+      screen.queryByText("featureFields.lensHeightAgl"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText("airport.lha.lensHeightMsl"),
+      screen.queryByText("featureFields.lensHeightMsl"),
     ).not.toBeInTheDocument();
   });
 });
@@ -182,19 +182,19 @@ describe("PoiInfoPanel - waypoint MSL/AGL", () => {
 
     const altRow = screen.getAllByText("map.coordinates.alt")[0].closest("div")!;
     expect(altRow).toHaveTextContent("123.40");
-    expect(altRow).toHaveTextContent("mission.config.altMsl");
+    expect(altRow).toHaveTextContent("common.datum.msl");
     expect(altRow).toHaveTextContent("12.50");
-    expect(altRow).toHaveTextContent("mission.config.altAgl");
+    expect(altRow).toHaveTextContent("common.datum.agl");
 
     // camera-target alt row uses camera_target_agl
     const camAltRow = screen.getAllByText("map.coordinates.alt")[1].closest("div")!;
     expect(camAltRow).toHaveTextContent("3.20");
-    expect(camAltRow).toHaveTextContent("mission.config.altAgl");
+    expect(camAltRow).toHaveTextContent("common.datum.agl");
 
     // MSL and AGL are separate copy targets so the user knows which they copied
     const [mslCopy, aglCopy] = within(altRow).getAllByTestId("copyable-value");
-    expect(mslCopy).toHaveTextContent("mission.config.altMsl");
-    expect(aglCopy).toHaveTextContent("mission.config.altAgl");
+    expect(mslCopy).toHaveTextContent("common.datum.msl");
+    expect(aglCopy).toHaveTextContent("common.datum.agl");
 
     fireEvent.click(mslCopy);
     expect(writeText).toHaveBeenLastCalledWith("123.40");
@@ -214,9 +214,9 @@ describe("PoiInfoPanel - waypoint MSL/AGL", () => {
 
     const altRow = screen.getByText("map.coordinates.alt").closest("div")!;
     expect(altRow).toHaveTextContent("123.4");
-    expect(altRow).toHaveTextContent("mission.config.altMsl");
+    expect(altRow).toHaveTextContent("common.datum.msl");
     expect(altRow).toHaveTextContent("30.0");
-    expect(altRow).toHaveTextContent("mission.config.altAgl");
+    expect(altRow).toHaveTextContent("common.datum.agl");
     // the MSL value stays an edit button; AGL is static text
     expect(within(altRow).getByRole("button")).toHaveTextContent("123.4");
   });
@@ -228,7 +228,7 @@ describe("PoiInfoPanel - waypoint MSL/AGL", () => {
 
     const altRow = screen.getByText("map.coordinates.alt").closest("div")!;
     expect(altRow).toHaveTextContent("123.40");
-    expect(altRow).not.toHaveTextContent("mission.config.altMsl");
-    expect(altRow).not.toHaveTextContent("mission.config.altAgl");
+    expect(altRow).not.toHaveTextContent("common.datum.msl");
+    expect(altRow).not.toHaveTextContent("common.datum.agl");
   });
 });

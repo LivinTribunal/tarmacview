@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { OBSTACLE_COLORS, ObstacleTypeIcon } from "@/components/map/obstacleIcons";
-import { formatNumber } from "@/utils/format";
 import type { ObstacleResponse } from "@/types/airport";
 import type { MapFeature, MapLayerConfig } from "@/types/map";
 import CollapsiblePanelHeader from "@/components/common/CollapsiblePanelHeader";
+import { ObstacleListRow } from "./featureListRows";
 
 interface ObstaclesPanelProps {
   obstacles: ObstacleResponse[];
@@ -72,27 +71,7 @@ export default function ObstaclesPanel({
                 } ${idx < count - 1 ? "border-b border-tv-border" : ""}`}
                 data-testid={`obstacle-item-${obstacle.id}`}
               >
-                <ObstacleTypeIcon type={obstacle.type} />
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-tv-text-primary truncate">
-                      {obstacle.name}
-                    </span>
-                    <span
-                      className="rounded-full px-1.5 py-0.5 text-[10px] font-medium border"
-                      style={{
-                        borderColor: OBSTACLE_COLORS[obstacle.type] ?? "#6b6b6b",
-                        color: OBSTACLE_COLORS[obstacle.type] ?? "#6b6b6b",
-                      }}
-                    >
-                      {t(`coordinator.detail.obstacleTypes.${obstacle.type.toLowerCase()}`)}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-tv-text-secondary mt-0.5">
-                    {t("dashboard.poiHeight")}: {formatNumber(obstacle.height, 2)}m
-                  </p>
-                </div>
+                <ObstacleListRow obstacle={obstacle} t={t} />
               </button>
             ))
           )}

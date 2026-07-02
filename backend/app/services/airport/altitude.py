@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.enums import MissionStatus
 from app.core.exceptions import NotFoundError
-from app.core.geometry import wkt_to_geojson
+from app.core.geometry import polygon_xy, wkt_to_geojson
 from app.models.agl import AGL, LHA
 from app.models.airport import AirfieldSurface, Airport, Obstacle
 from app.models.mission import Mission
@@ -108,6 +108,56 @@ def _normalize_position_altitude(
     try:
         ground = provider.get_elevation(position_coords[1], position_coords[0])
         position_coords[2] = ground
+    finally:
+        if hasattr(provider, "close"):
+            provider.close()
+
+
+def _polygon_centroid_lonlat(wkt: str | None) -> tuple[float, float] | None:
+    """mean (lon, lat) of a polygon exterior ring, closing dup dropped; None if unparseable."""
+    try:
+        ring = polygon_xy(wkt)
+    except Exception:
+        return None
+    if not ring:
+        return None
+    if len(ring) > 1 and ring[0] == ring[-1]:
+        ring = ring[:-1]
+    if not ring:
+        return None
+    lon = sum(c[0] for c in ring) / len(ring)
+    lat = sum(c[1] for c in ring) / len(ring)
+    return (lon, lat)
+
+
+def sample_zone_altitude_agl(airport: Airport, zones, db: Session | None = None) -> None:
+    """set transient floor/ceiling AGL on each zone via one centroid ground sample.
+
+    floor/ceiling stay MSL; the AGL counterparts are floor/ceiling minus the
+    ground elevation sampled at the zone centroid. defensive per-item: a bad
+    geometry or a provider failure leaves that zone's AGL fields None rather
+    than raising.
+    """
+    if not zones:
+        return
+    provider = create_elevation_provider(airport, db=db)
+    try:
+        for zone in zones:
+            zone.altitude_floor_agl = None
+            zone.altitude_ceiling_agl = None
+            if zone.altitude_floor is None and zone.altitude_ceiling is None:
+                continue
+            centroid = _polygon_centroid_lonlat(zone.geometry)
+            if centroid is None:
+                continue
+            try:
+                ground = provider.get_elevation(centroid[1], centroid[0])
+            except Exception:
+                continue
+            if zone.altitude_floor is not None:
+                zone.altitude_floor_agl = zone.altitude_floor - ground
+            if zone.altitude_ceiling is not None:
+                zone.altitude_ceiling_agl = zone.altitude_ceiling - ground
     finally:
         if hasattr(provider, "close"):
             provider.close()

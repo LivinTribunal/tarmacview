@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import CopyableValue from "@/components/common/CopyableValue";
 import { formatLat, formatLon, formatAlt } from "@/utils/coordinates";
 import { LAT_BOUNDS, LON_BOUNDS } from "@/constants/geo";
+import type { FeatureFieldDef } from "@/config/featureFields";
 import type { PointZ, PolygonZ } from "@/types/common";
 
 /** single label-value row. */
@@ -15,6 +16,22 @@ export function InfoRow({ label, value }: { label: string; value: string }) {
         {value}
       </span>
     </div>
+  );
+}
+
+/** render a feature's shared field-definition list as label-value rows. */
+export function FieldRows<T>({ defs, entity }: { defs: FeatureFieldDef<T>[]; entity: T }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {defs.map((f) => {
+        if (f.visible && !f.visible(entity)) return null;
+        const value = f.read?.(entity, t);
+        return value == null || value === "" ? null : (
+          <InfoRow key={f.key} label={t(f.labelKey)} value={value} />
+        );
+      })}
+    </>
   );
 }
 
@@ -57,23 +74,23 @@ export function CoordRows({
             <span className="text-tv-text-primary font-medium text-right flex flex-col items-end">
               <span>
                 {formatAlt(altRange.min, 2)} → {formatAlt(altRange.max, 2)}
-                {t("common.units.m")} {t("mission.config.altMsl")}
+                {t("common.units.m")} {t("common.datum.msl")}
               </span>
               {aglRange && (
                 <span>
                   {formatAlt(aglRange.min, 2)} → {formatAlt(aglRange.max, 2)}
-                  {t("common.units.m")} {t("mission.config.altAgl")}
+                  {t("common.units.m")} {t("common.datum.agl")}
                 </span>
               )}
             </span>
           ) : agl != null ? (
             <span className="text-tv-text-primary font-medium text-right">
               <CopyableValue text={altText}>
-                {altText}{t("common.units.m")} {t("mission.config.altMsl")}
+                {altText}{t("common.units.m")} {t("common.datum.msl")}
               </CopyableValue>
               {" / "}
               <CopyableValue text={formatAlt(agl, 2)}>
-                {formatAlt(agl, 2)}{t("common.units.m")} {t("mission.config.altAgl")}
+                {formatAlt(agl, 2)}{t("common.units.m")} {t("common.datum.agl")}
               </CopyableValue>
             </span>
           ) : (
@@ -148,7 +165,7 @@ export function PolygonCoordRows({
                   text={`${vLat}, ${vLon}, ${vAlt}`}
                   className="font-medium tabular-nums text-right"
                 >
-                  {vLat}, {vLon}, {vAlt}{t("common.units.m")}
+                  {vLat}, {vLon}, {vAlt}{t("common.units.m")} {t("common.datum.msl")}
                 </CopyableValue>
               </div>
             );
@@ -251,7 +268,7 @@ export function EditableCoordRows({
           </button>
           {fieldName === "alt" &&
             aglValue != null &&
-            ` ${t("mission.config.altMsl")} / ${formatAlt(aglValue, 1)}${t("common.units.m")} ${t("mission.config.altAgl")}`}
+            ` ${t("common.datum.msl")} / ${formatAlt(aglValue, 1)}${t("common.units.m")} ${t("common.datum.agl")}`}
         </span>
       </div>
     );

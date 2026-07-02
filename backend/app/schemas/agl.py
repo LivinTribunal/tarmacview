@@ -50,7 +50,7 @@ class LHAUpdate(BaseModel):
 
 
 class LHAResponse(BaseModel):
-    """lha response schema."""
+    """lha response schema; position.z is ground elevation MSL."""
 
     id: UUID
     agl_id: UUID
@@ -98,7 +98,7 @@ class AGLUpdate(BaseModel):
 
 
 class AGLResponse(BaseModel):
-    """agl response schema."""
+    """agl response schema; position.z is ground elevation MSL."""
 
     id: UUID
     surface_id: UUID
@@ -111,6 +111,8 @@ class AGLResponse(BaseModel):
     distance_from_threshold: float | None = None
     meht_height_m: float | None = None
     offset_from_centerline: float | None = None
+    # derived on airport read: threshold ground z + resolved MEHT height (MSL)
+    meht_altitude_msl: float | None = None
     lhas: list[LHAResponse] = []
 
     model_config = {"from_attributes": True}

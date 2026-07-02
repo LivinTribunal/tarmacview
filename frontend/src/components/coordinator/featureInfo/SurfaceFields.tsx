@@ -4,6 +4,7 @@ import InfoHint from "@/components/common/InfoHint";
 import Input from "@/components/common/Input";
 import type { SurfaceResponse } from "@/types/airport";
 import type { LineStringZ } from "@/types/common";
+import { labelKeyOf, surfaceFields } from "@/config/featureFields";
 import PairSurfaceSection from "../PairSurfaceSection";
 import RecalculateBlock, { type RecalcPreview } from "./RecalculateBlock";
 import SurfaceTouchpointSection from "./SurfaceTouchpointSection";
@@ -61,14 +62,14 @@ export default function SurfaceFields({
     <>
       <Input
         id="feat-identifier"
-        label={t("coordinator.detail.surfaceIdentifier")}
+        label={t(labelKeyOf(surfaceFields, "identifier"))}
         hint={t("coordinator.detail.surfaceIdentifierHelp")}
         value={val("identifier")}
         onChange={(e) => handleChange("identifier", e.target.value)}
       />
       <div>
         <label className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary">
-          <span>{t("coordinator.detail.surfaceType")}</span>
+          <span>{t(labelKeyOf(surfaceFields, "surface_type"))}</span>
           <InfoHint
             text={t("coordinator.detail.surfaceTypeHelp")}
             label={t("coordinator.detail.surfaceType")}
@@ -86,7 +87,7 @@ export default function SurfaceFields({
       </div>
       <Input
         id="feat-heading"
-        label={t("coordinator.detail.surfaceHeading")}
+        label={t(labelKeyOf(surfaceFields, "heading"))}
         hint={t("coordinator.detail.surfaceHeadingHelp")}
         type="number"
         value={val("heading")}
@@ -126,7 +127,7 @@ export default function SurfaceFields({
       <div className="grid grid-cols-2 gap-1.5">
         <Input
           id="feat-length"
-          label={t("coordinator.detail.surfaceLength")}
+          label={t(labelKeyOf(surfaceFields, "length"))}
           hint={t("coordinator.detail.surfaceLengthHelp")}
           type="number"
           value={val("length")}
@@ -134,7 +135,7 @@ export default function SurfaceFields({
         />
         <Input
           id="feat-width"
-          label={t("coordinator.detail.surfaceWidth")}
+          label={t(labelKeyOf(surfaceFields, "width"))}
           hint={t("coordinator.detail.surfaceWidthHelp")}
           type="number"
           value={val("width")}
@@ -143,7 +144,7 @@ export default function SurfaceFields({
       </div>
       <Input
         id="feat-surface-buffer"
-        label={t("coordinator.detail.bufferDistance")}
+        label={t(labelKeyOf(surfaceFields, "buffer_distance"))}
         hint={t("coordinator.detail.bufferDistanceHelp")}
         type="number"
         value={val("buffer_distance")}

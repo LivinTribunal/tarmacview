@@ -16,6 +16,13 @@ describe("methodBadgeStyle", () => {
     });
   });
 
+  it("derives runway-horizontal-range vars from its slug", () => {
+    expect(methodBadgeStyle("RUNWAY_HORIZONTAL_RANGE")).toEqual({
+      backgroundColor: "var(--tv-method-runway-horizontal-range-bg)",
+      color: "var(--tv-method-runway-horizontal-range-text)",
+    });
+  });
+
   it("returns no styling for an unknown method", () => {
     expect(methodBadgeStyle("NOT_A_METHOD")).toEqual({});
     expect(methodBadgeStyle("")).toEqual({});

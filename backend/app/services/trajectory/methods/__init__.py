@@ -17,6 +17,7 @@ from ._dispatch import (
     _hover_point_lock_handler,
     _meht_check_handler,
     _parallel_side_sweep_handler,
+    _runway_horizontal_range_handler,
     _surface_scan_handler,
     _vertical_profile_handler,
 )
@@ -27,6 +28,7 @@ from ._prepare import (
     _prepare_hover_point_lock,
     _prepare_meht_check,
     _prepare_parallel_side_sweep,
+    _prepare_runway_horizontal_range,
     _prepare_surface_scan,
     _prepare_vertical_profile,
 )
@@ -79,6 +81,11 @@ METHOD_SPECS: list[MethodSpec] = [
     ),
     MethodSpec(InspectionMethod.MEHT_CHECK, _prepare_meht_check, _meht_check_handler),
     MethodSpec(InspectionMethod.SURFACE_SCAN, _prepare_surface_scan, _surface_scan_handler),
+    MethodSpec(
+        InspectionMethod.RUNWAY_HORIZONTAL_RANGE,
+        _prepare_runway_horizontal_range,
+        _runway_horizontal_range_handler,
+    ),
 ]
 
 # registries derived from the single spec list - no hand-synced dicts.

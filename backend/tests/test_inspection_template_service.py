@@ -364,6 +364,55 @@ def test_bulk_create_templates_surface_scan_idempotent(db_session):
     assert not any(t.name == "Surface Scan" for t in created_2)
 
 
+def _make_airport_with_rel(db_session, icao):
+    """helper: create airport with runway surface and a runway-edge-lights AGL."""
+    from app.models.agl import AGL
+    from app.models.airport import AirfieldSurface, Airport
+
+    airport = Airport(
+        icao_code=icao,
+        name=f"Test Airport {icao}",
+        elevation=100.0,
+        location="SRID=4326;POINTZ(17.0 48.0 100)",
+    )
+    db_session.add(airport)
+    db_session.flush()
+
+    surface = AirfieldSurface(
+        airport_id=airport.id,
+        identifier="09",
+        surface_type="RUNWAY",
+        geometry="SRID=4326;LINESTRINGZ(17.0 48.0 100, 17.01 48.0 100)",
+        heading=90.0,
+        length=2500.0,
+    )
+    db_session.add(surface)
+    db_session.flush()
+
+    agl = AGL(
+        surface_id=surface.id,
+        agl_type="RUNWAY_EDGE_LIGHTS",
+        name="REL 09",
+        position="SRID=4326;POINTZ(17.0 48.0 100)",
+    )
+    db_session.add(agl)
+    db_session.flush()
+
+    return airport, agl
+
+
+def test_bulk_create_templates_seeds_runway_horizontal_range(db_session):
+    """a REL AGL auto-seeds a Runway Horizontal Range template carrying the method."""
+    airport, _agl = _make_airport_with_rel(db_session, icao="LZRH")
+
+    bulk_create_templates(db_session, airport.id)
+
+    templates = list_templates(db_session, airport_id=airport.id)
+    rel_hr = [t for t in templates if "RUNWAY_HORIZONTAL_RANGE" in (t.methods or [])]
+    assert len(rel_hr) == 1
+    assert "Runway Horizontal Range" in rel_hr[0].name
+
+
 def test_create_surface_scan_template_with_zero_targets(db_session):
     """a surface-scan template carries no AGL targets and passes compat validation."""
     schema = InspectionTemplateCreate(

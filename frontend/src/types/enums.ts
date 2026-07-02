@@ -31,7 +31,8 @@ export type InspectionMethod =
   | "PARALLEL_SIDE_SWEEP"
   | "HOVER_POINT_LOCK"
   | "MEHT_CHECK"
-  | "SURFACE_SCAN";
+  | "SURFACE_SCAN"
+  | "RUNWAY_HORIZONTAL_RANGE";
 
 export type ScanLengthMode = "FULL" | "MAX_LENGTH" | "INTERVAL";
 

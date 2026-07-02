@@ -14,6 +14,7 @@ export const METHOD_AGL_COMPAT: Record<InspectionMethod, AglType[]> = {
   FLY_OVER: ["RUNWAY_EDGE_LIGHTS"],
   PARALLEL_SIDE_SWEEP: ["RUNWAY_EDGE_LIGHTS"],
   MEHT_CHECK: ["PAPI"],
+  RUNWAY_HORIZONTAL_RANGE: ["RUNWAY_EDGE_LIGHTS"],
 };
 
 // per-method UI capability flags - drives which inspection-config inputs and
@@ -100,12 +101,24 @@ export const METHOD_CAPABILITIES: Record<InspectionMethod, MethodCaps> = {
     target: "LHA",
     formSlot: "trailing",
   },
+  RUNWAY_HORIZONTAL_RANGE: {
+    usesMeasurementSpeed: true,
+    usesDensity: true,
+    usesHover: true,
+    usesDirection: true,
+    target: "LHA",
+    formSlot: "geometry",
+  },
 };
 
 // all methods by AGL type (useful for the 2-step picker)
 export const METHODS_BY_AGL: Record<AglType, InspectionMethod[]> = {
   PAPI: ["VERTICAL_PROFILE", "HORIZONTAL_RANGE", "APPROACH_DESCENT", "MEHT_CHECK"],
-  RUNWAY_EDGE_LIGHTS: ["FLY_OVER", "PARALLEL_SIDE_SWEEP"],
+  RUNWAY_EDGE_LIGHTS: [
+    "FLY_OVER",
+    "PARALLEL_SIDE_SWEEP",
+    "RUNWAY_HORIZONTAL_RANGE",
+  ],
 };
 
 // derived from METHOD_AGL_COMPAT so a new method only needs the one entry above -

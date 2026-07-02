@@ -389,7 +389,8 @@
       "PARALLEL_SIDE_SWEEP": "Paralelné bočné prelety",
       "HOVER_POINT_LOCK": "Vznášanie nad bodom",
       "MEHT_CHECK": "Kontrola MEHT",
-      "SURFACE_SCAN": "Skenovanie povrchu"
+      "SURFACE_SCAN": "Skenovanie povrchu",
+      "RUNWAY_HORIZONTAL_RANGE": "Horizontálny rozsah dráhy"
     },
     "inspectionMethodShort": {
       "VERTICAL_PROFILE": "Vertikálny",
@@ -399,7 +400,8 @@
       "PARALLEL_SIDE_SWEEP": "Bočný prelet",
       "HOVER_POINT_LOCK": "Vznášanie",
       "MEHT_CHECK": "MEHT",
-      "SURFACE_SCAN": "Sken"
+      "SURFACE_SCAN": "Sken",
+      "RUNWAY_HORIZONTAL_RANGE": "H-rozsah dráhy"
     },
     "zoomIn": "Priblížiť",
     "zoomOut": "Oddialiť",

@@ -903,7 +903,7 @@ describe("TemplatePicker", () => {
         id: "t-runway",
         name: "Runway Fly-over",
         description: null,
-        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP"],
+        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP", "RUNWAY_HORIZONTAL_RANGE"],
         target_agl_ids: ["agl-runway"],
         default_config: null,
         angular_tolerances: null,
@@ -1190,7 +1190,7 @@ describe("InspectionList method dropdown", () => {
         id: "t-1",
         name: "Runway Inspection",
         description: null,
-        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP"],
+        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP", "RUNWAY_HORIZONTAL_RANGE"],
         target_agl_ids: ["agl-runway"],
         default_config: null,
         angular_tolerances: null,
@@ -1331,11 +1331,11 @@ describe("BulkCreateTemplatesDialog", () => {
     /** verify all compatible AGL x method combos plus the agnostic methods are listed. */
     renderDialog();
     // PAPI: VERTICAL_PROFILE, HORIZONTAL_RANGE, APPROACH_DESCENT, MEHT_CHECK = 4
-    // RUNWAY_EDGE_LIGHTS: FLY_OVER, PARALLEL_SIDE_SWEEP = 2
-    // + 2 AGL-agnostic (HOVER_POINT_LOCK, SURFACE_SCAN) = 8 total
+    // RUNWAY_EDGE_LIGHTS: FLY_OVER, PARALLEL_SIDE_SWEEP, RUNWAY_HORIZONTAL_RANGE = 3
+    // + 2 AGL-agnostic (HOVER_POINT_LOCK, SURFACE_SCAN) = 9 total
     expect(screen.getByText("coordinator.inspections.bulkCreateCount")).toBeInTheDocument();
     expect(screen.getAllByText("PAPI RWY 09")).toHaveLength(4);
-    expect(screen.getAllByText("RWY EDGE 09")).toHaveLength(2);
+    expect(screen.getAllByText("RWY EDGE 09")).toHaveLength(3);
     expect(screen.getAllByText("map.inspectionMethodShort.HOVER_POINT_LOCK").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTestId("bulk-create-agnostic-surface_scan")).toBeInTheDocument();
   });
@@ -1360,7 +1360,7 @@ describe("BulkCreateTemplatesDialog", () => {
         id: "t-2",
         name: "Existing 2",
         description: null,
-        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP"],
+        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP", "RUNWAY_HORIZONTAL_RANGE"],
         target_agl_ids: ["agl-runway"],
         default_config: null,
         angular_tolerances: null,
@@ -1422,7 +1422,7 @@ describe("BulkCreateTemplatesDialog", () => {
         id: "t-2",
         name: "All covered 2",
         description: null,
-        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP"],
+        methods: ["FLY_OVER", "PARALLEL_SIDE_SWEEP", "RUNWAY_HORIZONTAL_RANGE"],
         target_agl_ids: ["agl-runway"],
         default_config: null,
         angular_tolerances: null,

@@ -387,7 +387,8 @@
       "PARALLEL_SIDE_SWEEP": "Parallel Side Sweep",
       "HOVER_POINT_LOCK": "Hover Point Lock",
       "MEHT_CHECK": "MEHT Check",
-      "SURFACE_SCAN": "Surface Scan"
+      "SURFACE_SCAN": "Surface Scan",
+      "RUNWAY_HORIZONTAL_RANGE": "Runway Horizontal Range"
     },
     "inspectionMethodShort": {
       "VERTICAL_PROFILE": "Vertical",
@@ -397,7 +398,8 @@
       "PARALLEL_SIDE_SWEEP": "Side Sweep",
       "HOVER_POINT_LOCK": "Hover Lock",
       "MEHT_CHECK": "MEHT",
-      "SURFACE_SCAN": "Scan"
+      "SURFACE_SCAN": "Scan",
+      "RUNWAY_HORIZONTAL_RANGE": "Rwy H-Range"
     },
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",

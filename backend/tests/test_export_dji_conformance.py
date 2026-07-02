@@ -280,6 +280,7 @@ _GROUND = 290.0
 _BODY_TRACKS_METHODS = (
     "VERTICAL_PROFILE",
     "HORIZONTAL_RANGE",
+    "RUNWAY_HORIZONTAL_RANGE",
     "APPROACH_DESCENT",
     "MEHT_CHECK",
     "HOVER_POINT_LOCK",
@@ -312,7 +313,9 @@ def _method_measurements(method: str, n: int) -> list[tuple]:
         heading = bearing_between(lon, lat, target_lon, target_lat)
         for i in range(n):
             rows.append((lon, lat, _GROUND + 10 + i * 3, heading, round(-1.0 - i, 4), target))
-    elif method in ("HORIZONTAL_RANGE", "MEHT_CHECK"):
+    elif method in ("HORIZONTAL_RANGE", "RUNWAY_HORIZONTAL_RANGE", "MEHT_CHECK"):
+        # HR and runway-HR fly the same constant-altitude arc around the target;
+        # runway-HR centers on the touchpoint rather than the PAPI LHA.
         radius = 200.0
         for i in range(n):
             bearing_deg = 60.0 + (120.0 - 60.0) * i / max(1, n - 1)

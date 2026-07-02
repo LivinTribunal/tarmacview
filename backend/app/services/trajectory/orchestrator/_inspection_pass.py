@@ -26,7 +26,9 @@ from ..helpers import (
     get_lha_setting_angles,
     get_ordered_lha_positions,
     get_runway_heading,
+    get_runway_identifier,
     get_surface_centerline_midpoint,
+    get_touchpoint_position,
     resolve_center_height_offset,
     resolve_scan_surface,
 )
@@ -138,6 +140,14 @@ def _process_inspection(
         if center is None:
             raise TrajectoryGenerationError(
                 f"{label}: surface scan target {scan_surface.identifier} has no usable centerline"
+            )
+    elif inspection.method == InspectionMethod.RUNWAY_HORIZONTAL_RANGE:
+        # REL arc is centered on the runway touchpoint, not the light row centroid.
+        center = get_touchpoint_position(template, mission_data.surfaces)
+        if center is None:
+            rwy = get_runway_identifier(template, mission_data.surfaces) or "the runway"
+            raise TrajectoryGenerationError(
+                f"{label}: runway horizontal range requires a surveyed touchpoint on {rwy}"
             )
     elif not lha_positions:
         if inspection.method == InspectionMethod.HOVER_POINT_LOCK:

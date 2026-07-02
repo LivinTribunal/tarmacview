@@ -1,6 +1,11 @@
 """per-method handlers - dispatch a resolved inspection to its path computation."""
 
-from ..types import MethodContext, MethodPrep, WaypointData
+from ..types import (
+    DEFAULT_RUNWAY_HORIZONTAL_RANGE_HEIGHT,
+    MethodContext,
+    MethodPrep,
+    WaypointData,
+)
 from .approach_descent import calculate_approach_descent_path
 from .fly_over import calculate_fly_over_path
 from .horizontal_range import calculate_arc_path
@@ -15,6 +20,25 @@ def _horizontal_range_handler(ctx: MethodContext, prep: MethodPrep) -> list[Wayp
     """handler for HORIZONTAL_RANGE method."""
     return calculate_arc_path(
         ctx.center, ctx.runway_heading, ctx.glide_slope, ctx.config, ctx.inspection.id, ctx.speed
+    )
+
+
+def _runway_horizontal_range_handler(ctx: MethodContext, prep: MethodPrep) -> list[WaypointData]:
+    """handler for RUNWAY_HORIZONTAL_RANGE - constant-altitude REL arc around the touchpoint."""
+    height = (
+        ctx.config.height_above_lights
+        if ctx.config.height_above_lights is not None
+        else DEFAULT_RUNWAY_HORIZONTAL_RANGE_HEIGHT
+    )
+    # angle is unused when height_override is set; center is the touchpoint.
+    return calculate_arc_path(
+        ctx.center,
+        ctx.runway_heading,
+        0.0,
+        ctx.config,
+        ctx.inspection.id,
+        ctx.speed,
+        height_override=height,
     )
 
 

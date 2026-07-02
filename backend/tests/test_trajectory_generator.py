@@ -138,6 +138,39 @@ def test_arc_path_altitude_uses_glide_slope():
         assert abs(wp.alt - expected_alt) < 0.1
 
 
+def test_arc_path_height_override_sets_constant_altitude():
+    """height_override fixes the arc altitude at center_alt + height + offset (no glide term)."""
+    from app.services.trajectory.methods.horizontal_range import calculate_arc_path
+
+    config = ResolvedConfig(measurement_density=4, altitude_offset=5.0)
+    center = Point3D(lon=14.274, lat=50.098, alt=380.0)
+
+    wps = calculate_arc_path(center, 243.0, 3.0, config, None, 5.0, height_override=25.0)
+
+    for wp in wps:
+        assert abs(wp.alt - (center.alt + 25.0 + 5.0)) < 0.01
+
+
+def test_arc_path_height_override_none_matches_glide_slope():
+    """height_override=None reproduces the glide-slope altitude (HR regression net)."""
+    from app.services.trajectory.methods.horizontal_range import calculate_arc_path
+    from app.services.trajectory.types import MIN_ARC_RADIUS
+
+    config = ResolvedConfig(measurement_density=3, altitude_offset=5.0)
+    center = Point3D(lon=14.274, lat=50.098, alt=380.0)
+    glide_slope = 3.0
+    expected_alt = center.alt + MIN_ARC_RADIUS * math.tan(math.radians(glide_slope)) + 5.0
+
+    base = calculate_arc_path(center, 243.0, glide_slope, config, None, 5.0)
+    override_none = calculate_arc_path(
+        center, 243.0, glide_slope, config, None, 5.0, height_override=None
+    )
+
+    for wp, wp2 in zip(base, override_none):
+        assert abs(wp.alt - expected_alt) < 0.1
+        assert wp.alt == wp2.alt
+
+
 # vertical path tests
 def test_vertical_path_count():
     """vertical path should generate measurement_density waypoints"""

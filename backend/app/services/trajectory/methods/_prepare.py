@@ -20,6 +20,8 @@ from ..types import (
     DEFAULT_FLY_OVER_SPEED,
     DEFAULT_PARALLEL_SPEED,
     DEFAULT_SURFACE_SCAN_SPEED,
+    DEFAULT_SWEEP_ANGLE,
+    MIN_ARC_RADIUS,
     MethodContext,
     MethodPrep,
     Point3D,
@@ -55,6 +57,19 @@ def _prepare_horizontal_range(ctx: MethodContext) -> MethodPrep:
 
 
 # same symmetric-endpoint caveat as _prepare_horizontal_range above.
+def _prepare_runway_horizontal_range(ctx: MethodContext) -> MethodPrep:
+    """pre-computation for runway horizontal range (REL arc around the touchpoint)."""
+    radius = ctx.config.horizontal_distance or MIN_ARC_RADIUS
+    half_sweep = DEFAULT_SWEEP_ANGLE if ctx.config.sweep_angle is None else ctx.config.sweep_angle
+    # chord across the swept arc, matching HR endpoint spacing for speed resolution
+    path_dist = 2 * radius * math.sin(math.radians(half_sweep))
+    return MethodPrep(
+        path_distance=path_dist,
+        default_speed=ctx.default_speed,
+        density_for_speed=ctx.config.measurement_density,
+    )
+
+
 def _prepare_vertical_profile(ctx: MethodContext) -> MethodPrep:
     """pre-computation for vertical profile."""
     setting_angles = ctx.setting_angles or []

@@ -16,6 +16,9 @@ interface HorizontalRangeGeometryProps {
   configOverride: InspectionConfigOverride;
   onChange: (override: InspectionConfigOverride) => void;
   onNumberChange: (field: keyof InspectionConfigOverride, raw: string) => void;
+  // "runway" hides the PAPI glide-slope inputs (angle offset, setting-angle
+  // override, computed observation angle) - REL uses an explicit arc height.
+  variant?: "papi" | "runway";
 }
 
 export default function HorizontalRangeGeometry({
@@ -28,6 +31,7 @@ export default function HorizontalRangeGeometry({
   configOverride,
   onChange,
   onNumberChange,
+  variant = "papi",
 }: HorizontalRangeGeometryProps) {
   /** horizontal-range geometry overrides: sweep, offset, buffer, setting-angle. */
   const { t } = useTranslation();
@@ -64,33 +68,35 @@ export default function HorizontalRangeGeometry({
           data-testid="inspection-sweep-angle"
         />
       </div>
-      <div>
-        <label
-          htmlFor={offsetId}
-          className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary"
-        >
-          <span>{t("mission.config.angleOffset")}</span>
-          <InfoHint
-            text={t("mission.config.angleOffsetHelp")}
-            label={t("mission.config.angleOffset")}
-            testId="hint-inspection-angle-offset"
+      {variant === "papi" && (
+        <div>
+          <label
+            htmlFor={offsetId}
+            className="flex items-center gap-1 text-xs font-medium mb-1 text-tv-text-secondary"
+          >
+            <span>{t("mission.config.angleOffset")}</span>
+            <InfoHint
+              text={t("mission.config.angleOffsetHelp")}
+              label={t("mission.config.angleOffset")}
+              testId="hint-inspection-angle-offset"
+            />
+          </label>
+          <input
+            id={offsetId}
+            type="number"
+            step="0.1"
+            min="0"
+            max="10"
+            value={angleOffsetAbove}
+            onChange={(e) =>
+              onNumberChange("angle_offset_above", e.target.value)
+            }
+            placeholder={t("mission.config.angleOffsetHint")}
+            className="w-full px-3 py-2 rounded-full text-sm border border-tv-border bg-tv-bg text-tv-text-primary placeholder:text-tv-text-muted focus:outline-none focus:border-tv-accent transition-colors"
+            data-testid="inspection-angle-offset"
           />
-        </label>
-        <input
-          id={offsetId}
-          type="number"
-          step="0.1"
-          min="0"
-          max="10"
-          value={angleOffsetAbove}
-          onChange={(e) =>
-            onNumberChange("angle_offset_above", e.target.value)
-          }
-          placeholder={t("mission.config.angleOffsetHint")}
-          className="w-full px-3 py-2 rounded-full text-sm border border-tv-border bg-tv-bg text-tv-text-primary placeholder:text-tv-text-muted focus:outline-none focus:border-tv-accent transition-colors"
-          data-testid="inspection-angle-offset"
-        />
-      </div>
+        </div>
+      )}
       <div>
         <label
           htmlFor={bufferId}
@@ -117,6 +123,7 @@ export default function HorizontalRangeGeometry({
           data-testid="inspection-buffer-distance"
         />
       </div>
+      {variant === "papi" && (
       <div>
         <label
           htmlFor={settingAngleId}
@@ -153,7 +160,8 @@ export default function HorizontalRangeGeometry({
           {t("mission.config.lhaSettingAngleOverrideHint")}
         </p>
       </div>
-      {computedObservationAngle != null && (
+      )}
+      {variant === "papi" && computedObservationAngle != null && (
         <ReadOnlyField
           label={t("mission.config.computedObservationAngle")}
           hint={t("mission.config.computedObservationAngleHelp")}

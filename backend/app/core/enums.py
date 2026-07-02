@@ -74,6 +74,7 @@ class InspectionMethod(str, enum.Enum):
     HOVER_POINT_LOCK = "HOVER_POINT_LOCK"
     MEHT_CHECK = "MEHT_CHECK"
     SURFACE_SCAN = "SURFACE_SCAN"
+    RUNWAY_HORIZONTAL_RANGE = "RUNWAY_HORIZONTAL_RANGE"
 
 
 class ScanLengthMode(str, enum.Enum):
@@ -117,6 +118,7 @@ METHOD_AGL_COMPAT: dict[InspectionMethod, set[str]] = {
     InspectionMethod.FLY_OVER: {"RUNWAY_EDGE_LIGHTS"},
     InspectionMethod.PARALLEL_SIDE_SWEEP: {"RUNWAY_EDGE_LIGHTS"},
     InspectionMethod.MEHT_CHECK: {"PAPI"},
+    InspectionMethod.RUNWAY_HORIZONTAL_RANGE: {"RUNWAY_EDGE_LIGHTS"},
 }
 
 
